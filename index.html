@@ -62,6 +62,7 @@ textarea{min-height:120px;resize:vertical}
 .team .names{flex:1;font-weight:600;min-width:0;overflow-wrap:anywhere}
 .team input{width:64px;text-align:center;font-weight:700;font-size:18px;padding:6px}
 .team.win .names{color:var(--accent)}
+.pname{font:inherit;font-weight:600;color:inherit;background:none;border:0;padding:0;border-bottom:1px dashed var(--muted);cursor:pointer;text-align:left}
 .vs{font-size:12px;color:var(--muted);padding-left:2px}
 .sitting{font-size:14px;color:var(--muted)}
 .sitting b{color:var(--text);font-weight:600}
@@ -221,6 +222,19 @@ function undoRound() {
 
 function reshuffle() { S.rounds.pop(); nextRound(); }
 
+// Replace an unavailable player with the next person in line from the sitting-out list.
+function swapOut(r, m, side, idx) {
+  const rd = S.rounds[r], team = rd.matches[m][side], out = team[idx];
+  const sub = rd.sitting.find(id => byId(id) && byId(id).active);
+  if (!sub) { toast('No one sitting out to swap in'); return; }
+  if (!confirm(`${nm(out)} can't play? ${nm(sub)} takes their place.`)) return;
+  team[idx] = sub;
+  rd.sitting = rd.sitting.filter(id => id !== sub).concat(out);
+  byId(out).active = false;
+  save(); render();
+  toast(`${nm(out)} set to Skip (turn back on in Players)`);
+}
+
 function setScore(r, m, side, el) {
   const v = el.value === '' ? null : Math.max(0, parseInt(el.value, 10) || 0);
   const match = S.rounds[r].matches[m];
@@ -247,7 +261,8 @@ function parseList(text) {
   if (lines.filter(l => l.trim()).length === 1 && lines.join('').includes(',')) lines = lines.join('').split(',');
   const seen = new Set(), out = [];
   lines.forEach(l => {
-    const name = l.replace(/^[\s\d.)\-*•·:]+/, '').replace(/\s+/g, ' ').trim();
+    const name = l.replace(/[✅☑✔❌❎️]/g, '')
+      .replace(/^[\s\d.)\-*•·:]+/, '').replace(/\s+/g, ' ').trim();
     const k = name.toLowerCase();
     if (name && !seen.has(k)) { seen.add(k); out.push(name); }
   });
@@ -409,15 +424,22 @@ function viewRounds() {
           ${r === n - 1 && !lastHasScores ? `<button class="btn small" onclick="reshuffle()">Reshuffle</button>` : ''}
           <button class="btn small" onclick="copyRound(${r})">Copy</button>
         </span></h2>
-      ${rd.matches.map((m, i) => `
+      ${rd.matches.map((m, i) => {
+        // Names in the latest round are tappable to swap in a substitute.
+        const pn = (side, k) => r === n - 1
+          ? `<button class="pname" onclick="swapOut(${r},${i},'${side}',${k})" title="Tap if unavailable">${esc(nm(m[side][k]))}</button>`
+          : esc(nm(m[side][k]));
+        return `
         <div class="match" id="m-${r}-${i}">
           <div class="court">Court ${i + 1}</div>
-          <div class="team ${hasScore(m) && m.sa > m.sb ? 'win' : ''}"><span class="names">${esc(nm(m.a[0]))} &amp; ${esc(nm(m.a[1]))}</span>
+          <div class="team ${hasScore(m) && m.sa > m.sb ? 'win' : ''}"><span class="names">${pn('a', 0)} &amp; ${pn('a', 1)}</span>
             <input id="s-${r}-${i}-a" type="number" inputmode="numeric" min="0" value="${m.sa ?? ''}" oninput="setScore(${r},${i},'a',this)" aria-label="Score"></div>
           <div class="vs">vs</div>
-          <div class="team ${hasScore(m) && m.sb > m.sa ? 'win' : ''}"><span class="names">${esc(nm(m.b[0]))} &amp; ${esc(nm(m.b[1]))}</span>
+          <div class="team ${hasScore(m) && m.sb > m.sa ? 'win' : ''}"><span class="names">${pn('b', 0)} &amp; ${pn('b', 1)}</span>
             <input id="s-${r}-${i}-b" type="number" inputmode="numeric" min="0" value="${m.sb ?? ''}" oninput="setScore(${r},${i},'b',this)" aria-label="Score"></div>
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
+      ${r === n - 1 && rd.sitting.length ? `<p class="muted" style="margin:0 0 6px">Someone can't play? Tap their name to swap in the next person sitting out.</p>` : ''}
       ${rd.sitting.length ? `<div class="sitting">Sitting out: <b>${rd.sitting.map(id => esc(nm(id))).join(', ')}</b></div>` : ''}
     </section>`;
   }
