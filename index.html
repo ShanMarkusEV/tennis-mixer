@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tennis Mixer</title>
+<meta name="description" content="Americano and Mexicano doubles rotation for social tennis.">
+<meta name="theme-color" content="#1f6f4a">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23d4e157'/%3E%3Cpath d='M18 22c22 14 22 42 0 56M82 22c-22 14-22 42 0 56' fill='none' stroke='%23fff' stroke-width='6'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f3f5f2;--card:#fff;--text:#1a231f;--muted:#65726b;--line:#dce3de;
+  --accent:#1f6f4a;--accent-ink:#fff;--soft:#e6f0ea;--ball:#d4e157;--warn:#b54708;--off:#eef0ee;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#111513;--card:#1a201d;--text:#e6ebe8;--muted:#98a59e;--line:#2b3430;
+    --accent:#45ad7a;--accent-ink:#05110b;--soft:#1f2f27;--warn:#f0a35e;--off:#232a26}
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+header{background:var(--accent);color:var(--accent-ink);padding:14px 16px 0;position:sticky;top:0;z-index:5}
+header h1{margin:0 0 10px;font-size:20px;display:flex;align-items:center;gap:8px}
+header h1 .ball{width:18px;height:18px;border-radius:50%;background:var(--ball);display:inline-block;box-shadow:inset -3px -3px 0 rgba(0,0,0,.12)}
+nav{display:flex;gap:4px;max-width:720px}
+nav button{flex:1;background:none;border:0;color:inherit;opacity:.75;padding:10px 4px 12px;font:inherit;font-weight:600;border-bottom:3px solid transparent;cursor:pointer}
+nav button.on{opacity:1;border-bottom-color:var(--ball)}
+main{max-width:720px;margin:0 auto;padding:16px 16px 80px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+h2{font-size:16px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h2 small{font-weight:500;color:var(--muted);font-size:13px}
+p.muted,.muted{color:var(--muted);font-size:14px;margin:0 0 10px}
+button.btn{font:inherit;font-weight:600;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text);padding:10px 14px;cursor:pointer}
+button.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.btn.small{padding:6px 10px;font-size:14px}
+button.btn.danger{color:var(--warn)}
+button.btn:disabled{opacity:.5}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grow{flex:1}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--card);color:var(--text);padding:10px;font:inherit;font-weight:600;cursor:pointer}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.field{margin-top:12px}
+.field label{display:block;font-size:14px;color:var(--muted);margin-bottom:4px}
+input[type=text],input[type=number],textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:100%}
+textarea{min-height:120px;resize:vertical}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stepper button{border:0;background:var(--card);color:var(--text);font:inherit;font-size:20px;width:44px;height:40px;cursor:pointer}
+.stepper span{min-width:36px;text-align:center;font-weight:700}
+.player{display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.player:first-of-type{border-top:0}
+.player input{flex:1}
+.player.skip input{opacity:.55;text-decoration:line-through}
+.pill{border:0;border-radius:999px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;min-width:76px;cursor:pointer}
+.pill.in{background:var(--soft);color:var(--accent)}
+.pill.out{background:var(--off);color:var(--muted)}
+.x{border:0;background:none;color:var(--muted);font-size:20px;width:32px;height:36px;cursor:pointer}
+.round h2 .tag{font-size:12px;font-weight:700;background:var(--soft);color:var(--accent);padding:2px 8px;border-radius:999px;margin-left:6px}
+.match{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:10px}
+.court{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.team{display:flex;align-items:center;gap:10px;padding:4px 0}
+.team .names{flex:1;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.team input{width:64px;text-align:center;font-weight:700;font-size:18px;padding:6px}
+.team.win .names{color:var(--accent)}
+.vs{font-size:12px;color:var(--muted);padding-left:2px}
+.sitting{font-size:14px;color:var(--muted)}
+.sitting b{color:var(--text);font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{padding:8px 4px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase}
+th:nth-child(2),td:nth-child(2){text-align:left;white-space:normal;width:100%}
+td:first-child,th:first-child{text-align:left;color:var(--muted);width:24px}
+tr.top td{font-weight:700}
+.empty{text-align:center;padding:28px 10px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+.toast.show{opacity:1}
+.help summary{cursor:pointer;font-weight:600}
+.help p{font-size:14px;color:var(--muted);margin:8px 0 0}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="ball"></span>Tennis Mixer</h1>
+  <nav>
+    <button data-tab="players">Players</button>
+    <button data-tab="rounds">Rounds</button>
+    <button data-tab="standings">Standings</button>
+  </nav>
+</header>
+<main id="view"></main>
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = 'tennis-mixer-v1';
+const uid = () => Math.random().toString(36).slice(2, 9);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function defaultState() {
+  return {
+    players: Array.from({length: 10}, (_, i) => ({id: uid(), name: 'Player ' + (i + 1), active: true})),
+    courts: 2, mode: 'americano', total: 0, rounds: [], tab: 'players', sort: 'pts'
+  };
+}
+function load() {
+  try { const v = JSON.parse(localStorage.getItem(KEY)); return v && Array.isArray(v.players) ? v : null; }
+  catch (e) { return null; }
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+let S = Object.assign(defaultState(), load() || {});
+
+const byId = id => S.players.find(p => p.id === id);
+const nm = id => (byId(id) || {name: '?'}).name;
+const pairKey = (a, b) => a < b ? a + '|' + b : b + '|' + a;
+const hasScore = m => m.sa != null && m.sb != null;
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+// ---------- stats ----------
+function computeStats() {
+  const st = {}, partners = {}, opps = {};
+  S.players.forEach(p => st[p.id] = {pts: 0, played: 0, scored: 0, w: 0, d: 0, l: 0, diff: 0, sat: 0});
+  const get = id => st[id] || (st[id] = {pts: 0, played: 0, scored: 0, w: 0, d: 0, l: 0, diff: 0, sat: 0});
+  S.rounds.forEach(r => {
+    r.sitting.forEach(id => get(id).sat++);
+    r.matches.forEach(m => {
+      [...m.a, ...m.b].forEach(id => get(id).played++);
+      partners[pairKey(...m.a)] = (partners[pairKey(...m.a)] || 0) + 1;
+      partners[pairKey(...m.b)] = (partners[pairKey(...m.b)] || 0) + 1;
+      m.a.forEach(x => m.b.forEach(y => opps[pairKey(x, y)] = (opps[pairKey(x, y)] || 0) + 1));
+      if (!hasScore(m)) return;
+      const side = (ids, own, other) => ids.forEach(id => {
+        const s = get(id);
+        s.pts += own; s.scored++; s.diff += own - other;
+        if (own > other) s.w++; else if (own < other) s.l++; else s.d++;
+      });
+      side(m.a, m.sa, m.sb); side(m.b, m.sb, m.sa);
+    });
+  });
+  Object.values(st).forEach(s => s.avg = s.scored ? s.pts / s.scored : 0);
+  return {st, partners, opps};
+}
+
+// ---------- round generation ----------
+function americanoPairs(ids, courts, partners, opps) {
+  let best = null, bestCost = Infinity;
+  for (let it = 0; it < 4000 && bestCost > 0; it++) {
+    const s = shuffle(ids.slice());
+    let cost = 0;
+    for (let c = 0; c < courts; c++) {
+      const [a, b, x, y] = s.slice(c * 4, c * 4 + 4);
+      cost += ((partners[pairKey(a, b)] || 0) + (partners[pairKey(x, y)] || 0)) * 100;
+      cost += [[a, x], [a, y], [b, x], [b, y]].reduce((t, [p, q]) => t + (opps[pairKey(p, q)] || 0) ** 2, 0) * 5;
+    }
+    if (cost < bestCost) { bestCost = cost; best = s; }
+  }
+  const out = [];
+  for (let c = 0; c < courts; c++) {
+    const g = best.slice(c * 4, c * 4 + 4);
+    out.push({a: [g[0], g[1]], b: [g[2], g[3]]});
+  }
+  return out;
+}
+
+function mexicanoPairs(ids, courts, st, partners, opps) {
+  const anyScores = S.rounds.some(r => r.matches.some(hasScore));
+  if (!anyScores) return americanoPairs(ids, courts, partners, opps);
+  // Seed by average games per match, so players who sat out or skipped aren't punished.
+  const ranked = shuffle(ids.slice()).sort((x, y) => st[y].avg - st[x].avg || st[y].diff - st[x].diff);
+  const out = [];
+  for (let c = 0; c < courts; c++) {
+    const [p1, p2, p3, p4] = ranked.slice(c * 4, c * 4 + 4);
+    // Prefer 1&4 vs 2&3 (balanced); fall back if those partners just played together a lot.
+    const opts = [[[p1, p4], [p2, p3], 0], [[p1, p3], [p2, p4], 1], [[p1, p2], [p3, p4], 3]];
+    let best = null, bestCost = Infinity;
+    opts.forEach(([a, b, base]) => {
+      const cost = base + ((partners[pairKey(...a)] || 0) + (partners[pairKey(...b)] || 0)) * 2;
+      if (cost < bestCost) { bestCost = cost; best = {a, b}; }
+    });
+    out.push(best);
+  }
+  return out;
+}
+
+function nextRound() {
+  const active = S.players.filter(p => p.active);
+  const courts = Math.min(S.courts, Math.floor(active.length / 4));
+  if (courts < 1) { alert('Need at least 4 available players.'); return; }
+  const last = S.rounds[S.rounds.length - 1];
+  if (S.mode === 'mexicano' && last && last.matches.some(m => !hasScore(m)) &&
+      !confirm('Some scores in the last round are empty. Mexicano uses scores to pick the next matches. Continue anyway?')) return;
+
+  const {st, partners, opps} = computeStats();
+  const satLast = new Set(last ? last.sitting : []);
+  // Fewest matches played go first; people who just sat out break ties.
+  const order = shuffle(active.map(p => p.id)).sort((x, y) =>
+    st[x].played - st[y].played || (satLast.has(y) ? 1 : 0) - (satLast.has(x) ? 1 : 0));
+  const playing = order.slice(0, courts * 4), sitting = order.slice(courts * 4);
+  const pairs = S.mode === 'mexicano'
+    ? mexicanoPairs(playing, courts, st, partners, opps)
+    : americanoPairs(playing, courts, partners, opps);
+  S.rounds.push({mode: S.mode, matches: pairs.map(p => ({a: p.a, b: p.b, sa: null, sb: null})), sitting});
+  save(); render();
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function undoRound() {
+  const last = S.rounds[S.rounds.length - 1];
+  if (!last) return;
+  if (last.matches.some(m => m.sa != null || m.sb != null) && !confirm('Delete the last round and its scores?')) return;
+  S.rounds.pop(); save(); render();
+}
+
+function reshuffle() { S.rounds.pop(); nextRound(); }
+
+function setScore(r, m, side, el) {
+  const v = el.value === '' ? null : Math.max(0, parseInt(el.value, 10) || 0);
+  const match = S.rounds[r].matches[m];
+  match[side === 'a' ? 'sa' : 'sb'] = v;
+  if (S.total > 0 && v != null && v <= S.total) {
+    const other = side === 'a' ? 'b' : 'a';
+    match[other === 'a' ? 'sa' : 'sb'] = S.total - v;
+    const o = document.getElementById(`s-${r}-${m}-${other}`);
+    if (o) o.value = S.total - v;
+  }
+  save();
+  // Update winner highlight without re-rendering (keeps keyboard focus).
+  const box = document.getElementById(`m-${r}-${m}`);
+  if (box) {
+    const [ta, tb] = box.querySelectorAll('.team');
+    ta.classList.toggle('win', hasScore(match) && match.sa > match.sb);
+    tb.classList.toggle('win', hasScore(match) && match.sb > match.sa);
+  }
+}
+
+// ---------- players ----------
+function parseList(text) {
+  let lines = text.split(/\r?\n/);
+  if (lines.filter(l => l.trim()).length === 1 && lines.join('').includes(',')) lines = lines.join('').split(',');
+  const seen = new Set(), out = [];
+  lines.forEach(l => {
+    const name = l.replace(/^[\s\d.)\-*•·:]+/, '').replace(/\s+/g, ' ').trim();
+    const k = name.toLowerCase();
+    if (name && !seen.has(k)) { seen.add(k); out.push(name); }
+  });
+  return out;
+}
+
+function playedIds() {
+  const s = new Set();
+  S.rounds.forEach(r => { r.sitting.forEach(id => s.add(id)); r.matches.forEach(m => [...m.a, ...m.b].forEach(id => s.add(id))); });
+  return s;
+}
+
+function applyList() {
+  const names = parseList(document.getElementById('paste').value);
+  if (!names.length) { toast('Paste at least one name'); return; }
+  const used = playedIds();
+  const keep = [];
+  S.players.forEach(p => {
+    const listed = names.some(n => n.toLowerCase() === p.name.trim().toLowerCase());
+    if (listed) { p.active = true; keep.push(p); }
+    else if (used.has(p.id)) { p.active = false; keep.push(p); } // keep history, mark as skipped
+  });
+  names.forEach(n => {
+    if (!keep.some(p => p.name.trim().toLowerCase() === n.toLowerCase())) keep.push({id: uid(), name: n, active: true});
+  });
+  S.players = keep;
+  save(); render();
+  toast(`${names.length} players available`);
+}
+
+function toggleActive(id) { const p = byId(id); p.active = !p.active; save(); render(); }
+function rename(id, el) { const p = byId(id); p.name = el.value.trim() || p.name; el.value = p.name; save(); }
+function addPlayer() {
+  S.players.push({id: uid(), name: 'Player ' + (S.players.length + 1), active: true});
+  save(); render();
+  const inputs = document.querySelectorAll('.player input');
+  const last = inputs[inputs.length - 1];
+  if (last) { last.focus(); last.select(); }
+}
+function removePlayer(id) {
+  if (playedIds().has(id)) { toast('Already in a round, tap "Playing" to skip instead'); return; }
+  S.players = S.players.filter(p => p.id !== id); save(); render();
+}
+function setMode(m) { S.mode = m; save(); render(); }
+function setCourts(d) { S.courts = Math.max(1, Math.min(10, S.courts + d)); save(); render(); }
+function setTotal(el) { S.total = Math.max(0, parseInt(el.value, 10) || 0); save(); }
+function newSession() {
+  if (!confirm('Clear all rounds and scores? Players are kept.')) return;
+  S.rounds = []; S.players.forEach(p => p.active = true); save(); S.tab = 'players'; render();
+}
+function resetAll() {
+  if (!confirm('Reset everything back to 10 default players?')) return;
+  S = defaultState(); save(); render();
+}
+
+// ---------- sharing ----------
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t);
+    t.select(); document.execCommand('copy'); t.remove();
+  }
+  toast('Copied, paste it in WhatsApp');
+}
+function copyRound(r) {
+  const rd = S.rounds[r];
+  const lines = [`🎾 Round ${r + 1} (${rd.mode === 'mexicano' ? 'Mexicano' : 'Americano'})`];
+  rd.matches.forEach((m, i) => {
+    const sc = hasScore(m) ? `  ${m.sa}-${m.sb}` : '';
+    lines.push(`Court ${i + 1}: ${nm(m.a[0])} & ${nm(m.a[1])} vs ${nm(m.b[0])} & ${nm(m.b[1])}${sc}`);
+  });
+  if (rd.sitting.length) lines.push(`Sitting out: ${rd.sitting.map(nm).join(', ')}`);
+  copyText(lines.join('\n'));
+}
+function copyStandings() {
+  const rows = standingsRows();
+  const lines = [`🏆 Standings after ${S.rounds.length} round${S.rounds.length === 1 ? '' : 's'}`];
+  rows.forEach((r, i) => lines.push(`${i + 1}. ${r.name}: ${r.pts} games (${r.w}W ${r.l}L, ${r.scored} played)`));
+  copyText(lines.join('\n'));
+}
+
+// ---------- views ----------
+function viewPlayers() {
+  const avail = S.players.filter(p => p.active).length;
+  const courtsUsed = Math.min(S.courts, Math.floor(avail / 4));
+  const sit = avail - courtsUsed * 4;
+  return `
+  <section class="card">
+    <h2>Format</h2>
+    <div class="seg">
+      <button class="${S.mode === 'americano' ? 'on' : ''}" onclick="setMode('americano')">Americano</button>
+      <button class="${S.mode === 'mexicano' ? 'on' : ''}" onclick="setMode('mexicano')">Mexicano</button>
+    </div>
+    <p class="muted" style="margin-top:8px">${S.mode === 'americano'
+      ? 'New partner every round, mixing as evenly as possible. Most social.'
+      : 'Round 1 is random, then players are matched by standings (1st & 4th vs 2nd & 3rd) so games stay close.'}
+      You can switch format between rounds.</p>
+    <div class="field row">
+      <div class="grow"><label>Courts</label>
+        <div class="stepper"><button onclick="setCourts(-1)" aria-label="Fewer courts">−</button><span>${S.courts}</span><button onclick="setCourts(1)" aria-label="More courts">+</button></div>
+      </div>
+      <div class="grow"><label>Total games per match (optional)</label>
+        <input type="number" inputmode="numeric" min="0" placeholder="e.g. 8" value="${S.total || ''}" onchange="setTotal(this)">
+      </div>
+    </div>
+    <p class="muted" style="margin-top:6px">With a total set, typing one team's score fills in the other.</p>
+  </section>
+
+  <section class="card">
+    <h2>Players <small>${avail} available · ${courtsUsed} court${courtsUsed === 1 ? '' : 's'}${sit ? ` · ${sit} sit out each round` : ''}</small></h2>
+    ${S.players.map(p => `
+      <div class="player ${p.active ? '' : 'skip'}">
+        <button class="pill ${p.active ? 'in' : 'out'}" onclick="toggleActive('${p.id}')">${p.active ? 'Playing' : 'Skip'}</button>
+        <input type="text" value="${esc(p.name)}" onchange="rename('${p.id}', this)" onfocus="this.select()" aria-label="Player name">
+        <button class="x" onclick="removePlayer('${p.id}')" aria-label="Remove">×</button>
+      </div>`).join('')}
+    <div class="row" style="margin-top:10px">
+      <button class="btn small" onclick="addPlayer()">+ Add player</button>
+      <span class="grow"></span>
+      <button class="btn small primary" onclick="S.tab='rounds';render()">Go to rounds →</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Paste today's list</h2>
+    <p class="muted">Paste names from WhatsApp, one per line (numbers and bullets are fine). Everyone on the list is set to Playing, anyone missing is set to Skip, and new names are added.</p>
+    <textarea id="paste" placeholder="1. Andi&#10;2. Budi&#10;3. Citra&#10;..."></textarea>
+    <div class="row" style="margin-top:10px"><button class="btn primary" onclick="applyList()">Apply list</button></div>
+  </section>
+
+  <section class="card">
+    <h2>Session</h2>
+    <div class="row">
+      <button class="btn small" onclick="newSession()">Start new session</button>
+      <button class="btn small danger" onclick="resetAll()">Reset everything</button>
+    </div>
+    <p class="muted" style="margin-top:8px">Everything is saved on this phone automatically.</p>
+  </section>`;
+}
+
+function viewRounds() {
+  const avail = S.players.filter(p => p.active).length;
+  const n = S.rounds.length;
+  const lastHasScores = n && S.rounds[n - 1].matches.some(m => m.sa != null || m.sb != null);
+  let html = `
+  <section class="card">
+    <div class="row">
+      <button class="btn primary grow" onclick="nextRound()">Generate round ${n + 1}</button>
+      ${n ? `<button class="btn" onclick="undoRound()">Undo</button>` : ''}
+    </div>
+    <p class="muted" style="margin:8px 0 0">${S.mode === 'mexicano' ? 'Mexicano' : 'Americano'} · ${S.courts} court${S.courts === 1 ? '' : 's'} · ${avail} available. Score = games won by each team. Each player gets their team's games.</p>
+  </section>`;
+  if (!n) return html + `<div class="empty">No rounds yet.<br>Set up players, then tap <b>Generate round 1</b>.</div>`;
+  for (let r = n - 1; r >= 0; r--) {
+    const rd = S.rounds[r];
+    html += `<section class="card round">
+      <h2><span>Round ${r + 1}<span class="tag">${rd.mode === 'mexicano' ? 'Mexicano' : 'Americano'}</span></span>
+        <span class="row">
+          ${r === n - 1 && !lastHasScores ? `<button class="btn small" onclick="reshuffle()">Reshuffle</button>` : ''}
+          <button class="btn small" onclick="copyRound(${r})">Copy</button>
+        </span></h2>
+      ${rd.matches.map((m, i) => `
+        <div class="match" id="m-${r}-${i}">
+          <div class="court">Court ${i + 1}</div>
+          <div class="team ${hasScore(m) && m.sa > m.sb ? 'win' : ''}"><span class="names">${esc(nm(m.a[0]))} &amp; ${esc(nm(m.a[1]))}</span>
+            <input id="s-${r}-${i}-a" type="number" inputmode="numeric" min="0" value="${m.sa ?? ''}" oninput="setScore(${r},${i},'a',this)" aria-label="Score"></div>
+          <div class="vs">vs</div>
+          <div class="team ${hasScore(m) && m.sb > m.sa ? 'win' : ''}"><span class="names">${esc(nm(m.b[0]))} &amp; ${esc(nm(m.b[1]))}</span>
+            <input id="s-${r}-${i}-b" type="number" inputmode="numeric" min="0" value="${m.sb ?? ''}" oninput="setScore(${r},${i},'b',this)" aria-label="Score"></div>
+        </div>`).join('')}
+      ${rd.sitting.length ? `<div class="sitting">Sitting out: <b>${rd.sitting.map(id => esc(nm(id))).join(', ')}</b></div>` : ''}
+    </section>`;
+  }
+  return html;
+}
+
+function standingsRows() {
+  const {st} = computeStats();
+  const rows = S.players.filter(p => st[p.id] && (st[p.id].played || p.active)).map(p => ({name: p.name, ...st[p.id]}));
+  const key = S.sort === 'avg' ? 'avg' : 'pts';
+  return rows.sort((a, b) => b[key] - a[key] || b.diff - a.diff || b.w - a.w);
+}
+
+function viewStandings() {
+  const rows = standingsRows();
+  if (!S.rounds.length) return `<div class="empty">Standings appear after the first round.</div>`;
+  return `<section class="card">
+    <h2>Standings <button class="btn small" onclick="copyStandings()">Copy</button></h2>
+    <div class="seg" style="margin-bottom:10px">
+      <button class="${S.sort !== 'avg' ? 'on' : ''}" onclick="S.sort='pts';save();render()">Total games</button>
+      <button class="${S.sort === 'avg' ? 'on' : ''}" onclick="S.sort='avg';save();render()">Avg per match</button>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Player</th><th>Games</th><th>P</th><th>W‑L</th><th>+/−</th><th>Avg</th></tr></thead>
+      <tbody>${rows.map((r, i) => `<tr class="${i < 3 && r.scored ? 'top' : ''}">
+        <td>${i + 1}</td><td>${esc(r.name)}</td><td>${r.pts}</td><td>${r.scored}</td>
+        <td>${r.w}-${r.l}${r.d ? `-${r.d}` : ''}</td><td>${r.diff > 0 ? '+' : ''}${r.diff}</td><td>${r.avg.toFixed(1)}</td></tr>`).join('')}
+      </tbody>
+    </table>
+    <p class="muted" style="margin-top:10px">If some people sat out or skipped more rounds, "Avg per match" is the fairer ranking.</p>
+  </section>
+  <details class="card help"><summary>Americano vs Mexicano</summary>
+    <p><b>Americano:</b> partners rotate on a fixed mixing pattern so everyone plays with everyone. Points are the games your team wins.</p>
+    <p><b>Mexicano:</b> after round 1, players are re-matched by standings (1st & 4th vs 2nd & 3rd on court 1, and so on), so later games are closer.</p>
+  </details>`;
+}
+
+function render() {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === S.tab));
+  document.getElementById('view').innerHTML =
+    S.tab === 'rounds' ? viewRounds() : S.tab === 'standings' ? viewStandings() : viewPlayers();
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; save(); render(); window.scrollTo(0, 0); });
+render();
+</script>
+</body>
+</html>
