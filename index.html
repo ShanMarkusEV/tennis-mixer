@@ -210,13 +210,13 @@ function toast(msg) {
 // ---------- stats ----------
 function computeStats() {
   const st = {}, partners = {}, opps = {};
-  const blank = () => ({pts: 0, played: 0, scored: 0, w: 0, d: 0, l: 0, diff: 0, sat: 0});
+  const blank = () => ({pts: 0, played: 0, last: -1, scored: 0, w: 0, d: 0, l: 0, diff: 0, sat: 0});
   S.players.forEach(p => st[p.id] = blank());
   const get = id => st[id] || (st[id] = blank());
-  S.rounds.forEach(r => {
+  S.rounds.forEach((r, ri) => {
     r.sitting.forEach(id => get(id).sat++);
     r.matches.forEach(m => {
-      [...m.a, ...m.b].forEach(id => get(id).played++);
+      [...m.a, ...m.b].forEach(id => { get(id).played++; get(id).last = ri; });
       partners[pairKey(...m.a)] = (partners[pairKey(...m.a)] || 0) + 1;
       partners[pairKey(...m.b)] = (partners[pairKey(...m.b)] || 0) + 1;
       m.a.forEach(x => m.b.forEach(y => opps[pairKey(x, y)] = (opps[pairKey(x, y)] || 0) + 1));
@@ -283,10 +283,9 @@ function nextRound() {
       !confirm('Some scores in the last round are empty. Mexicano uses scores to pick the next matches. Continue anyway?')) return;
 
   const {st, partners, opps} = computeStats();
-  const satLast = new Set(last ? last.sitting : []);
-  // Fewest matches played go first; people who just sat out break ties.
+  // Fewest matches played go first; ties go to whoever has waited longest since their last match.
   const order = shuffle(active.map(p => p.id)).sort((x, y) =>
-    st[x].played - st[y].played || (satLast.has(y) ? 1 : 0) - (satLast.has(x) ? 1 : 0));
+    st[x].played - st[y].played || st[x].last - st[y].last);
   const playing = order.slice(0, courts * 4), sitting = order.slice(courts * 4);
   const pairs = S.mode === 'mexicano'
     ? mexicanoPairs(playing, courts, st, partners, opps)
