@@ -510,6 +510,7 @@ const ICONS = {
 };
 const ic = n => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
 const LOGO = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="#c6ef3a"/><path d="M18 22c22 14 22 42 0 56M82 22c-22 14-22 42 0 56" fill="none" stroke="#fff" stroke-width="7"/></svg>';
+const GOOGLE = '<svg class="ic" viewBox="0 0 48 48" aria-hidden="true" style="stroke:none"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : (w.endsWith('ch') ? 'es' : 's')}`;
 const modeName = m => m === 'mexicano' ? 'Mexicano' : 'Americano';
 
@@ -566,7 +567,7 @@ async function shareStandingsImage() {
     x.fillStyle = '#a3aba6'; x.font = F(800, 19); x.fillText(avg ? 'AVG' : 'GAMES', W - 90, cy + 28);
   });
   x.textAlign = 'center'; x.fillStyle = '#6b756f'; x.font = F(600, 24);
-  x.fillText('Tennis Mixer · shanmarkusev.github.io/tennis-mixer', W / 2, H - 56);
+  x.fillText('Tennis Mixer · 10nis.pages.dev', W / 2, H - 56);
 
   const blob = await new Promise(res => c.toBlob(res, 'image/png'));
   const file = new File([blob], `tennis-standings-${new Date().toISOString().slice(0, 10)}.png`, {type: 'image/png'});
@@ -739,7 +740,10 @@ const sb = window.supabase && SUPABASE_ANON_KEY ? window.supabase.createClient(S
 let user = null, sessionLog = null, logLoading = false, authMode = 'login', busy = false;
 
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
-const userName = () => (user.user_metadata && user.user_metadata.display_name) || user.email.split('@')[0];
+const userName = () => {
+  const m = user.user_metadata || {};
+  return m.display_name || m.full_name || m.name || user.email.split('@')[0];
+};
 
 // Log the current session once it has a round; writes are debounced while scores are typed.
 function queueSync() {
@@ -804,6 +808,10 @@ async function signOut() {
   await sb.auth.signOut();
   toast('Signed out');
 }
+async function googleSignIn() {
+  const {error} = await sb.auth.signInWithOAuth({provider: 'google', options: {redirectTo: location.origin + location.pathname}});
+  if (error) toast(error.message);
+}
 function setAuthMode(m) { authMode = m; render(); }
 
 async function openSession(id) {
@@ -838,6 +846,8 @@ function viewAccount() {
       <button class="${!reg ? 'on' : ''}" onclick="setAuthMode('login')">Sign in</button>
       <button class="${reg ? 'on' : ''}" onclick="setAuthMode('register')">Register</button>
     </div>
+    <button class="btn" style="width:100%;padding:13px 14px;margin-bottom:12px" onclick="googleSignIn()">${GOOGLE}Continue with Google</button>
+    <p class="label" style="text-align:center;margin:0 0 12px">or with email</p>
     <form class="card auth" onsubmit="return authSubmit(event)">
       ${reg ? `<label class="field"><p class="label">Name</p><input name="name" autocomplete="name" required maxlength="80"></label>` : ''}
       <label class="field"><p class="label">Email</p><input name="email" type="email" autocomplete="email" required></label>
