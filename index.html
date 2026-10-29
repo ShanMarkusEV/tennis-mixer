@@ -495,6 +495,7 @@ function nextRound() {
       : americanoPairs(playing, courts, partners, opps);
   if (!S.rounds.length && !S.title) S.title = funName();
   S.rounds.push({mode: S.mode, matches: pairs.map(p => ({a: p.a, b: p.b, sa: null, sb: null})), sitting});
+  track('round', {n: S.rounds.length, format: S.format, mode: S.mode, courts});
   save(); render();
   window.scrollTo({top: 0, behavior: 'smooth'});
 }
@@ -618,6 +619,7 @@ async function importLink() {
     const waiting = d.players.filter(p => p.status === 'waitlisted').length;
     importing = false;
     if (!names.length) { render(); toast(`No confirmed players on that ${d.source} activity yet`); return; }
+    track('import', {source: d.source, players: names.length});
     // Remembered so the activity's level counts as evidence for everyone who plays today.
     S.activity = d.activity || null;
     if (!S.rounds.length && d.title) S.title = d.title.replace(/\s+/g, ' ').trim().slice(0, 120);
@@ -659,6 +661,7 @@ async function finishSession() {
     S.finishedAt = S.finishedAt || new Date().toISOString();
     if (!(await syncSession())) { S.finishedAt = null; toast("Couldn't save, try again"); return; }
   }
+  track('finish', {rounds: S.rounds.length});
   closeSession();
   toast(user ? `${name} finished · saved to your log` : 'Session finished');
 }
@@ -1003,6 +1006,28 @@ const SUPABASE_ANON_KEY = 'sb_publishable_iYVtpH-Yb_ysG9liQ-NINw_h2DRDdNq';
 const GOOGLE_CLIENT_ID = '557073910029-b2eg9mfhq2ttugnpdlqebp6jlpequ0qp.apps.googleusercontent.com';
 const sb = window.supabase && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 let user = null, sessionLog = null, logLoading = false, ratingsByPid = {};
+
+// ---------- anonymous usage counts ----------
+// A random id for this phone (not tied to a name, account or IP) plus a few events, so we can count how many
+// people use 10nis, signed in or not. Fire-and-forget: it never blocks or breaks anything. Off on localhost.
+const DEVICE = (() => {
+  const make = () => [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, '0')).join('');
+  try {
+    let d = localStorage.getItem('10nis-device');
+    if (!/^[0-9a-f]{16}$/.test(d || '')) { d = make(); localStorage.setItem('10nis-device', d); }
+    return d;
+  } catch (e) { return make(); }
+})();
+function track(event, props = {}) {
+  if (!sb) return;
+  try { if (/^(localhost|127\.)/.test(location.hostname) && localStorage.getItem('10nis-track-local') !== '1') return; } catch (e) { return; }
+  sb.rpc('track', {device: DEVICE, event, props, signed_in: !!user}).then(() => {}, () => {});
+}
+// "open" counts once per day per phone, after the sign-in state is known.
+setTimeout(() => {
+  try { const t = today(); if (localStorage.getItem('10nis-opened') === t) return; localStorage.setItem('10nis-opened', t); } catch (e) {}
+  track('open');
+}, 2500);
 let me = null; // the signed-in user's own player row and rating, once loaded
 
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
@@ -1537,6 +1562,7 @@ function viewClaim() {
 if (sb) sb.auth.onAuthStateChange((event, session) => {
   const was = user && user.id;
   user = session ? session.user : null;
+  if (event === 'SIGNED_IN' && !was && user) setTimeout(() => track('signin'));
   // Defer: Supabase calls made inside this callback can deadlock the auth lock.
   if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; myMatches = null; allMatches = false; claimData = null; codeData = undefined; setTimeout(() => { render(); queueSync(); loadRatings(); }); }
 });
