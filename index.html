@@ -295,7 +295,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 function defaultState() {
   return {
     players: Array.from({length: 4}, (_, i) => ({id: uid(), name: 'Player ' + (i + 1), active: true})),
-    courts: 2, mode: 'americano', format: 'doubles', total: 0, rounds: [], tab: 'players', sort: 'pts'
+    courts: 1, mode: 'americano', format: 'doubles', total: 0, rounds: [], tab: 'players', sort: 'pts'
   };
 }
 function load() {
