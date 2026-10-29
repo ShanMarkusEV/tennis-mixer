@@ -9,6 +9,10 @@
 <meta name="theme-color" content="#0a0d0b" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://10nis.win/">
 <meta property="og:title" content="10nis">
@@ -312,6 +316,8 @@ details.past .match{box-shadow:none}
 <div class="toast" id="toast"></div>
 
 <script>
+// Bump with every release (also reported with usage counts, so we can see which versions are in use).
+const APP_VERSION = '1.0.0';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -695,10 +701,33 @@ async function shareApp() {
   }
   copyText(`${text} ${APP_URL}`);
 }
-const shareCard = () => `<div class="sec-head"><p class="label">Share 10nis</p></div>
-  <div class="card code"><div id="appqr" class="qr" aria-label="QR code for 10nis.win"></div>
-    <div><p class="muted" style="margin-bottom:10px">Playing with friends who'd like it? Send them the app, or let them scan this.</p>
-      <button class="btn sm primary" onclick="shareApp()">${ic('share')}Share 10nis</button></div></div>`;
+// ---------- install to the home screen (PWA) ----------
+// Android/Chrome offer a real install prompt; iPhone Safari only allows Share → Add to Home Screen.
+let installPrompt = null, iosHelp = false;
+const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; if (S.tab === 'account') render(); });
+window.addEventListener('appinstalled', () => { installPrompt = null; track('install'); toast('10nis is on your home screen'); render(); });
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+async function installApp() {
+  if (installPrompt) {
+    const p = installPrompt; installPrompt = null;
+    p.prompt(); await p.userChoice.catch(() => {});
+    render(); return;
+  }
+  if (isIOS) { iosHelp = !iosHelp; render(); return; }
+  toast("Open your browser's menu and choose Install app or Add to Home screen");
+}
+const shareCard = () => `<div class="sec-head"><p class="label">10nis on your phone</p></div>
+  <div class="card">
+    <p class="muted" style="margin-bottom:12px">${standalone() ? "You're using the 10nis app." : 'Add 10nis to your home screen to open it like an app.'} Playing with friends who'd like it? Send it to them.</p>
+    <div class="row" style="flex-wrap:wrap">
+      ${standalone() ? '' : `<button class="btn sm primary" onclick="installApp()">${ic('plus')}Add to home screen</button>`}
+      <button class="btn sm ${standalone() ? 'primary' : 'soft'}" onclick="shareApp()">${ic('share')}Share 10nis</button>
+    </div>
+    ${iosHelp && !standalone() ? `<div class="lvpick" style="margin-top:12px"><strong>On iPhone</strong>
+      <p>1. In Safari, tap the Share button ${ic('share')} at the bottom of the screen.<br>2. Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.</p></div>` : ''}
+  </div>`;
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); }
   catch (e) {
@@ -1021,12 +1050,12 @@ const DEVICE = (() => {
 function track(event, props = {}) {
   if (!sb) return;
   try { if (/^(localhost|127\.)/.test(location.hostname) && localStorage.getItem('10nis-track-local') !== '1') return; } catch (e) { return; }
-  sb.rpc('track', {device: DEVICE, event, props, signed_in: !!user}).then(() => {}, () => {});
+  sb.rpc('track', {device: DEVICE, event, props: {...props, v: APP_VERSION}, signed_in: !!user}).then(() => {}, () => {});
 }
 // "open" counts once per day per phone, after the sign-in state is known.
 setTimeout(() => {
   try { const t = today(); if (localStorage.getItem('10nis-opened') === t) return; localStorage.setItem('10nis-opened', t); } catch (e) {}
-  track('open');
+  track('open', {standalone: standalone()});
 }, 2500);
 let me = null; // the signed-in user's own player row and rating, once loaded
 
@@ -1432,7 +1461,7 @@ function viewAccount() {
   <div class="row" style="justify-content:center;margin-top:20px"><button class="btn text danger" onclick="deleteAccount()">Delete account</button></div>
   ${LEGAL}`;
 }
-const LEGAL = `<p class="muted" style="text-align:center;font-size:12px;margin-top:10px"><a href="/privacy" style="color:inherit">Privacy</a> · <a href="/terms" style="color:inherit">Terms</a></p>`;
+const LEGAL = `<p class="muted" style="text-align:center;font-size:12px;margin-top:10px"><a href="/privacy" style="color:inherit">Privacy</a> · <a href="/terms" style="color:inherit">Terms</a> · v${APP_VERSION}</p>`;
 
 // ---------- share link: players claim their name ----------
 // Organizer side: a link (and QR) for the logged session. Player side: /s/<token> shows its roster.
@@ -1583,7 +1612,6 @@ function render() {
     S.tab === 'rounds' ? viewRounds() : S.tab === 'standings' ? viewStandings() : S.tab === 'account' ? viewAccount() : viewPlayers();
   mountGoogleButton();
   if (S.tab === 'account' && me && me.code && document.getElementById('mycode')) drawQR('mycode', location.origin + '/p/' + me.code);
-  if (document.getElementById('appqr')) drawQR('appqr', APP_URL);
   // Main action floats above the tab bar, within thumb reach.
   document.getElementById('dock').innerHTML =
     S.tab === 'rounds' && S.finishedAt ? `<div class="dock"><div class="in">
