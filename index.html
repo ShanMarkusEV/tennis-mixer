@@ -327,7 +327,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -666,6 +666,7 @@ function setMode(m) { S.mode = m; save(); render(); }
 function setFormat(f) { S.format = f; save(); render(); }
 function setCourts(d) { S.courts = Math.max(1, Math.min(10, S.courts + d)); save(); render(); }
 function setTotal(el) { S.total = Math.max(0, parseInt(el.value, 10) || 0); save(); }
+const saveError = () => !navigator.onLine ? "you're offline" : syncRoster.error || syncSession.error || 'no reply from 10nis';
 // Finish: save the session to the log as finished, then clear the courts for next time (the roster stays).
 // A finished session can be reopened from the log to fix scores, then closed again with Done.
 async function finishSession() {
@@ -676,14 +677,14 @@ async function finishSession() {
     : `Finish ${name}? You're not signed in, so its rounds and scores are cleared. Share the standings first to keep them.`)) return;
   if (user) {
     S.finishedAt = S.finishedAt || new Date().toISOString();
-    if (!(await syncSession())) { S.finishedAt = null; toast("Couldn't save, try again"); return; }
+    if (!(await syncSession())) { S.finishedAt = null; toast(`Couldn't save (${saveError()}). Try again.`); return; }
   }
   track('finish', {rounds: S.rounds.length});
   closeSession();
   toast(user ? `${name} finished · saved to your log` : 'Session finished');
 }
 async function doneEditing() {
-  if (!(await syncSession())) { toast("Couldn't save, try again"); return; }
+  if (!(await syncSession())) { toast(`Couldn't save (${saveError()}). Try again.`); return; }
   closeSession();
   goTab('account');
   toast('Scores saved');
@@ -1284,6 +1285,7 @@ async function syncSession() {
   const sig = JSON.stringify(row);
   if (sig === syncSession.last) return true;
   const {error} = await sb.from('sessions').upsert(row);
+  syncSession.error = error ? error.message : null;
   if (error) { if (!syncSession.warned) { toast("Couldn't log session, will retry"); report('session', error.message); } syncSession.warned = true; return false; }
   syncSession.warned = false; syncSession.last = sig;
   loadRatings();
