@@ -73,10 +73,12 @@ async function reclub(link) {
   const {meet, usersMap = {}} = entry[1];
   const players = [];
   for (const p of meet.participants || []) {
-    const status = RECLUB_STATUS[p.status], user = usersMap[p.referenceId];
+    // Players the host added by hand have no Reclub account: their name is in externalReference instead.
+    const status = RECLUB_STATUS[p.status], user = usersMap[p.referenceId] || {};
+    const name = user.name || (p.externalReference && p.externalReference.name);
     // Users without a photo get a generated initials image; skip it so the app's own avatar shows.
-    const photo = user && user.imageUrl && !user.imageUrl.includes('/default-avatars/') ? user.imageUrl : null;
-    if (status && user && user.name) players.push({name: user.name.trim(), status, photo});
+    const photo = user.imageUrl && !user.imageUrl.includes('/default-avatars/') ? user.imageUrl : null;
+    if (status && name) players.push({name: String(name).trim(), status, photo});
   }
   return {source: 'Reclub', title: (meet.name || '').trim(), players};
 }
