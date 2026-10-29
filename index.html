@@ -210,6 +210,19 @@ details.past .match{box-shadow:none}
 .me .who b{display:block;font-size:17px;font-weight:800;overflow-wrap:anywhere}
 .me .who small{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
 .hist li{cursor:pointer}
+.mm{padding:14px 16px}
+.mmhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+.mmhead b{display:block;font-weight:800}
+.mmhead small{display:block;color:var(--muted);font-size:12.5px}
+.mmlv{text-align:right;flex:none}
+.mmlv b{font-size:16px}
+.mmlv b.up{color:var(--green)}
+.mmlv b.down{color:var(--warn)}
+.mmrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
+.mmrow .res{width:22px;height:22px;flex:none;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:800;background:var(--surface-2);color:var(--muted)}
+.mmrow .res.W{background:var(--lime);color:var(--lime-ink)}
+.mmrow .res.L{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.mmrow .sc{font-weight:800;width:38px;flex:none}
 .namebtn{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:0;cursor:pointer;font:inherit;color:inherit;text-align:left}
 .namebtn .ic{width:14px;height:14px;color:var(--faint);flex:none}
 .nameedit{width:100%;font:inherit;font-size:16px;font-weight:800;color:var(--text);background:var(--surface-2);border:1px solid var(--text);border-radius:12px;padding:8px 10px;outline:none}
@@ -1109,6 +1122,35 @@ const LEVELS = {
 const levelText = score => LEVELS[Math.min(10, Math.max(1, Math.round(score)))][1];
 
 let pickLevel = null; // level being chosen in the picker, or null when closed
+let myMatches = null, allMatches = false; // the player's own match history, newest session first
+
+async function loadMatches() {
+  if (!sb || !user || loadMatches.busy) return;
+  loadMatches.busy = true;
+  const {data, error} = await sb.rpc('my_matches', {max_sessions: 30});
+  loadMatches.busy = false;
+  myMatches = error ? [] : data || [];
+  if (S.tab === 'account') render();
+}
+function viewMatches() {
+  if (!myMatches) { loadMatches(); return '<p class="muted" style="padding:0 4px">Loading…</p>'; }
+  if (!myMatches.length) return `<p class="muted" style="padding:0 4px">No matches yet. When an organizer links you to their game, or you add yourself with Add me, your matches show up here.</p>`;
+  const shown = allMatches ? myMatches : myMatches.slice(0, 5);
+  const names = l => l.map(esc).join(' & ');
+  return shown.map(se => {
+    const day = new Date(se.played_on + 'T00:00').toLocaleDateString('en', {weekday: 'short', day: 'numeric', month: 'short'});
+    const d = se.after != null && se.before != null ? Math.round((se.after - se.before) * 10) / 10 : null;
+    return `<div class="card mm">
+      <div class="mmhead"><span><b>${day}</b><small>${se.host ? `Hosted by ${esc(se.host)}` : 'Your session'} · ${modeName(se.mode)}${se.matches.every(m => !m.partners.length) ? ' singles' : ''}</small></span>
+        ${d != null ? `<span class="mmlv"><small>${Number(se.before).toFixed(1)} → ${Number(se.after).toFixed(1)}</small><b class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d > 0 ? '+' : ''}${d.toFixed(1)}</b></span>` : ''}</div>
+      ${se.matches.map(m => {
+        const res = m.mine > m.theirs ? 'W' : m.mine < m.theirs ? 'L' : 'D';
+        return `<div class="mmrow"><span class="res ${res}">${res}</span><span class="num sc">${m.mine}–${m.theirs}</span>
+          <span class="grow">${m.partners.length ? `with ${names(m.partners)} ` : ''}vs ${names(m.opponents)}</span></div>`;
+      }).join('')}
+    </div>`;
+  }).join('') + (myMatches.length > 5 && !allMatches ? `<div class="row" style="justify-content:center"><button class="btn sm soft" onclick="allMatches = true; render()">Show all ${myMatches.length} sessions</button></div>` : '');
+}
 async function loadMe() {
   if (!sb || !user || loadMe.busy) return;
   loadMe.busy = true;
@@ -1118,6 +1160,7 @@ async function loadMe() {
   let rating = null;
   if (p) ({data: rating} = await sb.from('ratings').select('score, label, confidence, matches, wins').eq('player_id', p.id).maybeSingle());
   me = {player: p || null, rating: rating || null, code: code || null};
+  myMatches = null;
   loadMe.busy = false;
   if (S.tab === 'account') render();
 }
@@ -1185,6 +1228,8 @@ function viewMe() {
     ${pickLevel != null ? `<p class="muted" style="margin:${r ? 14 : 0}px 0 10px">Where would you place yourself?</p>${pick}`
       : `<div class="row" style="margin-top:14px"><button class="btn sm soft" onclick="pickLevel = ${own || (sc ? Math.round(sc) : 4)}; render()">${own ? 'Change my level' : 'Set my level'}</button></div>`}
   </div>
+  <div class="sec-head"><p class="label">My matches</p></div>
+  ${viewMatches()}
   ${me.code ? `<div class="sec-head"><p class="label">Your player code</p></div>
   <div class="card code"><div id="mycode" class="qr" aria-label="QR code of your player code"></div>
     <div><b>${esc(me.code)}</b><p class="muted">Show this to the organizer. They scan it or type the code to add you to their game, so your results count.</p>
@@ -1438,7 +1483,7 @@ if (sb) sb.auth.onAuthStateChange((event, session) => {
   const was = user && user.id;
   user = session ? session.user : null;
   // Defer: Supabase calls made inside this callback can deadlock the auth lock.
-  if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; claimData = null; codeData = undefined; setTimeout(() => { render(); queueSync(); loadRatings(); }); }
+  if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; myMatches = null; allMatches = false; claimData = null; codeData = undefined; setTimeout(() => { render(); queueSync(); loadRatings(); }); }
 });
 
 function render() {
