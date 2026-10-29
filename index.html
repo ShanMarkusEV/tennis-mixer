@@ -140,7 +140,11 @@ textarea:focus{border-color:var(--text)}
 
 /* rounds */
 .tag{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);padding:4px 9px;border-radius:999px}
-.actions{display:flex;gap:8px;margin:0 0 16px}
+.actions{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap}
+.stitle{display:inline-flex;align-items:center;gap:6px;max-width:100%;border:0;background:none;padding:0;margin:0 0 4px;cursor:pointer;
+  font:inherit;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--green);text-align:left}
+.stitle .ic{width:13px;height:13px;flex:none;opacity:.7}
+.hint.fin{background:color-mix(in srgb,var(--lime) 25%,transparent);color:var(--text);padding:10px 12px;border-radius:14px}
 .hint{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted);margin:0 0 14px;padding:0 4px}
 .hint .ic{width:16px;height:16px;color:var(--green)}
 .match{position:relative;border-radius:24px;padding:10px 22px 12px;margin-bottom:12px;color:#fff;overflow:hidden;
@@ -449,6 +453,27 @@ function mexicanoPairs(ids, courts, st, partners, opps) {
   return out;
 }
 
+// A fun default name for a session; organizers can rename it, and imports use the activity's own name.
+const FUN_NAMES = ['Deuce Bigalow Open', 'Lob Story Classic', 'The Fault in Our Stars Cup', 'Ace Ventura Invitational',
+  'Break Point Brunch', 'Volley Llamas Cup', 'Grand Slam Jam', 'Backhand Bandits Open', 'Drop Shot Disco', 'Love All Social',
+  'Net Gains Classic', 'Smash Bros Invitational', 'Advantage You Open', 'Game, Set, Snacks', 'Tiebreak Tea Party',
+  'Unforced Errors Cup', 'Let It Be Open', 'Racket Science Series', 'Baseline Buddies Cup', 'Topspin Tango'];
+const FUN_ADJ = ['Sweaty', 'Spicy', 'Lucky', 'Fearless', 'Cheeky', 'Golden', 'Chaotic', 'Legendary', 'Sneaky', 'Mighty'];
+const FUN_NOUN = ['Lobsters', 'Aces', 'Volleyers', 'Slicers', 'Smashers', 'Net Ninjas', 'Baseliners', 'Racketeers', 'Drop Shotters', 'Deuce Crew'];
+const FUN_SUFFIX = ['Open', 'Cup', 'Classic', 'Invitational', 'Slam', 'Showdown'];
+const pick = a => a[Math.floor(Math.random() * a.length)];
+function funName() {
+  if (Math.random() < .5) return pick(FUN_NAMES);
+  const day = new Date().toLocaleDateString('en', {weekday: 'long'});
+  return `${pick([...FUN_ADJ, day])} ${pick(FUN_NOUN)} ${pick(FUN_SUFFIX)}`;
+}
+function editTitle() {
+  const v = prompt('Session name (leave empty for a new random one)', S.title || '');
+  if (v === null) return;
+  S.title = v.trim().slice(0, 120) || funName();
+  save(); render();
+}
+
 function nextRound() {
   const active = S.players.filter(p => p.active);
   const per = perCourt();
@@ -468,6 +493,7 @@ function nextRound() {
     : S.mode === 'mexicano'
       ? mexicanoPairs(playing, courts, st, partners, opps)
       : americanoPairs(playing, courts, partners, opps);
+  if (!S.rounds.length && !S.title) S.title = funName();
   S.rounds.push({mode: S.mode, matches: pairs.map(p => ({a: p.a, b: p.b, sa: null, sb: null})), sitting});
   save(); render();
   window.scrollTo({top: 0, behavior: 'smooth'});
@@ -594,6 +620,7 @@ async function importLink() {
     if (!names.length) { render(); toast(`No confirmed players on that ${d.source} activity yet`); return; }
     // Remembered so the activity's level counts as evidence for everyone who plays today.
     S.activity = d.activity || null;
+    if (!S.rounds.length && d.title) S.title = d.title.replace(/\s+/g, ' ').trim().slice(0, 120);
     applyNames(names);
     toast(`${plural(names.length, 'player')} from ${d.source}${waiting && !withWaitlist ? ` · ${waiting} waitlisted not added` : ''}`);
   } catch (e) {
@@ -620,10 +647,34 @@ function setMode(m) { S.mode = m; save(); render(); }
 function setFormat(f) { S.format = f; save(); render(); }
 function setCourts(d) { S.courts = Math.max(1, Math.min(10, S.courts + d)); save(); render(); }
 function setTotal(el) { S.total = Math.max(0, parseInt(el.value, 10) || 0); save(); }
-function newSession() {
-  if (!confirm('Clear all rounds and scores? Players are kept.')) return;
-  S.rounds = []; S.sessionId = null; S.activity = null; S.players.forEach(p => p.active = true); save(); S.tab = 'players'; render();
+// Finish: save the session to the log as finished, then clear the courts for next time (the roster stays).
+// A finished session can be reopened from the log to fix scores, then closed again with Done.
+async function finishSession() {
+  if (!S.rounds.length) { toast('No rounds to finish yet'); return; }
+  const name = S.title || 'this session';
+  if (!confirm(user
+    ? `Finish ${name}? It's saved to your session log, where you can still edit scores. The courts are cleared; your roster stays.`
+    : `Finish ${name}? You're not signed in, so its rounds and scores are cleared. Share the standings first to keep them.`)) return;
+  if (user) {
+    S.finishedAt = S.finishedAt || new Date().toISOString();
+    if (!(await syncSession())) { S.finishedAt = null; toast("Couldn't save, try again"); return; }
+  }
+  closeSession();
+  toast(user ? `${name} finished · saved to your log` : 'Session finished');
 }
+async function doneEditing() {
+  if (!(await syncSession())) { toast("Couldn't save, try again"); return; }
+  closeSession();
+  goTab('account');
+  toast('Scores saved');
+}
+function closeSession() {
+  Object.assign(S, {rounds: [], sessionId: null, activity: null, title: null, finishedAt: null});
+  S.players.forEach(p => p.active = true);
+  shareLink = null; sessionLog = null; myMatches = null;
+  save(); S.tab = 'players'; render();
+}
+const newSession = finishSession;
 function resetAll() {
   if (!confirm('Reset everything back to 4 default players?')) return;
   S = defaultState(); save(); render();
@@ -655,7 +706,7 @@ async function copyText(text) {
 }
 function copyRound(r) {
   const rd = S.rounds[r];
-  const lines = [`🎾 Round ${r + 1} (${roundLabel(rd)})`];
+  const lines = [`🎾 ${S.title ? S.title + ' · ' : ''}Round ${r + 1} (${roundLabel(rd)})`];
   rd.matches.forEach((m, i) => {
     const sc = hasScore(m) ? `  ${m.sa}-${m.sb}` : '';
     lines.push(`Court ${i + 1}: ${m.a.map(nm).join(' & ')} vs ${m.b.map(nm).join(' & ')}${sc}`);
@@ -665,7 +716,7 @@ function copyRound(r) {
 }
 function copyStandings() {
   const rows = standingsRows();
-  const lines = [`🏆 Standings after ${S.rounds.length} round${S.rounds.length === 1 ? '' : 's'}`];
+  const lines = [`🏆 ${S.title ? S.title + ' · ' : ''}Standings after ${S.rounds.length} round${S.rounds.length === 1 ? '' : 's'}`];
   rows.forEach((r, i) => lines.push(`${i + 1}. ${r.name}: ${r.pts} games (${r.w}W ${r.l}L, ${r.scored} played)`));
   copyText(lines.join('\n'));
 }
@@ -724,7 +775,7 @@ async function shareStandingsImage() {
   x.font = F(800, 60); x.fillText('Standings', 204, 108);
   const date = new Date().toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
   x.font = F(600, 28); x.fillStyle = 'rgba(255,255,255,.6)';
-  x.fillText(`After ${plural(n, 'round')} · ${date}${avg ? ' · avg per match' : ''}`, 204, 160);
+  x.fillText(fit(`${S.title ? S.title + ' · ' : ''}After ${plural(n, 'round')} · ${date}${avg ? ' · avg per match' : ''}`, W - 204 - 50), 204, 160);
 
   x.shadowColor = 'rgba(16,22,18,.14)'; x.shadowBlur = 40; x.shadowOffsetY = 12;
   rr(40, cardY, W - 80, cardH, 36); x.fillStyle = '#fff'; x.fill();
@@ -832,7 +883,7 @@ function viewPlayers() {
   </div>
 
   <div class="row" style="justify-content:center;gap:20px;margin-top:20px">
-    <button class="btn text" onclick="newSession()">Start new session</button>
+    ${S.rounds.length ? `<button class="btn text" onclick="finishSession()">Finish session</button>` : ''}
     <button class="btn text danger" onclick="resetAll()">Reset everything</button>
   </div>
   <p class="muted" style="text-align:center;font-size:12px">${user ? 'Saved on this phone and logged to your account.' : 'Saved on this phone automatically. Sign in under Account to keep a log.'}</p>
@@ -872,12 +923,15 @@ function viewRounds() {
   const playing = rd.matches.length * perCourt(roundFormat(rd));
   let html = `
   ${RALLY}
+  <button class="stitle" onclick="editTitle()" title="Rename this session">${esc(S.title || 'Name this session')}${ic('pen')}</button>
+  ${S.finishedAt ? `<p class="hint fin">${ic('trophy')}Finished session: fix any score, then tap Done. Levels update automatically.</p>` : ''}
   <h1 class="title">Round ${n} <span class="tag">${roundLabel(rd)}</span></h1>
   <p class="sub">${plural(rd.matches.length, 'court')} · ${playing} playing${rd.sitting.length ? ` · ${rd.sitting.length} sitting out` : ''}</p>
   <div class="actions">
-    ${!scored ? `<button class="btn sm soft" onclick="reshuffle()">${ic('shuffle')}Reshuffle</button>` : ''}
+    ${!scored && !S.finishedAt ? `<button class="btn sm soft" onclick="reshuffle()">${ic('shuffle')}Reshuffle</button>` : ''}
     <button class="btn sm soft" onclick="copyRound(${r})">${ic('copy')}Copy for WhatsApp</button>
     ${user ? `<button class="btn sm soft" onclick="shareSession()">${ic('share')}Players</button>` : ''}
+    ${!S.finishedAt ? `<button class="btn sm soft" onclick="finishSession()">${ic('trophy')}Finish</button>` : ''}
   </div>
   ${shareLink ? viewShare() : ''}
   ${rd.sitting.length ? `<p class="hint">${ic('shuffle')}Someone can't play? Tap their name to swap in the next person waiting.</p>` : ''}
@@ -1071,19 +1125,19 @@ async function linkToPlayer(localId, code, done) {
 }
 async function syncSession() {
   clearTimeout(queueSync.t);
-  if (!sb || !user || !S.rounds.length) return;
+  if (!sb || !user || !S.rounds.length) return false;
   if (!S.sessionId || S.owner !== user.id) {
     S.sessionId = crypto.randomUUID(); S.owner = user.id; S.playedOn = today();
     try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
   }
-  if (!(await syncRoster())) { if (!syncSession.warned) toast("Couldn't log session, will retry"); syncSession.warned = true; return; }
-  const row = {id: S.sessionId, mode: S.mode, courts: S.courts, total: S.total,
-    players: S.players, rounds: S.rounds, played_on: S.playedOn || today()};
+  if (!(await syncRoster())) { if (!syncSession.warned) toast("Couldn't log session, will retry"); syncSession.warned = true; return false; }
+  const row = {id: S.sessionId, mode: S.mode, courts: S.courts, total: S.total, title: S.title || null,
+    finished_at: S.finishedAt || null, players: S.players, rounds: S.rounds, played_on: S.playedOn || today()};
   // Tab switches and sorting also call save(); skip the write when nothing logged has changed.
   const sig = JSON.stringify(row);
-  if (sig === syncSession.last) return;
+  if (sig === syncSession.last) return true;
   const {error} = await sb.from('sessions').upsert(row);
-  if (error) { if (!syncSession.warned) toast("Couldn't log session, will retry"); syncSession.warned = true; return; }
+  if (error) { if (!syncSession.warned) toast("Couldn't log session, will retry"); syncSession.warned = true; return false; }
   syncSession.warned = false; syncSession.last = sig;
   loadRatings();
   if (sessionLog) {
@@ -1091,13 +1145,14 @@ async function syncSession() {
     if (i >= 0) sessionLog[i] = row; else sessionLog.unshift(row);
     if (S.tab === 'account') render();
   }
+  return true;
 }
 window.addEventListener('online', queueSync);
 
 async function loadLog() {
   if (logLoading) return;
   logLoading = true;
-  const {data, error} = await sb.from('sessions').select('id, mode, played_on, players, rounds')
+  const {data, error} = await sb.from('sessions').select('id, mode, played_on, players, rounds, title, finished_at')
     .order('played_on', {ascending: false}).order('created_at', {ascending: false}).limit(50);
   logLoading = false;
   sessionLog = error ? [] : data;
@@ -1141,7 +1196,7 @@ function viewMatches() {
     const day = new Date(se.played_on + 'T00:00').toLocaleDateString('en', {weekday: 'short', day: 'numeric', month: 'short'});
     const d = se.after != null && se.before != null ? Math.round((se.after - se.before) * 10) / 10 : null;
     return `<div class="card mm">
-      <div class="mmhead"><span><b>${day}</b><small>${se.host ? `Hosted by ${esc(se.host)}` : 'Your session'} · ${modeName(se.mode)}${se.matches.every(m => !m.partners.length) ? ' singles' : ''}</small></span>
+      <div class="mmhead"><span><b>${esc(se.title || day)}</b><small>${se.title ? day + ' · ' : ''}${se.host ? `Hosted by ${esc(se.host)}` : 'Your session'} · ${modeName(se.mode)}${se.matches.every(m => !m.partners.length) ? ' singles' : ''}</small></span>
         ${d != null ? `<span class="mmlv"><small>${Number(se.before).toFixed(1)} → ${Number(se.after).toFixed(1)}</small><b class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d > 0 ? '+' : ''}${d.toFixed(1)}</b></span>` : ''}</div>
       ${se.matches.map(m => {
         const res = m.mine > m.theirs ? 'W' : m.mine < m.theirs ? 'L' : 'D';
@@ -1290,8 +1345,8 @@ async function openSession(id) {
   if (!row) return;
   await syncSession();
   const last = row.rounds[row.rounds.length - 1];
-  Object.assign(S, {sessionId: row.id, owner: user.id, playedOn: row.played_on, mode: row.mode,
-    players: row.players, rounds: row.rounds, format: last ? roundFormat(last) : S.format});
+  Object.assign(S, {sessionId: row.id, owner: user.id, playedOn: row.played_on, mode: row.mode, title: row.title || null,
+    finishedAt: row.finished_at || null, players: row.players, rounds: row.rounds, format: last ? roundFormat(last) : S.format});
   goTab(row.rounds.length ? 'rounds' : 'players');
   toast('Session opened');
 }
@@ -1302,7 +1357,7 @@ async function deleteSession(id, e) {
   if (error) { toast(error.message); return; }
   sessionLog = sessionLog.filter(h => h.id !== id);
   // Deleting the open session clears it here too, otherwise the next score would log it again.
-  if (id === S.sessionId) { S.sessionId = null; S.rounds = []; save(); }
+  if (id === S.sessionId) { S.sessionId = null; S.rounds = []; S.title = null; S.finishedAt = null; save(); }
   render();
 }
 
@@ -1344,8 +1399,8 @@ function viewAccount() {
         const d = new Date(h.played_on + 'T00:00');
         return `<li onclick="openSession('${h.id}')">
           <span class="day"><b class="num">${d.getDate()}</b><small>${d.toLocaleString('en', {month: 'short'})}</small></span>
-          <span class="who"><b>${h.rounds.length ? roundLabel(h.rounds[h.rounds.length - 1]) : modeName(h.mode)}${h.id === S.sessionId ? ' <span class="tag">Current</span>' : ''}</b>
-            <small>${plural(h.rounds.length, 'round')} · ${plural(h.players.length, 'player')}</small></span>
+          <span class="who"><b>${esc(h.title || (h.rounds.length ? roundLabel(h.rounds[h.rounds.length - 1]) : modeName(h.mode)))}${h.id === S.sessionId ? ' <span class="tag">Current</span>' : h.finished_at ? ' <span class="tag">Finished</span>' : ''}</b>
+            <small>${h.title && h.rounds.length ? roundLabel(h.rounds[h.rounds.length - 1]) + ' · ' : ''}${plural(h.rounds.length, 'round')} · ${plural(h.players.length, 'player')}</small></span>
           <button class="x" onclick="deleteSession('${h.id}', event)" aria-label="Delete session">${ic('x')}</button></li>`;
       }).join('')}</ol></div>`}
   ${shareCard()}
@@ -1464,7 +1519,7 @@ function viewClaim() {
   const mine = claimData.players.some(p => p.mine);
   return `
   <h1 class="title">Who are you?</h1>
-  <p class="sub">Session on ${day}. ${mine ? "You're linked. Your level is on the Account tab." : 'Tap your name so your results count towards your 10nis level.'}</p>
+  <p class="sub">${claimData.title ? `<b>${esc(claimData.title)}</b>, ` : 'Session on '}${day}. ${mine ? "You're linked. Your level is on the Account tab." : 'Tap your name so your results count towards your 10nis level.'}</p>
   ${!user ? `<div class="card" style="padding:22px 18px"><p class="muted" style="text-align:center;margin-bottom:12px">Sign in first, then tap your name.</p>
     <div id="gbtn" style="display:flex;justify-content:center;min-height:44px">
       ${window.google && google.accounts ? '' : `<button class="btn" style="width:100%;padding:13px 14px" onclick="googleSignIn()">${GOOGLE}Continue with Google</button>`}
@@ -1505,7 +1560,9 @@ function render() {
   if (document.getElementById('appqr')) drawQR('appqr', APP_URL);
   // Main action floats above the tab bar, within thumb reach.
   document.getElementById('dock').innerHTML =
-    S.tab === 'rounds' ? `<div class="dock"><div class="in">
+    S.tab === 'rounds' && S.finishedAt ? `<div class="dock"><div class="in">
+        <button class="btn primary grow" onclick="doneEditing()">${ic('arrow')}Done</button></div></div>`
+    : S.tab === 'rounds' ? `<div class="dock"><div class="in">
         <button class="btn primary grow" onclick="nextRound()">${ic('ball')}Generate round ${n + 1}</button>
         ${n ? `<button class="btn" onclick="undoRound()" aria-label="Undo last round">${ic('undo')}Undo</button>` : ''}</div></div>`
     : S.tab === 'players' ? `<div class="dock"><div class="in">
