@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tennis Mixer</title>
-<meta name="description" content="Americano and Mexicano doubles rotation for social tennis.">
+<meta name="description" content="Americano and Mexicano doubles and singles rotation for social tennis.">
 <meta name="theme-color" content="#f5f6f2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0a0d0b" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23c6ef3a'/%3E%3Cpath d='M18 22c22 14 22 42 0 56M82 22c-22 14-22 42 0 56' fill='none' stroke='%23fff' stroke-width='6'/%3E%3C/svg%3E">
@@ -233,7 +233,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 function defaultState() {
   return {
     players: Array.from({length: 10}, (_, i) => ({id: uid(), name: 'Player ' + (i + 1), active: true})),
-    courts: 2, mode: 'americano', total: 0, rounds: [], tab: 'players', sort: 'pts'
+    courts: 2, mode: 'americano', format: 'doubles', total: 0, rounds: [], tab: 'players', sort: 'pts'
   };
 }
 function load() {
@@ -247,6 +247,9 @@ const byId = id => S.players.find(p => p.id === id);
 const nm = id => (byId(id) || {name: '?'}).name;
 const pairKey = (a, b) => a < b ? a + '|' + b : b + '|' + a;
 const hasScore = m => m.sa != null && m.sb != null;
+// Doubles puts 4 players on a court, singles 2. Rounds keep their own format, so a session can mix both.
+const perCourt = (f = S.format) => f === 'singles' ? 2 : 4;
+const roundFormat = rd => rd.matches.length && rd.matches[0].a.length === 1 ? 'singles' : 'doubles';
 
 function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
@@ -285,8 +288,7 @@ function computeStats() {
     r.sitting.forEach(id => get(id).sat++);
     r.matches.forEach(m => {
       [...m.a, ...m.b].forEach(id => { get(id).played++; get(id).last = ri; });
-      partners[pairKey(...m.a)] = (partners[pairKey(...m.a)] || 0) + 1;
-      partners[pairKey(...m.b)] = (partners[pairKey(...m.b)] || 0) + 1;
+      [m.a, m.b].forEach(t => { if (t.length === 2) partners[pairKey(...t)] = (partners[pairKey(...t)] || 0) + 1; });
       m.a.forEach(x => m.b.forEach(y => opps[pairKey(x, y)] = (opps[pairKey(x, y)] || 0) + 1));
       if (!hasScore(m)) return;
       const side = (ids, own, other) => ids.forEach(id => {
@@ -322,6 +324,29 @@ function americanoPairs(ids, courts, partners, opps) {
   return out;
 }
 
+// Singles: spread opponents so everyone meets as many different people as possible.
+function americanoSingles(ids, courts, opps) {
+  let best = null, bestCost = Infinity;
+  for (let it = 0; it < 4000 && bestCost > 0; it++) {
+    const s = shuffle(ids.slice());
+    let cost = 0;
+    for (let c = 0; c < courts; c++) cost += (opps[pairKey(s[c * 2], s[c * 2 + 1])] || 0) ** 2;
+    if (cost < bestCost) { bestCost = cost; best = s; }
+  }
+  return Array.from({length: courts}, (_, c) => ({a: [best[c * 2]], b: [best[c * 2 + 1]]}));
+}
+
+// Singles Mexicano: 1st vs 2nd, 3rd vs 4th... swapping neighbours if they just met.
+function mexicanoSingles(ids, courts, st, opps) {
+  if (!S.rounds.some(r => r.matches.some(hasScore))) return americanoSingles(ids, courts, opps);
+  const ranked = shuffle(ids.slice()).sort((x, y) => st[y].avg - st[x].avg || st[y].diff - st[x].diff);
+  for (let i = 0; i + 3 < ranked.length; i += 2) {
+    const [p1, p2, p3] = ranked.slice(i, i + 3);
+    if ((opps[pairKey(p1, p2)] || 0) > (opps[pairKey(p1, p3)] || 0) + 1) [ranked[i + 1], ranked[i + 2]] = [p3, p2];
+  }
+  return Array.from({length: courts}, (_, c) => ({a: [ranked[c * 2]], b: [ranked[c * 2 + 1]]}));
+}
+
 function mexicanoPairs(ids, courts, st, partners, opps) {
   const anyScores = S.rounds.some(r => r.matches.some(hasScore));
   if (!anyScores) return americanoPairs(ids, courts, partners, opps);
@@ -344,8 +369,9 @@ function mexicanoPairs(ids, courts, st, partners, opps) {
 
 function nextRound() {
   const active = S.players.filter(p => p.active);
-  const courts = Math.min(S.courts, Math.floor(active.length / 4));
-  if (courts < 1) { alert('Need at least 4 available players.'); return; }
+  const per = perCourt();
+  const courts = Math.min(S.courts, Math.floor(active.length / per));
+  if (courts < 1) { alert(`Need at least ${per} available players.`); return; }
   const last = S.rounds[S.rounds.length - 1];
   if (S.mode === 'mexicano' && last && last.matches.some(m => !hasScore(m)) &&
       !confirm('Some scores in the last round are empty. Mexicano uses scores to pick the next matches. Continue anyway?')) return;
@@ -354,10 +380,12 @@ function nextRound() {
   // Fewest matches played go first; ties go to whoever has waited longest since their last match.
   const order = shuffle(active.map(p => p.id)).sort((x, y) =>
     st[x].played - st[y].played || st[x].last - st[y].last);
-  const playing = order.slice(0, courts * 4), sitting = order.slice(courts * 4);
-  const pairs = S.mode === 'mexicano'
-    ? mexicanoPairs(playing, courts, st, partners, opps)
-    : americanoPairs(playing, courts, partners, opps);
+  const playing = order.slice(0, courts * per), sitting = order.slice(courts * per);
+  const pairs = S.format === 'singles'
+    ? (S.mode === 'mexicano' ? mexicanoSingles(playing, courts, st, opps) : americanoSingles(playing, courts, opps))
+    : S.mode === 'mexicano'
+      ? mexicanoPairs(playing, courts, st, partners, opps)
+      : americanoPairs(playing, courts, partners, opps);
   S.rounds.push({mode: S.mode, matches: pairs.map(p => ({a: p.a, b: p.b, sa: null, sb: null})), sitting});
   save(); render();
   window.scrollTo({top: 0, behavior: 'smooth'});
@@ -505,6 +533,7 @@ function removePlayer(id) {
   S.players = S.players.filter(p => p.id !== id); save(); render();
 }
 function setMode(m) { S.mode = m; save(); render(); }
+function setFormat(f) { S.format = f; save(); render(); }
 function setCourts(d) { S.courts = Math.max(1, Math.min(10, S.courts + d)); save(); render(); }
 function setTotal(el) { S.total = Math.max(0, parseInt(el.value, 10) || 0); save(); }
 function newSession() {
@@ -528,10 +557,10 @@ async function copyText(text) {
 }
 function copyRound(r) {
   const rd = S.rounds[r];
-  const lines = [`🎾 Round ${r + 1} (${rd.mode === 'mexicano' ? 'Mexicano' : 'Americano'})`];
+  const lines = [`🎾 Round ${r + 1} (${roundLabel(rd)})`];
   rd.matches.forEach((m, i) => {
     const sc = hasScore(m) ? `  ${m.sa}-${m.sb}` : '';
-    lines.push(`Court ${i + 1}: ${nm(m.a[0])} & ${nm(m.a[1])} vs ${nm(m.b[0])} & ${nm(m.b[1])}${sc}`);
+    lines.push(`Court ${i + 1}: ${m.a.map(nm).join(' & ')} vs ${m.b.map(nm).join(' & ')}${sc}`);
   });
   if (rd.sitting.length) lines.push(`Sitting out: ${rd.sitting.map(nm).join(', ')}`);
   copyText(lines.join('\n'));
@@ -564,6 +593,7 @@ const LOGO = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="
 const GOOGLE = '<svg class="ic" viewBox="0 0 48 48" aria-hidden="true" style="stroke:none"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : (w.endsWith('ch') ? 'es' : 's')}`;
 const modeName = m => m === 'mexicano' ? 'Mexicano' : 'Americano';
+const roundLabel = rd => modeName(rd.mode) + (roundFormat(rd) === 'singles' ? ' singles' : '');
 
 // Draw the standings onto a canvas and share it as a PNG (WhatsApp etc.), or download as fallback.
 async function shareStandingsImage() {
@@ -635,16 +665,21 @@ async function shareStandingsImage() {
 // ---------- views ----------
 function viewPlayers() {
   const avail = S.players.filter(p => p.active).length;
-  const courtsUsed = Math.min(S.courts, Math.floor(avail / 4));
-  const sit = avail - courtsUsed * 4;
+  const per = perCourt(), single = S.format === 'singles';
+  const courtsUsed = Math.min(S.courts, Math.floor(avail / per));
+  const sit = avail - courtsUsed * per;
   return `
   <h1 class="title">Players</h1>
   <p class="sub">${avail} playing · ${plural(courtsUsed, 'court')}${sit ? ` · ${sit} sit${sit === 1 ? 's' : ''} out each round` : ''}</p>
 
   <p class="label">Format</p>
+  <div class="seg" style="margin-bottom:10px">
+    <button class="${!single ? 'on' : ''}" onclick="setFormat('doubles')">Doubles</button>
+    <button class="${single ? 'on' : ''}" onclick="setFormat('singles')">Singles</button>
+  </div>
   <div class="choices">
     <button class="choice ${S.mode === 'americano' ? 'on' : ''}" onclick="setMode('americano')">
-      <span class="ico">🔄</span><b>Americano</b><span class="d">New partner every round. The most social.</span></button>
+      <span class="ico">🔄</span><b>Americano</b><span class="d">${single ? 'New opponent every round. Meet everyone.' : 'New partner every round. The most social.'}</span></button>
     <button class="choice ${S.mode === 'mexicano' ? 'on' : ''}" onclick="setMode('mexicano')">
       <span class="ico">📈</span><b>Mexicano</b><span class="d">Matched by standings so games stay close.</span></button>
   </div>
@@ -708,7 +743,7 @@ function matchCard(r, i, latest) {
   const team = side => {
     const s = side === 'a' ? m.sa : m.sb, win = hasScore(m) && (side === 'a' ? m.sa > m.sb : m.sb > m.sa);
     return `<div class="team ${win ? 'win' : ''}">
-      <div class="duo">${pn(side, 0)}${pn(side, 1)}</div>
+      <div class="duo">${m[side].map((_, k) => pn(side, k)).join('')}</div>
       <input id="s-${r}-${i}-${side}" type="number" inputmode="numeric" min="0" placeholder="–" value="${s ?? ''}" oninput="setScore(${r},${i},'${side}',this)" aria-label="Games won">
     </div>`;
   };
@@ -726,9 +761,9 @@ function viewRounds() {
   if (!n) return `<div class="empty"><div class="orb">${LOGO}</div><h3>No rounds yet</h3>Choose who's playing, then generate round 1.</div>`;
   const r = n - 1, rd = S.rounds[r];
   const scored = rd.matches.some(m => m.sa != null || m.sb != null);
-  const playing = rd.matches.length * 4;
+  const playing = rd.matches.length * perCourt(roundFormat(rd));
   let html = `
-  <h1 class="title">Round ${n} <span class="tag">${modeName(rd.mode)}</span></h1>
+  <h1 class="title">Round ${n} <span class="tag">${roundLabel(rd)}</span></h1>
   <p class="sub">${plural(rd.matches.length, 'court')} · ${playing} playing${rd.sitting.length ? ` · ${rd.sitting.length} sitting out` : ''}</p>
   <div class="actions">
     ${!scored ? `<button class="btn sm soft" onclick="reshuffle()">${ic('shuffle')}Reshuffle</button>` : ''}
@@ -742,7 +777,7 @@ function viewRounds() {
     for (let p = n - 2; p >= 0; p--) {
       const pr = S.rounds[p];
       html += `<details class="past">
-        <summary><b>Round ${p + 1}</b><span class="tag">${modeName(pr.mode)}</span>
+        <summary><b>Round ${p + 1}</b><span class="tag">${roundLabel(pr)}</span>
           <span class="scores num">${pr.matches.map(m => `<span>${hasScore(m) ? `${m.sa}–${m.sb}` : '–'}</span>`).join('')}</span>${ic('chev')}</summary>
         <div class="body">
           ${pr.matches.map((_, i) => matchCard(p, i, false)).join('')}
@@ -792,6 +827,7 @@ function viewStandings() {
   <details class="card help"><summary>Americano vs Mexicano ${ic('chev')}</summary>
     <p><b>Americano:</b> partners rotate so everyone plays with everyone. Points are the games your team wins.</p>
     <p><b>Mexicano:</b> after round 1, players are re-matched by standings (1st &amp; 4th vs 2nd &amp; 3rd on court 1, and so on), so later games are closer.</p>
+    <p><b>Singles:</b> one against one. Americano rotates opponents; Mexicano plays 1st vs 2nd, 3rd vs 4th, and so on.</p>
   </details>`;
 }
 
@@ -899,8 +935,9 @@ async function openSession(id) {
   const row = (sessionLog || []).find(h => h.id === id);
   if (!row) return;
   await syncSession();
+  const last = row.rounds[row.rounds.length - 1];
   Object.assign(S, {sessionId: row.id, owner: user.id, playedOn: row.played_on, mode: row.mode,
-    players: row.players, rounds: row.rounds});
+    players: row.players, rounds: row.rounds, format: last ? roundFormat(last) : S.format});
   goTab(row.rounds.length ? 'rounds' : 'players');
   toast('Session opened');
 }
@@ -941,7 +978,7 @@ function viewAccount() {
         const d = new Date(h.played_on + 'T00:00');
         return `<li onclick="openSession('${h.id}')">
           <span class="day"><b class="num">${d.getDate()}</b><small>${d.toLocaleString('en', {month: 'short'})}</small></span>
-          <span class="who"><b>${modeName(h.mode)}${h.id === S.sessionId ? ' <span class="tag">Current</span>' : ''}</b>
+          <span class="who"><b>${h.rounds.length ? roundLabel(h.rounds[h.rounds.length - 1]) : modeName(h.mode)}${h.id === S.sessionId ? ' <span class="tag">Current</span>' : ''}</b>
             <small>${plural(h.rounds.length, 'round')} · ${plural(h.players.length, 'player')}</small></span>
           <button class="x" onclick="deleteSession('${h.id}', event)" aria-label="Delete session">${ic('x')}</button></li>`;
       }).join('')}</ol></div>`}
