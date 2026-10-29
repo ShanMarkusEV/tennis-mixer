@@ -84,7 +84,8 @@ main{max-width:640px;margin:0 auto;padding:22px 20px 190px}
 
 /* avatars */
 .av{--h:140;width:34px;height:34px;flex:none;border-radius:50%;display:inline-grid;place-items:center;font-size:12px;font-weight:800;color:#fff;
-  background:linear-gradient(140deg,hsl(var(--h) 55% 52%),hsl(calc(var(--h) + 25) 50% 36%));letter-spacing:-.02em}
+  background:linear-gradient(140deg,hsl(var(--h) 55% 52%),hsl(calc(var(--h) + 25) 50% 36%));letter-spacing:-.02em;position:relative;overflow:hidden}
+.av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .av.sm{width:22px;height:22px;font-size:9.5px}
 .av.lg{width:56px;height:56px;font-size:18px}
 .av.xl{width:68px;height:68px;font-size:22px}
@@ -260,9 +261,12 @@ function avInfo(name) {
   let h = 0; for (const c of clean.toLowerCase()) h = (h * 31 + c.charCodeAt(0)) % 360;
   return {ini, h};
 }
-function avatar(name, cls = '') {
+// Imported players and the signed-in user can have a photo; initials show if it is missing or fails to load.
+const photoOf = name => (S.players.find(p => p.name === name) || {}).photo;
+function avatar(name, cls = '', photo = photoOf(name)) {
   const {ini, h} = avInfo(name);
-  return `<span class="av ${cls}" style="--h:${h}">${esc(ini)}</span>`;
+  const img = photo ? `<img src="${esc(photo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : '';
+  return `<span class="av ${cls}" style="--h:${h}">${esc(ini)}${img}</span>`;
 }
 
 function toast(msg) {
@@ -432,16 +436,20 @@ function applyList() {
 }
 
 // Everyone named plays, anyone missing is skipped (kept if they already played), new names are added.
+// Entries are names, or {name, photo} from an import.
 function applyNames(names) {
+  const list = names.map(n => typeof n === 'string' ? {name: n} : n);
+  const find = name => list.find(n => n.name.toLowerCase() === name.trim().toLowerCase());
   const used = playedIds();
   const keep = [];
   S.players.forEach(p => {
-    const listed = names.some(n => n.toLowerCase() === p.name.trim().toLowerCase());
-    if (listed) { p.active = true; keep.push(p); }
+    const listed = find(p.name);
+    if (listed) { p.active = true; if (listed.photo) p.photo = listed.photo; keep.push(p); }
     else if (used.has(p.id)) { p.active = false; keep.push(p); } // keep history, mark as skipped
   });
-  names.forEach(n => {
-    if (!keep.some(p => p.name.trim().toLowerCase() === n.toLowerCase())) keep.push({id: uid(), name: n, active: true});
+  list.forEach(n => {
+    if (!keep.some(p => p.name.trim().toLowerCase() === n.name.toLowerCase()))
+      keep.push({id: uid(), name: n.name, active: true, ...(n.photo ? {photo: n.photo} : {})});
   });
   S.players = keep;
   save(); render();
@@ -462,7 +470,7 @@ async function importLink() {
     const seen = {}, names = [];
     d.players.filter(p => p.status === 'confirmed' || (withWaitlist && p.status === 'waitlisted')).forEach(p => {
       const k = p.name.toLowerCase(); seen[k] = (seen[k] || 0) + 1;
-      names.push(seen[k] > 1 ? `${p.name} (${seen[k]})` : p.name);
+      names.push({name: seen[k] > 1 ? `${p.name} (${seen[k]})` : p.name, photo: /^https:\/\//.test(p.photo || '') ? p.photo : null});
     });
     const waiting = d.players.filter(p => p.status === 'waitlisted').length;
     importing = false;
@@ -908,7 +916,7 @@ function viewAccount() {
   return `
   <h1 class="title">Account</h1>
   <p class="sub">Sessions are logged automatically once round 1 starts.</p>
-  <div class="card me">${avatar(userName(), 'lg')}
+  <div class="card me">${avatar(userName(), 'lg', (user.user_metadata || {}).avatar_url)}
     <span class="who"><b>${esc(userName())}</b><small>${esc(user.email)}</small></span>
     <button class="btn sm soft" onclick="signOut()">Sign out</button></div>
   <div class="sec-head"><p class="label">Session log${sessionLog ? ` · ${list.length}` : ''}</p></div>

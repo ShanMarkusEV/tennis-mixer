@@ -1,5 +1,5 @@
 // Cloudflare Pages Function: GET /api/import?url=<Kuyy or Reclub activity link>
-// Returns {source, title, players: [{name, status: 'confirmed' | 'waitlisted'}]}.
+// Returns {source, title, players: [{name, status: 'confirmed' | 'waitlisted', photo}]}.
 // Reclub pages can't be read from the browser (no CORS), so the app asks this function instead.
 // Only Kuyy and Reclub hosts are fetched, so this is not an open proxy.
 
@@ -45,8 +45,10 @@ async function kuyy(link) {
     const status = m.user_status === 'going' ? 'confirmed' : /wait/.test(m.user_status || '') ? 'waitlisted' : null;
     if (!status) continue;
     const tickets = (m.checkin_status || []).filter(t => t.status !== 'cancelled' && t.name);
-    if (tickets.length) tickets.forEach(t => players.push({name: t.name, status}));
-    else for (let i = 0; i < (m.quantity || 1); i++) players.push({name: i ? `${m.name} +${i}` : m.name, status});
+    // The account photo belongs to the booker only, not their guests.
+    const photo = m.image_url || null;
+    if (tickets.length) tickets.forEach(t => players.push({name: t.name, status, photo: t.name === m.name ? photo : null}));
+    else for (let i = 0; i < (m.quantity || 1); i++) players.push({name: i ? `${m.name} +${i}` : m.name, status, photo: i ? null : photo});
   }
   const ev = event.data || event;
   return {source: 'Kuyy', title: ev.title || ev.name || '', players};
@@ -72,7 +74,9 @@ async function reclub(link) {
   const players = [];
   for (const p of meet.participants || []) {
     const status = RECLUB_STATUS[p.status], user = usersMap[p.referenceId];
-    if (status && user && user.name) players.push({name: user.name.trim(), status});
+    // Users without a photo get a generated initials image; skip it so the app's own avatar shows.
+    const photo = user && user.imageUrl && !user.imageUrl.includes('/default-avatars/') ? user.imageUrl : null;
+    if (status && user && user.name) players.push({name: user.name.trim(), status, photo});
   }
   return {source: 'Reclub', title: (meet.name || '').trim(), players};
 }
