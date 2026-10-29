@@ -530,16 +530,16 @@ function applyList() {
 // Entries are names, or {name, photo, ext} from an import (ext = that platform's id for the person).
 function applyNames(names) {
   const list = names.map(n => typeof n === 'string' ? {name: n} : n);
-  const find = name => list.find(n => n.name.toLowerCase() === name.trim().toLowerCase());
+  const find = (...names) => list.find(n => names.some(x => n.name.toLowerCase() === x.trim().toLowerCase()));
   const used = playedIds();
   const keep = [];
   S.players.forEach(p => {
-    const listed = find(p.name);
+    const listed = find(p.name, ...(p.aka || []));
     if (listed) { p.active = true; if (listed.photo) p.photo = listed.photo; if (listed.ext) p.ext = listed.ext; keep.push(p); }
     else if (used.has(p.id)) { p.active = false; keep.push(p); } // keep history, mark as skipped
   });
   list.forEach(n => {
-    if (!keep.some(p => p.name.trim().toLowerCase() === n.name.toLowerCase()))
+    if (!keep.some(p => [p.name, ...(p.aka || [])].some(x => x.trim().toLowerCase() === n.name.toLowerCase())))
       keep.push({id: uid(), name: n.name, active: true, ...(n.photo ? {photo: n.photo} : {}), ...(n.ext ? {ext: n.ext} : {})});
   });
   S.players = keep;
@@ -763,12 +763,14 @@ function viewPlayers() {
   <p class="muted" style="margin:8px 4px 0;font-size:12.5px">You can switch format between rounds. With games per match set, typing one team's score fills in the other.</p>
 
   <div class="sec-head"><p class="label">Roster · ${S.players.length}</p>
-    <button class="btn sm soft" onclick="addPlayer()">${ic('plus')}Add</button></div>
+    <div class="row">${user ? `<button class="btn sm soft" onclick="addMe()">${ic('user')}Add me</button>` : ''}
+      <button class="btn sm soft" onclick="addPlayer()">${ic('plus')}Add</button></div></div>
   <div class="card plist">
     ${S.players.map(p => `
       <div class="player ${p.active ? '' : 'skip'}">
         <span class="avw">${avatar(p.name)}${p.linked ? '<i class="lkd" title="Has a 10nis account">✓</i>' : ''}</span>
-        <input type="text" value="${esc(p.name)}" onchange="rename('${p.id}', this)" onfocus="this.select()" aria-label="Player name">
+        <input type="text" value="${esc(p.name)}" onchange="rename('${p.id}', this)" onfocus="this.select()" aria-label="Player name"
+          ${p.linked ? 'readonly title="Name from their 10nis account"' : ''}>
         ${user && p.pid ? levelPill(p) : ''}
         <button class="sw ${p.active ? 'on' : ''}" role="switch" aria-checked="${p.active}" aria-label="Playing" onclick="toggleActive('${p.id}')"></button>
         <button class="x" onclick="removePlayer('${p.id}')" aria-label="Remove">${ic('x')}</button>
@@ -935,11 +937,19 @@ async function syncRoster() {
   let changed = false;
   S.players.forEach(p => {
     const r = data && data[p.id];
-    if (r && (p.pid !== r.pid || p.linked !== r.linked)) { p.pid = r.pid; p.linked = r.linked; changed = true; }
+    if (!r) return;
+    if (p.pid !== r.pid || p.linked !== r.linked) { p.pid = r.pid; p.linked = r.linked; changed = true; }
+    // A linked player shows their own account name and photo; the name the organizer used stays as an alias
+    // so a pasted list or import that still says it matches them.
+    if (r.linked && r.name && r.name !== p.name) {
+      p.aka = [...new Set([...(p.aka || []), p.name])].filter(n => n !== r.name);
+      p.name = r.name; changed = true;
+    }
+    if (r.linked && r.photo && r.photo !== p.photo) { p.photo = r.photo; changed = true; }
   });
   syncRoster.last = sig;
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
-  if (changed && S.tab === 'players') render();
+  if (changed) { syncRoster.last = JSON.stringify([user.id, S.players.map(p => ({local: p.id, pid: p.pid || null, name: p.name, photo: p.photo || null, att: !!p.active, ext: p.ext || null})), S.activity || null]); render(); }
   return true;
 }
 // Ratings of the players on this roster (the database only returns players this organizer hosts).
@@ -974,8 +984,19 @@ async function linkCode(localId) {
   if (!/^[A-Za-z2-9]{6}$/.test(code.trim())) { toast('Player codes have 6 letters and numbers'); return; }
   await linkToPlayer(localId, code.trim().toUpperCase());
 }
+// Organizer plays too: add yourself to the roster, already linked to your own record.
+async function addMe() {
+  const [{data: code, error}, {data: mine}] = await Promise.all([sb.rpc('my_player_code'),
+    sb.from('players').select('id').eq('user_id', user.id).is('merged_into', null).maybeSingle()]);
+  if (error) { toast(error.message); return; }
+  if (mine && S.players.some(p => p.pid === mine.id)) { toast("You're already on the roster"); return; }
+  const id = uid(), m = user.user_metadata || {};
+  S.players.push({id, name: userName(), active: true, ...(/^https:/.test(m.avatar_url || '') ? {photo: m.avatar_url} : {})});
+  save(); render();
+  await linkToPlayer(id, code, "You're on the roster");
+}
 // Link a roster entry to the 10nis player who owns `code`. Registers the roster first if needed.
-async function linkToPlayer(localId, code) {
+async function linkToPlayer(localId, code, done) {
   let p = S.players.find(x => x.id === localId);
   if (!p) return false;
   if (!p.pid) { syncRoster.last = null; await syncRoster(); p = S.players.find(x => x.id === localId); }
@@ -983,7 +1004,7 @@ async function linkToPlayer(localId, code) {
   const {data, error} = await sb.rpc('link_player_code', {c: code, roster_pid: p.pid});
   if (error) { toast(error.message); return false; }
   p.pid = data.pid; p.linked = true; save();
-  toast(`${p.name} linked to ${data.name}`);
+  toast(done || `${p.name} linked to ${data.name}`);
   openInfo = null; syncRoster.last = null; await syncRoster(); loadRatings(); render();
   return true;
 }
