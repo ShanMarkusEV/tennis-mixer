@@ -210,6 +210,9 @@ details.past .match{box-shadow:none}
 .me .who b{display:block;font-size:17px;font-weight:800;overflow-wrap:anywhere}
 .me .who small{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
 .hist li{cursor:pointer}
+.namebtn{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:0;cursor:pointer;font:inherit;color:inherit;text-align:left}
+.namebtn .ic{width:14px;height:14px;color:var(--faint);flex:none}
+.nameedit{width:100%;font:inherit;font-size:16px;font-weight:800;color:var(--text);background:var(--surface-2);border:1px solid var(--text);border-radius:12px;padding:8px 10px;outline:none}
 .avedit{position:relative;flex:none;cursor:pointer;display:inline-grid}
 .avedit .pen{position:absolute;right:-2px;bottom:-2px;width:22px;height:22px;border-radius:50%;background:var(--text);color:var(--bg);
   display:grid;place-items:center;border:2px solid var(--surface)}
@@ -653,6 +656,7 @@ const ICONS = {
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
   chev: '<path d="m6 9 6 6 6-6"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   ball: '<circle cx="12" cy="12" r="9.5"/><path d="M5.5 5.2c3.4 3.8 3.4 9.8 0 13.6M18.5 5.2c-3.4 3.8-3.4 9.8 0 13.6"/>',
 };
@@ -920,10 +924,21 @@ let user = null, sessionLog = null, logLoading = false, ratingsByPid = {};
 let me = null; // the signed-in user's own player row and rating, once loaded
 
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+// The name the player chose on their record, else their Google name.
 const userName = () => {
+  if (me && me.player && me.player.name) return me.player.name;
   const m = user.user_metadata || {};
   return m.display_name || m.full_name || m.name || user.email.split('@')[0];
 };
+let editName = false;
+async function saveName() {
+  const v = document.getElementById('myname').value;
+  const {data, error} = await sb.rpc('set_my_name', {new_name: v});
+  if (error) { toast(error.message); return; }
+  editName = false;
+  toast(v.trim() ? `Name changed to ${data}` : `Using your Google name, ${data}`);
+  await loadMe();
+}
 
 // Log the current session once it has a round; writes are debounced while scores are typed.
 function queueSync() {
@@ -1250,7 +1265,12 @@ function viewAccount() {
   <p class="sub">Sessions are logged automatically once round 1 starts.</p>
   <div class="card me"><label class="avedit" title="Change photo">${avatar(userName(), 'lg', (me && me.player && me.player.photo) || (user.user_metadata || {}).avatar_url)}
       <input type="file" accept="image/*" hidden onchange="uploadPhoto(this)"><i class="pen">${ic('plus')}</i></label>
-    <span class="who"><b>${esc(userName())}</b><small>${esc(user.email)}</small></span>
+    ${editName ? `<span class="who"><input id="myname" class="nameedit" maxlength="40" value="${esc(userName())}" placeholder="Your Google name"
+        onkeydown="if (event.key === 'Enter') saveName(); if (event.key === 'Escape') { editName = false; render(); }">
+      <span class="row" style="margin-top:8px"><button class="btn sm primary" onclick="saveName()">Save</button>
+        <button class="btn sm soft" onclick="editName = false; render()">Cancel</button></span></span>`
+    : `<span class="who"><button class="namebtn" onclick="editName = true; render(); const i = document.getElementById('myname'); i.focus(); i.select()"
+        title="Edit your name"><b>${esc(userName())}</b>${ic('pen')}</button><small>${esc(user.email)}</small></span>`}
     <button class="btn sm soft" onclick="signOut()">Sign out</button></div>
   ${me && me.player && /\/storage\/v1\/object\/public\/avatars\//.test(me.player.photo || '')
     ? `<p class="muted" style="margin:-6px 4px 14px;font-size:12.5px">Tap your photo to change it · <a href="#" style="color:inherit" onclick="useGooglePhoto(); return false">Use Google photo</a></p>`
