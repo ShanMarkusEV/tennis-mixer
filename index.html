@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
 :root{
   --bg:#f5f6f2;--surface:#fff;--surface-2:#eef0eb;--text:#101612;--muted:#6b756f;--faint:#a3aba6;
@@ -170,6 +171,20 @@ details.past .match{box-shadow:none}
 .help summary::-webkit-details-marker{display:none}
 .help p{font-size:13.5px;color:var(--muted);margin:10px 0 0}
 
+/* account */
+.field{display:block;margin-bottom:12px}
+.field .label{margin:0 0 6px 2px}
+.field input{width:100%;font:inherit;font-size:15px;font-weight:600;color:var(--text);background:var(--surface-2);border:1px solid transparent;border-radius:14px;padding:12px 14px;outline:none}
+.field input:focus{border-color:var(--text)}
+.me{display:flex;align-items:center;gap:14px}
+.me .who{flex:1;min-width:0}
+.me .who b{display:block;font-size:17px;font-weight:800;overflow-wrap:anywhere}
+.me .who small{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.hist li{cursor:pointer}
+.hist .day{width:44px;flex:none;text-align:center;line-height:1.1;background:var(--surface-2);border-radius:12px;padding:6px 0}
+.hist .day b{display:block;font-size:17px;font-weight:800}
+.hist .day small{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
 /* empty */
 .empty{text-align:center;padding:56px 20px;color:var(--muted)}
 .empty .orb{width:84px;height:84px;margin:0 auto 18px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;box-shadow:var(--shadow)}
@@ -206,6 +221,7 @@ details.past .match{box-shadow:none}
   <button data-tab="players"><span class="pill" data-ic="users"></span>Players</button>
   <button data-tab="rounds"><span class="pill" data-ic="court"></span>Rounds</button>
   <button data-tab="standings"><span class="pill" data-ic="trophy"></span>Standings</button>
+  <button data-tab="account"><span class="pill" data-ic="user"></span>Account</button>
 </div></nav>
 <div class="toast" id="toast"></div>
 
@@ -224,7 +240,7 @@ function load() {
   try { const v = JSON.parse(localStorage.getItem(KEY)); return v && Array.isArray(v.players) ? v : null; }
   catch (e) { return null; }
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} queueSync(); }
 let S = Object.assign(defaultState(), load() || {});
 
 const byId = id => S.players.find(p => p.id === id);
@@ -442,7 +458,7 @@ function setCourts(d) { S.courts = Math.max(1, Math.min(10, S.courts + d)); save
 function setTotal(el) { S.total = Math.max(0, parseInt(el.value, 10) || 0); save(); }
 function newSession() {
   if (!confirm('Clear all rounds and scores? Players are kept.')) return;
-  S.rounds = []; S.players.forEach(p => p.active = true); save(); S.tab = 'players'; render();
+  S.rounds = []; S.sessionId = null; S.players.forEach(p => p.active = true); save(); S.tab = 'players'; render();
 }
 function resetAll() {
   if (!confirm('Reset everything back to 10 default players?')) return;
@@ -488,6 +504,7 @@ const ICONS = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
   chev: '<path d="m6 9 6 6 6-6"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   ball: '<circle cx="12" cy="12" r="9.5"/><path d="M5.5 5.2c3.4 3.8 3.4 9.8 0 13.6M18.5 5.2c-3.4 3.8-3.4 9.8 0 13.6"/>',
 };
@@ -612,7 +629,7 @@ function viewPlayers() {
     <button class="btn text" onclick="newSession()">Start new session</button>
     <button class="btn text danger" onclick="resetAll()">Reset everything</button>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px">Saved on this phone automatically.</p>`;
+  <p class="muted" style="text-align:center;font-size:12px">${user ? 'Saved on this phone and logged to your account.' : 'Saved on this phone automatically. Sign in under Account to keep a log.'}</p>`;
 }
 
 function matchCard(r, i, latest) {
@@ -714,12 +731,155 @@ function viewStandings() {
   </details>`;
 }
 
+// ---------- account + session log (Supabase) ----------
+// The publishable (anon) key is safe in the browser; row-level security limits each user to their own rows.
+const SUPABASE_URL = 'https://tuaomjxnhlwhddiucigb.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_iYVtpH-Yb_ysG9liQ-NINw_h2DRDdNq';
+const sb = window.supabase && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+let user = null, sessionLog = null, logLoading = false, authMode = 'login', busy = false;
+
+const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+const userName = () => (user.user_metadata && user.user_metadata.display_name) || user.email.split('@')[0];
+
+// Log the current session once it has a round; writes are debounced while scores are typed.
+function queueSync() {
+  if (!sb || !user || !S.rounds.length) return;
+  clearTimeout(queueSync.t); queueSync.t = setTimeout(syncSession, 800);
+}
+async function syncSession() {
+  clearTimeout(queueSync.t);
+  if (!sb || !user || !S.rounds.length) return;
+  if (!S.sessionId || S.owner !== user.id) {
+    S.sessionId = crypto.randomUUID(); S.owner = user.id; S.playedOn = today();
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+  }
+  const row = {id: S.sessionId, mode: S.mode, courts: S.courts, total: S.total,
+    players: S.players, rounds: S.rounds, played_on: S.playedOn || today()};
+  // Tab switches and sorting also call save(); skip the write when nothing logged has changed.
+  const sig = JSON.stringify(row);
+  if (sig === syncSession.last) return;
+  const {error} = await sb.from('sessions').upsert(row);
+  if (error) { if (!syncSession.warned) toast("Couldn't log session, will retry"); syncSession.warned = true; return; }
+  syncSession.warned = false; syncSession.last = sig;
+  if (sessionLog) {
+    const i = sessionLog.findIndex(h => h.id === row.id);
+    if (i >= 0) sessionLog[i] = row; else sessionLog.unshift(row);
+    if (S.tab === 'account') render();
+  }
+}
+window.addEventListener('online', queueSync);
+
+async function loadLog() {
+  if (logLoading) return;
+  logLoading = true;
+  const {data, error} = await sb.from('sessions').select('id, mode, played_on, players, rounds')
+    .order('played_on', {ascending: false}).order('created_at', {ascending: false}).limit(50);
+  logLoading = false;
+  sessionLog = error ? [] : data;
+  if (error) toast("Couldn't load your sessions");
+  if (S.tab === 'account') render();
+}
+
+async function authSubmit(e) {
+  e.preventDefault();
+  if (busy) return false;
+  const f = e.target, email = f.email.value.trim(), password = f.password.value;
+  busy = true; render();
+  const {data, error} = authMode === 'register'
+    ? await sb.auth.signUp({email, password, options: {data: {display_name: f.name.value.trim()}, emailRedirectTo: location.origin + location.pathname}})
+    : await sb.auth.signInWithPassword({email, password});
+  busy = false;
+  if (error) { render(); toast(error.message); return false; }
+  if (authMode === 'register' && !data.session) { authMode = 'login'; render(); toast('Check your email to confirm your account'); }
+  return false;
+}
+async function forgotPassword() {
+  const email = (document.querySelector('.auth [name=email]') || {}).value;
+  if (!email) { toast('Type your email first'); return; }
+  const {error} = await sb.auth.resetPasswordForEmail(email.trim(), {redirectTo: location.origin + location.pathname});
+  toast(error ? error.message : 'Password reset link sent');
+}
+async function signOut() {
+  await syncSession();
+  await sb.auth.signOut();
+  toast('Signed out');
+}
+function setAuthMode(m) { authMode = m; render(); }
+
+async function openSession(id) {
+  if (id === S.sessionId) { goTab('rounds'); return; }
+  const row = (sessionLog || []).find(h => h.id === id);
+  if (!row) return;
+  await syncSession();
+  Object.assign(S, {sessionId: row.id, owner: user.id, playedOn: row.played_on, mode: row.mode,
+    players: row.players, rounds: row.rounds});
+  goTab(row.rounds.length ? 'rounds' : 'players');
+  toast('Session opened');
+}
+async function deleteSession(id, e) {
+  e.stopPropagation();
+  if (!confirm(id === S.sessionId ? 'Delete the session you have open? Its rounds are cleared here too.' : 'Delete this session from your log?')) return;
+  const {error} = await sb.from('sessions').delete().eq('id', id);
+  if (error) { toast(error.message); return; }
+  sessionLog = sessionLog.filter(h => h.id !== id);
+  // Deleting the open session clears it here too, otherwise the next score would log it again.
+  if (id === S.sessionId) { S.sessionId = null; S.rounds = []; save(); }
+  render();
+}
+
+function viewAccount() {
+  if (!sb) return `<div class="empty"><div class="orb" style="color:var(--muted)">${ic('user')}</div><h3>Accounts unavailable</h3>${navigator.onLine ? 'Sign-in is not set up yet.' : "You're offline. The mixer still works on this phone."}</div>`;
+  if (!user) {
+    const reg = authMode === 'register';
+    return `
+    <h1 class="title">Account</h1>
+    <p class="sub">Sign in to keep a log of every session you run.</p>
+    <div class="seg" style="margin-bottom:14px">
+      <button class="${!reg ? 'on' : ''}" onclick="setAuthMode('login')">Sign in</button>
+      <button class="${reg ? 'on' : ''}" onclick="setAuthMode('register')">Register</button>
+    </div>
+    <form class="card auth" onsubmit="return authSubmit(event)">
+      ${reg ? `<label class="field"><p class="label">Name</p><input name="name" autocomplete="name" required maxlength="80"></label>` : ''}
+      <label class="field"><p class="label">Email</p><input name="email" type="email" autocomplete="email" required></label>
+      <label class="field"><p class="label">Password</p><input name="password" type="password" minlength="6" required autocomplete="${reg ? 'new-password' : 'current-password'}"></label>
+      <button class="btn primary" style="width:100%;margin-top:4px" ${busy ? 'disabled' : ''}>${busy ? 'Please wait…' : reg ? 'Create account' : 'Sign in'}</button>
+      ${!reg ? `<div class="row" style="justify-content:center;margin-top:6px"><button type="button" class="btn text" onclick="forgotPassword()">Forgot password?</button></div>` : ''}
+    </form>`;
+  }
+  if (!sessionLog) loadLog();
+  const list = sessionLog || [];
+  return `
+  <h1 class="title">Account</h1>
+  <p class="sub">Sessions are logged automatically once round 1 starts.</p>
+  <div class="card me">${avatar(userName(), 'lg')}
+    <span class="who"><b>${esc(userName())}</b><small>${esc(user.email)}</small></span>
+    <button class="btn sm soft" onclick="signOut()">Sign out</button></div>
+  <div class="sec-head"><p class="label">Session log${sessionLog ? ` · ${list.length}` : ''}</p></div>
+  ${!sessionLog ? '<p class="muted" style="padding:0 4px">Loading…</p>'
+    : !list.length ? '<p class="muted" style="padding:0 4px">No sessions yet. Generate a round and it will show up here.</p>'
+    : `<div class="card" style="padding:0"><ol class="lb hist">${list.map(h => {
+        const d = new Date(h.played_on + 'T00:00');
+        return `<li onclick="openSession('${h.id}')">
+          <span class="day"><b class="num">${d.getDate()}</b><small>${d.toLocaleString('en', {month: 'short'})}</small></span>
+          <span class="who"><b>${modeName(h.mode)}${h.id === S.sessionId ? ' <span class="tag">Current</span>' : ''}</b>
+            <small>${plural(h.rounds.length, 'round')} · ${plural(h.players.length, 'player')}</small></span>
+          <button class="x" onclick="deleteSession('${h.id}', event)" aria-label="Delete session">${ic('x')}</button></li>`;
+      }).join('')}</ol></div>`}`;
+}
+
+if (sb) sb.auth.onAuthStateChange((event, session) => {
+  const was = user && user.id;
+  user = session ? session.user : null;
+  // Defer: Supabase calls made inside this callback can deadlock the auth lock.
+  if ((user && user.id) !== was) { sessionLog = null; setTimeout(() => { render(); queueSync(); }); }
+});
+
 function render() {
   document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === S.tab));
   const avail = S.players.filter(p => p.active).length, n = S.rounds.length;
   document.getElementById('status').innerHTML = `<i></i>${n ? `Round ${n} · ` : ''}${avail} playing`;
   document.getElementById('view').innerHTML =
-    S.tab === 'rounds' ? viewRounds() : S.tab === 'standings' ? viewStandings() : viewPlayers();
+    S.tab === 'rounds' ? viewRounds() : S.tab === 'standings' ? viewStandings() : S.tab === 'account' ? viewAccount() : viewPlayers();
   // Main action floats above the tab bar, within thumb reach.
   document.getElementById('dock').innerHTML =
     S.tab === 'rounds' ? `<div class="dock"><div class="in">
