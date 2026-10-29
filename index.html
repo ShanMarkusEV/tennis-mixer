@@ -841,6 +841,14 @@ async function loadLog() {
   if (S.tab === 'account') render();
 }
 
+async function deleteAccount() {
+  if (!confirm('Delete your account and every logged session? This cannot be undone. The mixer on this phone is kept.')) return;
+  const {error} = await sb.rpc('delete_my_account');
+  if (error) { toast(error.message); return; }
+  S.sessionId = null; S.owner = null; save();
+  await sb.auth.signOut({scope: 'local'});
+  toast('Account deleted');
+}
 async function signOut() {
   await syncSession();
   await sb.auth.signOut();
@@ -909,8 +917,8 @@ function viewAccount() {
       <div id="gbtn" style="display:flex;justify-content:center;min-height:44px">
         ${window.google && google.accounts ? '' : `<button class="btn" style="width:100%;padding:13px 14px" onclick="googleSignIn()">${GOOGLE}Continue with Google</button>`}
       </div>
-      <p class="muted" style="text-align:center;margin-top:12px;font-size:12.5px">We only use your name and email to keep your session log.</p>
-    </div>`;
+      <p class="muted" style="text-align:center;margin-top:12px;font-size:12.5px">We only use your name, email and photo to keep your session log.</p>
+    </div>${LEGAL}`;
   if (!sessionLog) loadLog();
   const list = sessionLog || [];
   return `
@@ -929,8 +937,11 @@ function viewAccount() {
           <span class="who"><b>${modeName(h.mode)}${h.id === S.sessionId ? ' <span class="tag">Current</span>' : ''}</b>
             <small>${plural(h.rounds.length, 'round')} · ${plural(h.players.length, 'player')}</small></span>
           <button class="x" onclick="deleteSession('${h.id}', event)" aria-label="Delete session">${ic('x')}</button></li>`;
-      }).join('')}</ol></div>`}`;
+      }).join('')}</ol></div>`}
+  <div class="row" style="justify-content:center;margin-top:20px"><button class="btn text danger" onclick="deleteAccount()">Delete account</button></div>
+  ${LEGAL}`;
 }
+const LEGAL = `<p class="muted" style="text-align:center;font-size:12px;margin-top:10px"><a href="privacy.html" style="color:inherit">Privacy</a> · <a href="terms.html" style="color:inherit">Terms</a></p>`;
 
 if (sb) sb.auth.onAuthStateChange((event, session) => {
   const was = user && user.id;
