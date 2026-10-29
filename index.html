@@ -69,6 +69,8 @@ main{max-width:640px;margin:0 auto;padding:22px 20px 190px}
 .grow{flex:1}
 .sec-head{display:flex;align-items:center;justify-content:space-between;margin:26px 4px 10px}
 .sec-head .label{margin:0}
+.sec-head.rhead{flex-wrap:wrap;gap:8px}
+.sec-head.rhead .label{white-space:nowrap}
 
 /* buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700;border-radius:14px;border:1px solid var(--line);background:var(--surface);padding:10px 14px;cursor:pointer;transition:transform .08s,background .15s;white-space:nowrap}
@@ -317,7 +319,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.1';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -334,6 +336,7 @@ function load() {
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} queueSync(); }
 let S = Object.assign(defaultState(), load() || {});
+S.total = 0; // "Games / match" (score autofill) is hidden for now, so it is off for everyone
 
 const byId = id => S.players.find(p => p.id === id);
 const nm = id => (byId(id) || {name: '?'}).name;
@@ -870,18 +873,16 @@ function viewPlayers() {
     <button class="choice ${S.mode === 'mexicano' ? 'on' : ''}" onclick="setMode('mexicano')">
       <span class="ico">📈</span><b>Mexicano</b><span class="d">Matched by standings so games stay close.</span></button>
   </div>
-  <div class="settings">
+  <div class="settings" style="grid-template-columns:1fr">
     <div class="setting"><p class="label">Courts</p>
       <div class="stepper"><button onclick="setCourts(-1)" aria-label="Fewer courts">−</button><span class="num">${S.courts}</span><button onclick="setCourts(1)" aria-label="More courts">+</button></div>
     </div>
-    <div class="setting"><p class="label">Games / match</p>
-      <input type="number" inputmode="numeric" min="0" placeholder="Optional" value="${S.total || ''}" onchange="setTotal(this)">
-    </div>
   </div>
-  <p class="muted" style="margin:8px 4px 0;font-size:12.5px">You can switch format between rounds. With games per match set, typing one team's score fills in the other.</p>
+  <p class="muted" style="margin:8px 4px 0;font-size:12.5px">You can switch format between rounds.</p>
 
-  <div class="sec-head"><p class="label">Roster · ${S.players.length}</p>
-    <div class="row">${user ? `<button class="btn sm soft" onclick="addMe()">${ic('user')}Add me</button>` : ''}
+  <div class="sec-head rhead"><p class="label">Roster · ${S.players.length}</p>
+    <div class="row">${user ? `<button class="btn sm soft" onclick="addMe()">${ic('user')}Add me</button>
+      <button class="btn sm soft" onclick="addByCode()">${ic('plus')}Code</button>` : ''}
       <button class="btn sm soft" onclick="addPlayer()">${ic('plus')}Add</button></div></div>
   <div class="card plist">
     ${S.players.map(p => `
@@ -889,7 +890,7 @@ function viewPlayers() {
         <span class="avw">${avatar(p.name)}${p.linked ? '<i class="lkd" title="Has a 10nis account">✓</i>' : ''}</span>
         <input type="text" value="${esc(p.name)}" onchange="rename('${p.id}', this)" onfocus="this.select()" aria-label="Player name"
           ${p.linked ? 'readonly title="Name from their 10nis account"' : ''}>
-        ${user && p.pid ? levelPill(p) : ''}
+        ${user ? levelPill(p) : ''}
         <button class="sw ${p.active ? 'on' : ''}" role="switch" aria-checked="${p.active}" aria-label="Playing" onclick="toggleActive('${p.id}')"></button>
         <button class="x" onclick="removePlayer('${p.id}')" aria-label="Remove">${ic('x')}</button>
       </div>${openInfo === p.id ? playerInfo(p) : ''}`).join('')}
@@ -1152,6 +1153,21 @@ async function unlinkName(localId) {
   save(); openInfo = null; sessionLog = null;
   syncRoster.last = null; await syncRoster(); loadRatings(); render();
   toast(`${original} unlinked`);
+}
+// Add a 10nis player straight from their player code: they join the roster already linked.
+async function addByCode() {
+  const raw = prompt("Player code (on their Account tab)");
+  if (raw === null) return;
+  const code = raw.trim().toUpperCase();
+  if (!/^[A-Z2-9]{6}$/.test(code)) { toast('Player codes have 6 letters and numbers'); return; }
+  const {data: who} = await sb.rpc('lookup_player_code', {c: code});
+  if (!who) { toast('No 10nis player has that code'); return; }
+  if (who.mine) { addMe(); return; }
+  // Already on the roster under the same name: link that entry instead of adding a duplicate.
+  const same = S.players.find(p => !p.linked && [p.name, ...(p.aka || [])].some(n => n.trim().toLowerCase() === who.name.trim().toLowerCase()));
+  const id = same ? same.id : uid();
+  if (!same) { S.players.push({id, name: who.name, active: true, ...(who.photo ? {photo: who.photo} : {})}); save(); render(); }
+  await linkToPlayer(id, code, `${who.name} added`);
 }
 // Organizer plays too: add yourself to the roster, already linked to your own record.
 async function addMe() {
