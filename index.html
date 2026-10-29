@@ -105,6 +105,8 @@ main{max-width:640px;margin:0 auto;padding:22px 20px 190px}
 .x .ic{width:16px;height:16px}
 textarea{width:100%;min-height:130px;resize:vertical;font:inherit;font-size:14px;color:var(--text);background:var(--surface-2);border:1px solid transparent;border-radius:16px;padding:12px 14px;outline:none}
 textarea:focus{border-color:var(--text)}
+.linkin{width:100%;font:inherit;font-size:14px;color:var(--text);background:var(--surface-2);border:1px solid transparent;border-radius:14px;padding:12px 14px;outline:none}
+.linkin:focus{border-color:var(--text)}
 
 /* rounds */
 .tag{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);padding:4px 9px;border-radius:999px}
@@ -420,8 +422,17 @@ function playedIds() {
 }
 
 function applyList() {
-  const names = parseList(document.getElementById('paste').value);
+  const text = document.getElementById('paste').value;
+  // A pasted Kuyy/Reclub link goes through the importer instead.
+  if (/^\s*https?:\/\/\S+\s*$/.test(text)) { addTab = 'link'; render(); document.getElementById('link').value = text.trim(); importLink(); return; }
+  const names = parseList(text);
   if (!names.length) { toast('Paste at least one name'); return; }
+  applyNames(names);
+  toast(`${names.length} players available`);
+}
+
+// Everyone named plays, anyone missing is skipped (kept if they already played), new names are added.
+function applyNames(names) {
   const used = playedIds();
   const keep = [];
   S.players.forEach(p => {
@@ -434,7 +445,35 @@ function applyList() {
   });
   S.players = keep;
   save(); render();
-  toast(`${names.length} players available`);
+}
+
+let addTab = 'paste', importing = false, withWaitlist = false;
+function setAddTab(t) { addTab = t; render(); }
+async function importLink() {
+  const url = document.getElementById('link').value.trim();
+  if (!url) { toast('Paste a Kuyy or Reclub activity link'); return; }
+  importing = true; render();
+  document.getElementById('link').value = url;
+  try {
+    const r = await fetch('/api/import?url=' + encodeURIComponent(url));
+    const d = await r.json().catch(() => ({error: 'Import is unavailable right now'}));
+    if (!r.ok) throw new Error(d.error);
+    // Same name twice (two different people) gets a number so neither is merged away.
+    const seen = {}, names = [];
+    d.players.filter(p => p.status === 'confirmed' || (withWaitlist && p.status === 'waitlisted')).forEach(p => {
+      const k = p.name.toLowerCase(); seen[k] = (seen[k] || 0) + 1;
+      names.push(seen[k] > 1 ? `${p.name} (${seen[k]})` : p.name);
+    });
+    const waiting = d.players.filter(p => p.status === 'waitlisted').length;
+    importing = false;
+    if (!names.length) { render(); toast(`No confirmed players on that ${d.source} activity yet`); return; }
+    applyNames(names);
+    toast(`${names.length} players from ${d.source}${waiting && !withWaitlist ? ` · ${waiting} waitlisted not added` : ''}`);
+  } catch (e) {
+    importing = false; render();
+    document.getElementById('link').value = url;
+    toast(e.message || "Couldn't import that link");
+  }
 }
 
 function toggleActive(id) { const p = byId(id); p.active = !p.active; save(); render(); }
@@ -616,11 +655,23 @@ function viewPlayers() {
       </div>`).join('')}
   </div>
 
-  <div class="sec-head"><p class="label">Paste today's list</p></div>
+  <div class="sec-head"><p class="label">Today's players</p></div>
+  <div class="seg">
+    <button class="${addTab === 'paste' ? 'on' : ''}" onclick="setAddTab('paste')">Paste list</button>
+    <button class="${addTab === 'link' ? 'on' : ''}" onclick="setAddTab('link')">Kuyy / Reclub link</button>
+  </div>
   <div class="card">
+    ${addTab === 'link' ? `
+    <p class="muted" style="margin-bottom:12px">Paste the activity link. Confirmed players are set to play, anyone missing is skipped, new names are added.</p>
+    <input id="link" class="linkin" type="url" inputmode="url" placeholder="https://reclub.co/m/… or kuyy.id/activities/…" onkeydown="if (event.key === 'Enter') importLink()">
+    <div class="row" style="margin-top:12px;justify-content:space-between">
+      <label class="row" style="gap:10px;font-size:13.5px;font-weight:600;cursor:pointer">
+        <button class="sw ${withWaitlist ? 'on' : ''}" role="switch" aria-checked="${withWaitlist}" onclick="withWaitlist = !withWaitlist; this.classList.toggle('on'); this.setAttribute('aria-checked', withWaitlist)"></button>Include waitlist</label>
+      <button class="btn primary" onclick="importLink()" ${importing ? 'disabled' : ''}>${importing ? 'Importing…' : 'Import'}</button>
+    </div>` : `
     <p class="muted" style="margin-bottom:12px">From WhatsApp, one name per line. Numbers, bullets and ✅ are removed. Everyone listed plays, anyone missing is skipped, new names are added.</p>
     <textarea id="paste" placeholder="1. Andi ✅&#10;2. Budi ✅&#10;3. Citra ✅"></textarea>
-    <div class="row" style="margin-top:12px"><button class="btn primary" onclick="applyList()">Apply list</button></div>
+    <div class="row" style="margin-top:12px"><button class="btn primary" onclick="applyList()">Apply list</button></div>`}
   </div>
 
   <div class="row" style="justify-content:center;gap:20px;margin-top:20px">
