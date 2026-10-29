@@ -233,6 +233,14 @@ details.past .match{box-shadow:none}
 .mmrow .res.W{background:var(--lime);color:var(--lime-ink)}
 .mmrow .res.L{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
 .mmrow .sc{font-weight:800;width:38px;flex:none}
+.scan{position:fixed;inset:0;z-index:20;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#fff;
+  padding:24px 16px calc(24px + env(safe-area-inset-bottom))}
+.scan video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.scan .frame{position:relative;width:min(70vw,280px);aspect-ratio:1;border-radius:24px;box-shadow:0 0 0 100vmax rgba(0,0,0,.55);border:3px solid var(--lime)}
+.scan p{position:relative;margin:0;text-align:center;font-weight:800;font-size:16px}
+.scan p small{display:block;font-weight:500;font-size:13px;opacity:.8;margin-top:4px}
+.scan .row{position:relative}
+.scan .btn{background:rgba(255,255,255,.14);color:#fff;border-color:transparent}
 .namebtn{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:0;cursor:pointer;font:inherit;color:inherit;text-align:left}
 .namebtn .ic{width:14px;height:14px;color:var(--faint);flex:none}
 .nameedit{width:100%;font:inherit;font-size:16px;font-weight:800;color:var(--text);background:var(--surface-2);border:1px solid var(--text);border-radius:12px;padding:8px 10px;outline:none}
@@ -319,7 +327,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.2';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -769,6 +777,7 @@ const ICONS = {
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
   chev: '<path d="m6 9 6 6 6-6"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  scan: '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/>',
   pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   ball: '<circle cx="12" cy="12" r="9.5"/><path d="M5.5 5.2c3.4 3.8 3.4 9.8 0 13.6M18.5 5.2c-3.4 3.8-3.4 9.8 0 13.6"/>',
@@ -882,7 +891,7 @@ function viewPlayers() {
 
   <div class="sec-head rhead"><p class="label">Roster · ${S.players.length}</p>
     <div class="row">${user ? `<button class="btn sm soft" onclick="addMe()">${ic('user')}Add me</button>
-      <button class="btn sm soft" onclick="addByCode()">${ic('plus')}Code</button>` : ''}
+      <button class="btn sm soft" onclick="scanAndAdd()">${ic('scan')}Scan</button>` : ''}
       <button class="btn sm soft" onclick="addPlayer()">${ic('plus')}Add</button></div></div>
   <div class="card plist">
     ${S.players.map(p => `
@@ -1048,6 +1057,8 @@ const DEVICE = (() => {
     return d;
   } catch (e) { return make(); }
 })();
+// Report a failed server call (anonymously) so it shows up in the usage_errors dashboard view.
+const report = (where, msg) => track('error', {where, msg: String(msg || '').slice(0, 200)});
 function track(event, props = {}) {
   if (!sb) return;
   try { if (/^(localhost|127\.)/.test(location.hostname) && localStorage.getItem('10nis-track-local') !== '1') return; } catch (e) { return; }
@@ -1089,7 +1100,8 @@ async function syncRoster() {
   const sig = JSON.stringify([user.id, entries, S.activity || null]);
   if (sig === syncRoster.last) return true;
   const {data, error} = await sb.rpc('upsert_roster', {entries, activity: S.activity || null});
-  if (error) return false;
+  if (error) { syncRoster.error = error.message; report('roster', error.message); return false; }
+  syncRoster.error = null;
   let changed = false;
   S.players.forEach(p => {
     const r = data && data[p.id];
@@ -1132,8 +1144,9 @@ function playerInfo(p) {
     ${p.linked ? `<div class="row" style="justify-content:space-between"><span style="color:var(--green);font-weight:700">Linked to a 10nis account</span>
         <button class="btn sm soft" onclick="unlinkName('${p.id}')">Unlink</button></div>` : `
       <div class="row"><input id="code-${p.id}" maxlength="6" placeholder="Player code" autocomplete="off" onkeydown="if (event.key === 'Enter') linkCode('${p.id}')">
-        <button class="btn sm primary" onclick="linkCode('${p.id}')">Link</button></div>
-      <p>Ask for their 10nis player code (Account tab), or scan their code's QR with your camera.</p>`}
+        <button class="btn sm primary" onclick="linkCode('${p.id}')">Link</button>
+        <button class="btn sm soft" onclick="scanInto('${p.id}')" aria-label="Scan their QR">${ic('scan')}</button></div>
+      <p>Type their 10nis player code, or scan the QR on their Account tab.</p>`}
   </div>`;
 }
 async function linkCode(localId) {
@@ -1154,10 +1167,67 @@ async function unlinkName(localId) {
   syncRoster.last = null; await syncRoster(); loadRatings(); render();
   toast(`${original} unlinked`);
 }
+// In-app scanner for player QR codes. Uses the browser's built-in QR reader where there is one (Chrome on
+// Android); elsewhere (iPhone) loads a small decoder only when scanning. Frames never leave the phone.
+// Resolves with a 6-character code, or null if cancelled; "Type code" falls back to typing it.
+function scanCode() {
+  return new Promise(async resolve => {
+    const box = document.createElement('div');
+    box.className = 'scan';
+    box.innerHTML = `<video playsinline muted></video><div class="frame"></div>
+      <p>Point at the player's QR code<small>They find it on their Account tab, under Your player code</small></p>
+      <div class="row"><button class="btn" data-a="type">Type code</button><button class="btn" data-a="cancel">Cancel</button></div>`;
+    document.body.appendChild(box);
+    const video = box.querySelector('video');
+    let stream = null, timer = null, done = false, busy = false;
+    const finish = v => {
+      if (done) return; done = true;
+      clearInterval(timer); if (stream) stream.getTracks().forEach(t => t.stop()); box.remove(); resolve(v);
+    };
+    box.querySelector('[data-a=cancel]').onclick = () => finish(null);
+    box.querySelector('[data-a=type]').onclick = () => {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      const v = prompt('Player code (on their Account tab)');
+      finish(v === null ? null : v.trim().toUpperCase());
+    };
+    try { stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}, audio: false}); }
+    catch (e) { toast('No camera access, type the code instead'); box.querySelector('[data-a=type]').click(); return; }
+    if (done) { stream.getTracks().forEach(t => t.stop()); return; }
+    video.srcObject = stream; await video.play().catch(() => {});
+    let detect;
+    let formats = [];
+    try { if (typeof window.BarcodeDetector === 'function') formats = await BarcodeDetector.getSupportedFormats(); } catch (e) {}
+    if (formats.includes('qr_code')) {
+      const bd = new BarcodeDetector({formats: ['qr_code']});
+      detect = async () => ((await bd.detect(video).catch(() => []))[0] || {}).rawValue;
+    } else {
+      await loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js').catch(() => {});
+      const c = document.createElement('canvas'), x = c.getContext('2d', {willReadFrequently: true});
+      detect = async () => {
+        if (!window.jsQR || !video.videoWidth) return null;
+        const w = 480, h = Math.round(w * video.videoHeight / video.videoWidth);
+        c.width = w; c.height = h; x.drawImage(video, 0, 0, w, h);
+        const r = jsQR(x.getImageData(0, 0, w, h).data, w, h);
+        return r && r.data;
+      };
+    }
+    timer = setInterval(async () => {
+      if (busy || done) return; busy = true;
+      const raw = String((await detect()) || '');
+      busy = false;
+      if (!raw) return;
+      const m = raw.match(/\/p\/([A-Za-z2-9]{6})\b/) || raw.trim().match(/^([A-Za-z2-9]{6})$/);
+      if (m) finish(m[1].toUpperCase()); else toast("That QR isn't a 10nis player code");
+    }, 300);
+  });
+}
+async function scanAndAdd() { const code = await scanCode(); if (code) addByCode(code); }
+async function scanInto(localId) { const code = await scanCode(); if (code) linkToPlayer(localId, code); }
+
 // Add a 10nis player straight from their player code: they join the roster already linked.
-async function addByCode() {
-  const raw = prompt("Player code (on their Account tab)");
-  if (raw === null) return;
+async function addByCode(given) {
+  const raw = given || prompt("Player code (on their Account tab)");
+  if (raw === null || raw === undefined) return;
   const code = raw.trim().toUpperCase();
   if (!/^[A-Z2-9]{6}$/.test(code)) { toast('Player codes have 6 letters and numbers'); return; }
   const {data: who} = await sb.rpc('lookup_player_code', {c: code});
@@ -1184,10 +1254,17 @@ async function addMe() {
 async function linkToPlayer(localId, code, done) {
   let p = S.players.find(x => x.id === localId);
   if (!p) return false;
-  if (!p.pid) { syncRoster.last = null; await syncRoster(); p = S.players.find(x => x.id === localId); }
-  if (!p || !p.pid) { toast("Couldn't reach 10nis, try again"); return false; }
+  // Register the roster first if this name has no server id yet; one retry covers a flaky connection.
+  for (let i = 0; i < 2 && p && !p.pid; i++) {
+    if (i) await new Promise(r => setTimeout(r, 1200));
+    syncRoster.last = null; await syncRoster(); p = S.players.find(x => x.id === localId);
+  }
+  if (!p || !p.pid) {
+    const msg = !navigator.onLine ? "you're offline" : syncRoster.error || 'no reply from 10nis';
+    toast(`Couldn't save your roster (${msg}). Try again.`); return false;
+  }
   const {data, error} = await sb.rpc('link_player_code', {c: code, roster_pid: p.pid});
-  if (error) { toast(error.message); return false; }
+  if (error) { report('link', error.message); toast(error.message); return false; }
   p.pid = data.pid; p.linked = true; save();
   toast(done || `${p.name} linked to ${data.name}`);
   openInfo = null; syncRoster.last = null; await syncRoster(); loadRatings(); render();
@@ -1207,7 +1284,7 @@ async function syncSession() {
   const sig = JSON.stringify(row);
   if (sig === syncSession.last) return true;
   const {error} = await sb.from('sessions').upsert(row);
-  if (error) { if (!syncSession.warned) toast("Couldn't log session, will retry"); syncSession.warned = true; return false; }
+  if (error) { if (!syncSession.warned) { toast("Couldn't log session, will retry"); report('session', error.message); } syncSession.warned = true; return false; }
   syncSession.warned = false; syncSession.last = sig;
   loadRatings();
   if (sessionLog) {
@@ -1392,8 +1469,9 @@ async function mountGoogleButton() {
     google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID, nonce: nonce.hashed, use_fedcm_for_button: true,
       callback: async ({credential}) => {
+        try { sessionStorage.setItem('10nis-signing-in', '1'); } catch (e) {}
         const {error} = await sb.auth.signInWithIdToken({provider: 'google', token: credential, nonce: nonce.raw});
-        if (error) toast(error.message);
+        if (error) { try { sessionStorage.removeItem('10nis-signing-in'); } catch (e) {} toast(error.message); }
       }
     });
     googleInit = true;
@@ -1405,6 +1483,7 @@ async function mountGoogleButton() {
 }
 // Fallback when Google's script is blocked or offline: the redirect flow through Supabase.
 async function googleSignIn() {
+  try { sessionStorage.setItem('10nis-signing-in', '1'); } catch (e) {}
   const {error} = await sb.auth.signInWithOAuth({provider: 'google', options: {redirectTo: location.origin + location.pathname}});
   if (error) toast(error.message);
 }
@@ -1495,14 +1574,13 @@ async function shareSession() {
   render();
   drawQR('qr', shareLink);
 }
+const loadScript = src => new Promise((res, rej) => {
+  const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = rej; document.head.appendChild(el);
+});
 // QR codes are drawn by a small library loaded only when one is needed; the link works without it.
 async function drawQR(id, text) {
   try {
-    if (!window.qrcode) await new Promise((res, rej) => {
-      const el = document.createElement('script');
-      el.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js'; el.onload = res; el.onerror = rej;
-      document.head.appendChild(el);
-    });
+    if (!window.qrcode) await loadScript('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js');
     const q = qrcode(0, 'M'); q.addData(text); q.make();
     const box = document.getElementById(id);
     if (box) box.innerHTML = q.createSvgTag({cellSize: 4, margin: 2, scalable: true});
@@ -1607,7 +1685,9 @@ function viewClaim() {
 if (sb) sb.auth.onAuthStateChange((event, session) => {
   const was = user && user.id;
   user = session ? session.user : null;
-  if (event === 'SIGNED_IN' && !was && user) setTimeout(() => track('signin'));
+  // Supabase also reports SIGNED_IN when it restores a saved login on page load, so only count a sign-in
+  // the user just did (Google button, or coming back from the Google redirect).
+  try { if (user && sessionStorage.getItem('10nis-signing-in')) { sessionStorage.removeItem('10nis-signing-in'); setTimeout(() => track('signin')); } } catch (e) {}
   // Defer: Supabase calls made inside this callback can deadlock the auth lock.
   if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; myMatches = null; allMatches = false; claimData = null; codeData = undefined; setTimeout(() => { render(); queueSync(); loadRatings(); }); }
 });
