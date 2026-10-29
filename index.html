@@ -618,7 +618,7 @@ async function shareStandingsImage() {
     x.fillStyle = '#a3aba6'; x.font = F(800, 19); x.fillText(avg ? 'AVG' : 'GAMES', W - 90, cy + 28);
   });
   x.textAlign = 'center'; x.fillStyle = '#6b756f'; x.font = F(600, 24);
-  x.fillText('Tennis Mixer · 10nis.pages.dev', W / 2, H - 56);
+  x.fillText('10nis.win', W / 2, H - 56);
 
   const blob = await new Promise(res => c.toBlob(res, 'image/png'));
   const file = new File([blob], `tennis-standings-${new Date().toISOString().slice(0, 10)}.png`, {type: 'image/png'});
@@ -861,7 +861,7 @@ async function signOut() {
   await sb.auth.signOut();
   toast('Signed out');
 }
-// Google's own button signs in on this site, so the prompt names 10nis.pages.dev rather than the Supabase project.
+// Google's own button signs in on this site, so the prompt names our domain rather than the Supabase project.
 // Google gets a hashed nonce and Supabase the raw one, which ties the ID token to this page.
 const googleReady = (async () => {
   const raw = crypto.randomUUID();

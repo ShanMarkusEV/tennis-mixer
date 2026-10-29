@@ -3,7 +3,7 @@
 // Reclub pages can't be read from the browser (no CORS), so the app asks this function instead.
 // Only Kuyy and Reclub hosts are fetched, so this is not an open proxy.
 
-const UA = 'Mozilla/5.0 (compatible; TennisMixer/1.0; +https://10nis.pages.dev)';
+const UA = 'Mozilla/5.0 (compatible; TennisMixer/1.0; +https://10nis.win)';
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status, headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store'}
 });
