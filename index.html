@@ -232,7 +232,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 
 function defaultState() {
   return {
-    players: Array.from({length: 10}, (_, i) => ({id: uid(), name: 'Player ' + (i + 1), active: true})),
+    players: Array.from({length: 4}, (_, i) => ({id: uid(), name: 'Player ' + (i + 1), active: true})),
     courts: 2, mode: 'americano', format: 'doubles', total: 0, rounds: [], tab: 'players', sort: 'pts'
   };
 }
@@ -541,7 +541,7 @@ function newSession() {
   S.rounds = []; S.sessionId = null; S.players.forEach(p => p.active = true); save(); S.tab = 'players'; render();
 }
 function resetAll() {
-  if (!confirm('Reset everything back to 10 default players?')) return;
+  if (!confirm('Reset everything back to 4 default players?')) return;
   S = defaultState(); save(); render();
 }
 function goTab(t) { S.tab = t; save(); render(); window.scrollTo(0, 0); }
