@@ -1,13 +1,12 @@
 // Cloudflare Pages Function: GET /api/import?url=<Kuyy or Reclub activity link>
-// Returns {source, title, players: [{name, status: 'confirmed' | 'waitlisted', photo}]}.
+// Returns {source, title, players: [{name, status: 'confirmed' | 'waitlisted', photo, ext}], activity}.
+//   ext      = {source, id, username}: that platform's identity for the person, when they have an account.
+//   activity = {source, key, date, level_min, level_max}: when the activity happened and the level it was
+//              advertised at (app scale 1–10), used as evidence for everyone who played.
 // Reclub pages can't be read from the browser (no CORS), so the app asks this function instead.
 // Only Kuyy and Reclub hosts are fetched, so this is not an open proxy.
 
-const UA = 'Mozilla/5.0 (compatible; TennisMixer/1.0; +https://10nis.win)';
-const json = (body, status = 200) => new Response(JSON.stringify(body), {
-  status, headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store'}
-});
-const isHost = (host, domain) => host === domain || host.endsWith('.' + domain);
+import {UA, json, isHost, levelFromTitle, reclubLevel, activityKey, wibDate} from './_shared.js';
 
 export async function onRequestGet({request}) {
   let link;
@@ -45,13 +44,23 @@ async function kuyy(link) {
     const status = m.user_status === 'going' ? 'confirmed' : /wait/.test(m.user_status || '') ? 'waitlisted' : null;
     if (!status) continue;
     const tickets = (m.checkin_status || []).filter(t => t.status !== 'cancelled' && t.name);
-    // The account photo belongs to the booker only, not their guests.
+    // The account photo and identity belong to the booker only, not their guests.
     const photo = m.image_url || null;
-    if (tickets.length) tickets.forEach(t => players.push({name: t.name, status, photo: t.name === m.name ? photo : null}));
-    else for (let i = 0; i < (m.quantity || 1); i++) players.push({name: i ? `${m.name} +${i}` : m.name, status, photo: i ? null : photo});
+    const ext = m.id ? {source: 'kuyy', id: m.id, username: m.username || null} : null;
+    if (tickets.length) tickets.forEach(t => {
+      const self = t.name === m.name;
+      players.push({name: t.name, status, photo: self ? photo : null, ext: self ? ext : null});
+    });
+    else for (let i = 0; i < (m.quantity || 1); i++)
+      players.push({name: i ? `${m.name} +${i}` : m.name, status, photo: i ? null : photo, ext: i ? null : ext});
   }
   const ev = event.data || event;
-  return {source: 'Kuyy', title: ev.title || ev.name || '', players};
+  const title = ev.title || ev.name || '';
+  const start = Date.parse(ev.start_timestamp || '');
+  const level = levelFromTitle(title);
+  const activity = start ? {source: 'kuyy', key: activityKey(start, ev.location_label || ev.location), date: wibDate(start),
+    level_min: level ? level.min : null, level_max: level ? level.max : null} : null;
+  return {source: 'Kuyy', title, players, activity};
 }
 
 // ---------- Reclub ----------
@@ -78,12 +87,21 @@ async function reclub(link) {
     const name = user.name || (p.externalReference && p.externalReference.name);
     // Users without a photo get a generated initials image; skip it so the app's own avatar shows.
     const photo = user.imageUrl && !user.imageUrl.includes('/default-avatars/') ? user.imageUrl : null;
-    if (status && name) players.push({name: String(name).trim(), status, photo});
+    const ext = user.userId ? {source: 'reclub', id: String(user.userId), username: user.username || null} : null;
+    if (status && name) players.push({name: String(name).trim(), status, photo, ext});
   }
-  return {source: 'Reclub', title: (meet.name || '').trim(), players};
+  const title = (meet.name || '').trim();
+  const start = meet.startDatetime ? meet.startDatetime * 1000 : NaN;
+  // Reclub's structured level range when the host set one, else whatever the title says.
+  const lvl = meet.minSportLevelValue != null || meet.maxSportLevelValue != null
+    ? {min: reclubLevel(meet.minSportLevelValue ?? meet.maxSportLevelValue), max: reclubLevel(meet.maxSportLevelValue ?? meet.minSportLevelValue)}
+    : levelFromTitle(title);
+  const activity = start ? {source: 'reclub', key: activityKey(start, meet.venue && meet.venue.name), date: wibDate(start),
+    level_min: lvl ? lvl.min : null, level_max: lvl ? lvl.max : null} : null;
+  return {source: 'Reclub', title, players, activity};
 }
 
-function devalue(arr) {
+export function devalue(arr) {
   const cache = new Map();
   const wrappers = new Set(['Reactive', 'ShallowReactive', 'Ref', 'ShallowRef', 'EmptyRef', 'EmptyShallowRef']);
   const get = i => {

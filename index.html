@@ -98,6 +98,10 @@ main{max-width:640px;margin:0 auto;padding:22px 20px 190px}
 .player input:focus{background:var(--surface-2)}
 .player.skip .av{filter:grayscale(1);opacity:.4}
 .player.skip input{color:var(--faint);text-decoration:line-through}
+.rt{flex:none;display:flex;flex-direction:column;align-items:flex-end;line-height:1.15;text-align:right}
+.rt b{font-size:14px;font-weight:800}
+.rt small{font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
+.rt small.on{color:var(--green)}
 .sw{position:relative;width:44px;height:26px;flex:none;border-radius:999px;border:0;background:var(--surface-2);cursor:pointer;transition:background .2s}
 .sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
 .sw.on{background:var(--green)}
@@ -465,7 +469,7 @@ function applyList() {
 }
 
 // Everyone named plays, anyone missing is skipped (kept if they already played), new names are added.
-// Entries are names, or {name, photo} from an import.
+// Entries are names, or {name, photo, ext} from an import (ext = that platform's id for the person).
 function applyNames(names) {
   const list = names.map(n => typeof n === 'string' ? {name: n} : n);
   const find = name => list.find(n => n.name.toLowerCase() === name.trim().toLowerCase());
@@ -473,12 +477,12 @@ function applyNames(names) {
   const keep = [];
   S.players.forEach(p => {
     const listed = find(p.name);
-    if (listed) { p.active = true; if (listed.photo) p.photo = listed.photo; keep.push(p); }
+    if (listed) { p.active = true; if (listed.photo) p.photo = listed.photo; if (listed.ext) p.ext = listed.ext; keep.push(p); }
     else if (used.has(p.id)) { p.active = false; keep.push(p); } // keep history, mark as skipped
   });
   list.forEach(n => {
     if (!keep.some(p => p.name.trim().toLowerCase() === n.name.toLowerCase()))
-      keep.push({id: uid(), name: n.name, active: true, ...(n.photo ? {photo: n.photo} : {})});
+      keep.push({id: uid(), name: n.name, active: true, ...(n.photo ? {photo: n.photo} : {}), ...(n.ext ? {ext: n.ext} : {})});
   });
   S.players = keep;
   save(); render();
@@ -505,11 +509,13 @@ async function importLink() {
     const seen = {}, names = [];
     d.players.filter(p => p.status === 'confirmed' || (withWaitlist && p.status === 'waitlisted')).forEach(p => {
       const k = p.name.toLowerCase(); seen[k] = (seen[k] || 0) + 1;
-      names.push({name: seen[k] > 1 ? `${p.name} (${seen[k]})` : p.name, photo: /^https:\/\//.test(p.photo || '') ? p.photo : null});
+      names.push({name: seen[k] > 1 ? `${p.name} (${seen[k]})` : p.name, photo: /^https:\/\//.test(p.photo || '') ? p.photo : null, ext: p.ext || null});
     });
     const waiting = d.players.filter(p => p.status === 'waitlisted').length;
     importing = false;
     if (!names.length) { render(); toast(`No confirmed players on that ${d.source} activity yet`); return; }
+    // Remembered so the activity's level counts as evidence for everyone who plays today.
+    S.activity = d.activity || null;
     applyNames(names);
     toast(`${plural(names.length, 'player')} from ${d.source}${waiting && !withWaitlist ? ` · ${waiting} waitlisted not added` : ''}`);
   } catch (e) {
@@ -538,7 +544,7 @@ function setCourts(d) { S.courts = Math.max(1, Math.min(10, S.courts + d)); save
 function setTotal(el) { S.total = Math.max(0, parseInt(el.value, 10) || 0); save(); }
 function newSession() {
   if (!confirm('Clear all rounds and scores? Players are kept.')) return;
-  S.rounds = []; S.sessionId = null; S.players.forEach(p => p.active = true); save(); S.tab = 'players'; render();
+  S.rounds = []; S.sessionId = null; S.activity = null; S.players.forEach(p => p.active = true); save(); S.tab = 'players'; render();
 }
 function resetAll() {
   if (!confirm('Reset everything back to 4 default players?')) return;
@@ -700,6 +706,7 @@ function viewPlayers() {
       <div class="player ${p.active ? '' : 'skip'}">
         ${avatar(p.name)}
         <input type="text" value="${esc(p.name)}" onchange="rename('${p.id}', this)" onfocus="this.select()" aria-label="Player name">
+        ${user && p.pid ? ratingChip(p) : ''}
         <button class="sw ${p.active ? 'on' : ''}" role="switch" aria-checked="${p.active}" aria-label="Playing" onclick="toggleActive('${p.id}')"></button>
         <button class="x" onclick="removePlayer('${p.id}')" aria-label="Remove">${ic('x')}</button>
       </div>`).join('')}
@@ -837,7 +844,7 @@ const SUPABASE_URL = 'https://tuaomjxnhlwhddiucigb.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_iYVtpH-Yb_ysG9liQ-NINw_h2DRDdNq';
 const GOOGLE_CLIENT_ID = '557073910029-b2eg9mfhq2ttugnpdlqebp6jlpequ0qp.apps.googleusercontent.com';
 const sb = window.supabase && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-let user = null, sessionLog = null, logLoading = false;
+let user = null, sessionLog = null, logLoading = false, ratingsByPid = {};
 
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
 const userName = () => {
@@ -850,6 +857,38 @@ function queueSync() {
   if (!sb || !user || !S.rounds.length) return;
   clearTimeout(queueSync.t); queueSync.t = setTimeout(syncSession, 800);
 }
+// Register today's roster with the shared player directory; each player gets a server id (pid)
+// and we learn who already has a 10nis account. Skipped when nothing about the roster changed.
+async function syncRoster() {
+  const entries = S.players.map(p => ({local: p.id, name: p.name, photo: p.photo || null, att: !!p.active, ext: p.ext || null}));
+  const sig = JSON.stringify([user.id, entries, S.activity || null]);
+  if (sig === syncRoster.last) return true;
+  const {data, error} = await sb.rpc('upsert_roster', {entries, activity: S.activity || null});
+  if (error) return false;
+  let changed = false;
+  S.players.forEach(p => {
+    const r = data && data[p.id];
+    if (r && (p.pid !== r.pid || p.linked !== r.linked)) { p.pid = r.pid; p.linked = r.linked; changed = true; }
+  });
+  syncRoster.last = sig;
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+  if (changed && S.tab === 'players') render();
+  return true;
+}
+// Ratings of the players on this roster (the database only returns players this organizer hosts).
+async function loadRatings() {
+  const pids = S.players.map(p => p.pid).filter(Boolean);
+  if (!sb || !user || !pids.length) return;
+  const {data} = await sb.from('ratings').select('player_id, score, label, confidence').in('player_id', pids);
+  if (!data) return;
+  ratingsByPid = Object.fromEntries(data.map(r => [r.player_id, r]));
+  if (S.tab === 'players') render();
+}
+function ratingChip(p) {
+  const r = ratingsByPid[p.pid];
+  const tip = (r ? `${r.label} · ${r.confidence}` : 'Not rated yet') + (p.linked ? ' · has a 10nis account' : ' · no 10nis account linked');
+  return `<span class="rt" title="${esc(tip)}"><b class="num">${r ? Number(r.score).toFixed(1) : '–'}</b><small class="${p.linked ? 'on' : ''}">${p.linked ? 'linked' : r ? esc(r.label) : 'unrated'}</small></span>`;
+}
 async function syncSession() {
   clearTimeout(queueSync.t);
   if (!sb || !user || !S.rounds.length) return;
@@ -857,6 +896,7 @@ async function syncSession() {
     S.sessionId = crypto.randomUUID(); S.owner = user.id; S.playedOn = today();
     try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
   }
+  if (!(await syncRoster())) { if (!syncSession.warned) toast("Couldn't log session, will retry"); syncSession.warned = true; return; }
   const row = {id: S.sessionId, mode: S.mode, courts: S.courts, total: S.total,
     players: S.players, rounds: S.rounds, played_on: S.playedOn || today()};
   // Tab switches and sorting also call save(); skip the write when nothing logged has changed.
@@ -865,6 +905,7 @@ async function syncSession() {
   const {error} = await sb.from('sessions').upsert(row);
   if (error) { if (!syncSession.warned) toast("Couldn't log session, will retry"); syncSession.warned = true; return; }
   syncSession.warned = false; syncSession.last = sig;
+  loadRatings();
   if (sessionLog) {
     const i = sessionLog.findIndex(h => h.id === row.id);
     if (i >= 0) sessionLog[i] = row; else sessionLog.unshift(row);
@@ -991,7 +1032,7 @@ if (sb) sb.auth.onAuthStateChange((event, session) => {
   const was = user && user.id;
   user = session ? session.user : null;
   // Defer: Supabase calls made inside this callback can deadlock the auth lock.
-  if ((user && user.id) !== was) { sessionLog = null; setTimeout(() => { render(); queueSync(); }); }
+  if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; setTimeout(() => { render(); queueSync(); loadRatings(); }); }
 });
 
 function render() {
