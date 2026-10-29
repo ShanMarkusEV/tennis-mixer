@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async onload="window.mountGoogleButton && mountGoogleButton()"></script>
 <style>
 :root{
   --bg:#f5f6f2;--surface:#fff;--surface-2:#eef0eb;--text:#101612;--muted:#6b756f;--faint:#a3aba6;
@@ -172,10 +173,6 @@ details.past .match{box-shadow:none}
 .help p{font-size:13.5px;color:var(--muted);margin:10px 0 0}
 
 /* account */
-.field{display:block;margin-bottom:12px}
-.field .label{margin:0 0 6px 2px}
-.field input{width:100%;font:inherit;font-size:15px;font-weight:600;color:var(--text);background:var(--surface-2);border:1px solid transparent;border-radius:14px;padding:12px 14px;outline:none}
-.field input:focus{border-color:var(--text)}
 .me{display:flex;align-items:center;gap:14px}
 .me .who{flex:1;min-width:0}
 .me .who b{display:block;font-size:17px;font-weight:800;overflow-wrap:anywhere}
@@ -736,8 +733,9 @@ function viewStandings() {
 // The publishable (anon) key is safe in the browser; row-level security limits each user to their own rows.
 const SUPABASE_URL = 'https://tuaomjxnhlwhddiucigb.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_iYVtpH-Yb_ysG9liQ-NINw_h2DRDdNq';
+const GOOGLE_CLIENT_ID = '557073910029-b2eg9mfhq2ttugnpdlqebp6jlpequ0qp.apps.googleusercontent.com';
 const sb = window.supabase && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-let user = null, sessionLog = null, logLoading = false, authMode = 'login', busy = false;
+let user = null, sessionLog = null, logLoading = false;
 
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
 const userName = () => {
@@ -784,35 +782,43 @@ async function loadLog() {
   if (S.tab === 'account') render();
 }
 
-async function authSubmit(e) {
-  e.preventDefault();
-  if (busy) return false;
-  const f = e.target, email = f.email.value.trim(), password = f.password.value;
-  busy = true; render();
-  const {data, error} = authMode === 'register'
-    ? await sb.auth.signUp({email, password, options: {data: {display_name: f.name.value.trim()}, emailRedirectTo: location.origin + location.pathname}})
-    : await sb.auth.signInWithPassword({email, password});
-  busy = false;
-  if (error) { render(); toast(error.message); return false; }
-  if (authMode === 'register' && !data.session) { authMode = 'login'; render(); toast('Check your email to confirm your account'); }
-  return false;
-}
-async function forgotPassword() {
-  const email = (document.querySelector('.auth [name=email]') || {}).value;
-  if (!email) { toast('Type your email first'); return; }
-  const {error} = await sb.auth.resetPasswordForEmail(email.trim(), {redirectTo: location.origin + location.pathname});
-  toast(error ? error.message : 'Password reset link sent');
-}
 async function signOut() {
   await syncSession();
   await sb.auth.signOut();
   toast('Signed out');
 }
+// Google's own button signs in on this site, so the prompt names 10nis.pages.dev rather than the Supabase project.
+// Google gets a hashed nonce and Supabase the raw one, which ties the ID token to this page.
+const googleReady = (async () => {
+  const raw = crypto.randomUUID();
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+  return {raw, hashed: [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('')};
+})();
+let googleInit = false;
+async function mountGoogleButton() {
+  const el = document.getElementById('gbtn');
+  if (!el || !window.google || !google.accounts) return;
+  const nonce = await googleReady;
+  if (!googleInit) {
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID, nonce: nonce.hashed, use_fedcm_for_button: true,
+      callback: async ({credential}) => {
+        const {error} = await sb.auth.signInWithIdToken({provider: 'google', token: credential, nonce: nonce.raw});
+        if (error) toast(error.message);
+      }
+    });
+    googleInit = true;
+  }
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  el.innerHTML = '';
+  google.accounts.id.renderButton(el, {theme: dark ? 'filled_black' : 'outline', size: 'large', shape: 'pill',
+    text: 'continue_with', locale: 'en', width: Math.min(400, el.offsetWidth)});
+}
+// Fallback when Google's script is blocked or offline: the redirect flow through Supabase.
 async function googleSignIn() {
   const {error} = await sb.auth.signInWithOAuth({provider: 'google', options: {redirectTo: location.origin + location.pathname}});
   if (error) toast(error.message);
 }
-function setAuthMode(m) { authMode = m; render(); }
 
 async function openSession(id) {
   if (id === S.sessionId) { goTab('rounds'); return; }
@@ -837,25 +843,15 @@ async function deleteSession(id, e) {
 
 function viewAccount() {
   if (!sb) return `<div class="empty"><div class="orb" style="color:var(--muted)">${ic('user')}</div><h3>Accounts unavailable</h3>${navigator.onLine ? 'Sign-in is not set up yet.' : "You're offline. The mixer still works on this phone."}</div>`;
-  if (!user) {
-    const reg = authMode === 'register';
-    return `
+  if (!user) return `
     <h1 class="title">Account</h1>
     <p class="sub">Sign in to keep a log of every session you run.</p>
-    <div class="seg" style="margin-bottom:14px">
-      <button class="${!reg ? 'on' : ''}" onclick="setAuthMode('login')">Sign in</button>
-      <button class="${reg ? 'on' : ''}" onclick="setAuthMode('register')">Register</button>
-    </div>
-    <button class="btn" style="width:100%;padding:13px 14px;margin-bottom:12px" onclick="googleSignIn()">${GOOGLE}Continue with Google</button>
-    <p class="label" style="text-align:center;margin:0 0 12px">or with email</p>
-    <form class="card auth" onsubmit="return authSubmit(event)">
-      ${reg ? `<label class="field"><p class="label">Name</p><input name="name" autocomplete="name" required maxlength="80"></label>` : ''}
-      <label class="field"><p class="label">Email</p><input name="email" type="email" autocomplete="email" required></label>
-      <label class="field"><p class="label">Password</p><input name="password" type="password" minlength="6" required autocomplete="${reg ? 'new-password' : 'current-password'}"></label>
-      <button class="btn primary" style="width:100%;margin-top:4px" ${busy ? 'disabled' : ''}>${busy ? 'Please wait…' : reg ? 'Create account' : 'Sign in'}</button>
-      ${!reg ? `<div class="row" style="justify-content:center;margin-top:6px"><button type="button" class="btn text" onclick="forgotPassword()">Forgot password?</button></div>` : ''}
-    </form>`;
-  }
+    <div class="card" style="padding:22px 18px">
+      <div id="gbtn" style="display:flex;justify-content:center;min-height:44px">
+        ${window.google && google.accounts ? '' : `<button class="btn" style="width:100%;padding:13px 14px" onclick="googleSignIn()">${GOOGLE}Continue with Google</button>`}
+      </div>
+      <p class="muted" style="text-align:center;margin-top:12px;font-size:12.5px">We only use your name and email to keep your session log.</p>
+    </div>`;
   if (!sessionLog) loadLog();
   const list = sessionLog || [];
   return `
@@ -890,6 +886,7 @@ function render() {
   document.getElementById('status').innerHTML = `<i></i>${n ? `Round ${n} · ` : ''}${avail} playing`;
   document.getElementById('view').innerHTML =
     S.tab === 'rounds' ? viewRounds() : S.tab === 'standings' ? viewStandings() : S.tab === 'account' ? viewAccount() : viewPlayers();
+  mountGoogleButton();
   // Main action floats above the tab bar, within thumb reach.
   document.getElementById('dock').innerHTML =
     S.tab === 'rounds' ? `<div class="dock"><div class="in">
