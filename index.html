@@ -618,6 +618,20 @@ function resetAll() {
 function goTab(t) { if (claimView) leaveClaim(); S.tab = t; save(); render(); window.scrollTo(0, 0); }
 
 // ---------- sharing ----------
+// Invite others to 10nis: the phone's share sheet where available, otherwise copy the message.
+const APP_URL = 'https://10nis.win';
+async function shareApp() {
+  const text = 'Run Americano & Mexicano tennis sessions with 10nis: rounds, scores, standings and player levels.';
+  if (navigator.share) {
+    try { await navigator.share({title: '10nis', text, url: APP_URL}); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  copyText(`${text} ${APP_URL}`);
+}
+const shareCard = () => `<div class="sec-head"><p class="label">Share 10nis</p></div>
+  <div class="card code"><div id="appqr" class="qr" aria-label="QR code for 10nis.win"></div>
+    <div><p class="muted" style="margin-bottom:10px">Playing with friends who'd like it? Send them the app, or let them scan this.</p>
+      <button class="btn sm primary" onclick="shareApp()">${ic('share')}Share 10nis</button></div></div>`;
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); }
   catch (e) {
@@ -808,7 +822,8 @@ function viewPlayers() {
     <button class="btn text" onclick="newSession()">Start new session</button>
     <button class="btn text danger" onclick="resetAll()">Reset everything</button>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px">${user ? 'Saved on this phone and logged to your account.' : 'Saved on this phone automatically. Sign in under Account to keep a log.'}</p>`;
+  <p class="muted" style="text-align:center;font-size:12px">${user ? 'Saved on this phone and logged to your account.' : 'Saved on this phone automatically. Sign in under Account to keep a log.'}</p>
+  <div class="row" style="justify-content:center;margin-top:6px"><button class="btn text" onclick="shareApp()">${ic('share')}Share 10nis</button></div>`;
 }
 
 function matchCard(r, i, latest) {
@@ -1256,7 +1271,7 @@ function viewAccount() {
         ${window.google && google.accounts ? '' : `<button class="btn" style="width:100%;padding:13px 14px" onclick="googleSignIn()">${GOOGLE}Continue with Google</button>`}
       </div>
       <p class="muted" style="text-align:center;margin-top:12px;font-size:12.5px">We only use your name, email and photo to keep your session log.</p>
-    </div>${LEGAL}`;
+    </div>${shareCard()}${LEGAL}`;
   if (!sessionLog) loadLog();
   if (!me) loadMe();
   const list = sessionLog || [];
@@ -1288,6 +1303,7 @@ function viewAccount() {
             <small>${plural(h.rounds.length, 'round')} · ${plural(h.players.length, 'player')}</small></span>
           <button class="x" onclick="deleteSession('${h.id}', event)" aria-label="Delete session">${ic('x')}</button></li>`;
       }).join('')}</ol></div>`}
+  ${shareCard()}
   <div class="row" style="justify-content:center;margin-top:20px"><button class="btn text danger" onclick="deleteAccount()">Delete account</button></div>
   ${LEGAL}`;
 }
@@ -1441,6 +1457,7 @@ function render() {
     S.tab === 'rounds' ? viewRounds() : S.tab === 'standings' ? viewStandings() : S.tab === 'account' ? viewAccount() : viewPlayers();
   mountGoogleButton();
   if (S.tab === 'account' && me && me.code && document.getElementById('mycode')) drawQR('mycode', location.origin + '/p/' + me.code);
+  if (document.getElementById('appqr')) drawQR('appqr', APP_URL);
   // Main action floats above the tab bar, within thumb reach.
   document.getElementById('dock').innerHTML =
     S.tab === 'rounds' ? `<div class="dock"><div class="in">
