@@ -33,8 +33,13 @@ export function levelFromTitle(title) {
   if (lo === Infinity) return null;
   return {min: lo, max: up ? 10 : hi};
 }
-// Reclub levels run 1 (Newbie) to 5 (Advanced).
-export const reclubLevel = v => v == null ? null : Math.max(1, Math.min(10, 1 + 2.25 * (Number(v) - 1)));
+// Reclub's tennis levels: 1 Newbie (NTRP 2.5), 2 Beginner (3.0), 3 Intermediate (3.5),
+// 4 Upper Intermediate (4.0), 5 Advanced (4.5), 6 Expert (5.0). Each maps to a band on the app's 1–10 scale.
+const RECLUB_BANDS = {1: [1, 2.5], 2: [2.5, 5.5], 3: [5.5, 7], 4: [7, 8.5], 5: [8, 9.5], 6: [9.5, 10]};
+export function reclubRange(min, max) {
+  const lo = RECLUB_BANDS[Math.round(min ?? max)], hi = RECLUB_BANDS[Math.round(max ?? min)];
+  return lo && hi ? {min: lo[0], max: hi[1]} : null;
+}
 
 // ---------- activity dedupe key ----------
 // The same session is often listed on both Kuyy and Reclub. date|hour (WIB) plus the first two

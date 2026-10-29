@@ -185,6 +185,10 @@ details.past .match{box-shadow:none}
 .me .who b{display:block;font-size:17px;font-weight:800;overflow-wrap:anywhere}
 .me .who small{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
 .hist li{cursor:pointer}
+.lvl .score{display:flex;align-items:baseline;gap:10px}
+.lvl .score b{font-size:40px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.lvl .score span{font-size:17px;font-weight:800}
+.lvl .muted{margin-top:6px}
 .hist .day{width:44px;flex:none;text-align:center;line-height:1.1;background:var(--surface-2);border-radius:12px;padding:6px 0}
 .hist .day b{display:block;font-size:17px;font-weight:800}
 .hist .day small{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -845,6 +849,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_iYVtpH-Yb_ysG9liQ-NINw_h2DRDdNq';
 const GOOGLE_CLIENT_ID = '557073910029-b2eg9mfhq2ttugnpdlqebp6jlpequ0qp.apps.googleusercontent.com';
 const sb = window.supabase && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 let user = null, sessionLog = null, logLoading = false, ratingsByPid = {};
+let me = null, linking = false; // the signed-in user's own player row and rating, once loaded
 
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
 const userName = () => {
@@ -923,6 +928,60 @@ async function loadLog() {
   sessionLog = error ? [] : data;
   if (error) toast("Couldn't load your sessions");
   if (S.tab === 'account') render();
+}
+
+// ---------- your level ----------
+async function loadMe() {
+  if (!sb || !user || loadMe.busy) return;
+  loadMe.busy = true;
+  const {data: p} = await sb.from('players').select('id, name, kuyy_id, kuyy_username, reclub_id, reclub_username')
+    .eq('user_id', user.id).is('merged_into', null).maybeSingle();
+  let rating = null;
+  if (p) ({data: rating} = await sb.from('ratings').select('score, label, confidence, matches, wins').eq('player_id', p.id).maybeSingle());
+  me = {player: p || null, rating: rating || null};
+  loadMe.busy = false;
+  if (S.tab === 'account') render();
+}
+async function linkProfile() {
+  const raw = document.getElementById('plink').value.trim();
+  const url = (raw.match(/(?:https?:\/\/)?(?:[\w-]+\.)*(?:reclub\.co|kuyy\.id|kuyy\.app)\/[^\s<>"']+/i) || [])[0];
+  if (!url) { toast('Paste your Kuyy or Reclub profile link'); return; }
+  linking = true; render();
+  try {
+    const r = await fetch('/api/profile?url=' + encodeURIComponent(/^https?:/i.test(url) ? url : 'https://' + url));
+    const prof = await r.json().catch(() => ({error: 'Linking is unavailable right now'}));
+    if (!r.ok) throw new Error(prof.error);
+    const {data, error} = await sb.rpc('link_profile', {profile: prof});
+    if (error) throw new Error(error.message);
+    const src = prof.source === 'kuyy' ? 'Kuyy' : 'Reclub';
+    toast(data.added ? `${src} linked · ${data.added} ${data.added === 1 ? 'activity' : 'activities'} counted` : `${src} linked`);
+  } catch (e) { toast(e.message || "Couldn't link that profile"); }
+  linking = false; await loadMe();
+}
+async function unlinkProfile(src) {
+  if (!confirm(`Unlink your ${src === 'kuyy' ? 'Kuyy' : 'Reclub'} profile? Its activity history stops counting towards your level.`)) return;
+  const {error} = await sb.rpc('unlink_profile', {src});
+  if (error) { toast(error.message); return; }
+  await loadMe();
+}
+function viewMe() {
+  if (!me) return '<p class="muted" style="padding:0 4px">Loading…</p>';
+  const p = me.player, r = me.rating;
+  const linked = p ? [p.kuyy_id && ['kuyy', 'Kuyy', p.kuyy_username], p.reclub_id && ['reclub', 'Reclub', p.reclub_username]].filter(Boolean) : [];
+  return `
+  <div class="card lvl">
+    ${r ? `<div class="score"><b class="num">${Number(r.score).toFixed(1)}</b><span>${esc(r.label)}</span></div>
+      <p class="muted">${esc(r.confidence)}${r.matches ? ` · ${r.wins}W ${r.matches - r.wins}L` : ''}</p>`
+    : `<p class="muted">No level yet. Link your Kuyy or Reclub profile below, or play a session logged by an organizer on 10nis.</p>`}
+  </div>
+  <div class="card">
+    ${linked.map(([src, name, uname]) => `<div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <span><b>${name}</b> <span class="muted">${uname ? '@' + esc(uname) : 'linked'}</span></span>
+      <button class="btn sm soft" onclick="unlinkProfile('${src}')">Unlink</button></div>`).join('')}
+    <p class="muted" style="margin-bottom:10px">${linked.length ? 'Link another profile' : 'Link your Kuyy or Reclub profile'} so organizers' imports recognise you and your past activities count.</p>
+    <input id="plink" class="linkin" type="text" inputmode="url" autocomplete="off" placeholder="kuyy.id/users/… or reclub.co/players/@…" onkeydown="if (event.key === 'Enter') linkProfile()">
+    <div class="row" style="margin-top:10px;justify-content:flex-end"><button class="btn primary" onclick="linkProfile()" ${linking ? 'disabled' : ''}>${linking ? 'Linking…' : 'Link profile'}</button></div>
+  </div>`;
 }
 
 async function deleteAccount() {
@@ -1005,6 +1064,7 @@ function viewAccount() {
       <p class="muted" style="text-align:center;margin-top:12px;font-size:12.5px">We only use your name, email and photo to keep your session log.</p>
     </div>${LEGAL}`;
   if (!sessionLog) loadLog();
+  if (!me) loadMe();
   const list = sessionLog || [];
   return `
   <h1 class="title">Account</h1>
@@ -1012,6 +1072,8 @@ function viewAccount() {
   <div class="card me">${avatar(userName(), 'lg', (user.user_metadata || {}).avatar_url)}
     <span class="who"><b>${esc(userName())}</b><small>${esc(user.email)}</small></span>
     <button class="btn sm soft" onclick="signOut()">Sign out</button></div>
+  <div class="sec-head"><p class="label">Your level</p></div>
+  ${viewMe()}
   <div class="sec-head"><p class="label">Session log${sessionLog ? ` · ${list.length}` : ''}</p></div>
   ${!sessionLog ? '<p class="muted" style="padding:0 4px">Loading…</p>'
     : !list.length ? '<p class="muted" style="padding:0 4px">No sessions yet. Generate a round and it will show up here.</p>'
@@ -1032,7 +1094,7 @@ if (sb) sb.auth.onAuthStateChange((event, session) => {
   const was = user && user.id;
   user = session ? session.user : null;
   // Defer: Supabase calls made inside this callback can deadlock the auth lock.
-  if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; setTimeout(() => { render(); queueSync(); loadRatings(); }); }
+  if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; setTimeout(() => { render(); queueSync(); loadRatings(); }); }
 });
 
 function render() {

@@ -6,7 +6,7 @@
 // Reclub pages can't be read from the browser (no CORS), so the app asks this function instead.
 // Only Kuyy and Reclub hosts are fetched, so this is not an open proxy.
 
-import {UA, json, isHost, levelFromTitle, reclubLevel, activityKey, wibDate} from './_shared.js';
+import {UA, json, isHost, levelFromTitle, reclubRange, activityKey, wibDate} from './_shared.js';
 
 export async function onRequestGet({request}) {
   let link;
@@ -93,9 +93,7 @@ async function reclub(link) {
   const title = (meet.name || '').trim();
   const start = meet.startDatetime ? meet.startDatetime * 1000 : NaN;
   // Reclub's structured level range when the host set one, else whatever the title says.
-  const lvl = meet.minSportLevelValue != null || meet.maxSportLevelValue != null
-    ? {min: reclubLevel(meet.minSportLevelValue ?? meet.maxSportLevelValue), max: reclubLevel(meet.maxSportLevelValue ?? meet.minSportLevelValue)}
-    : levelFromTitle(title);
+  const lvl = reclubRange(meet.minSportLevelValue, meet.maxSportLevelValue) || levelFromTitle(title);
   const activity = start ? {source: 'reclub', key: activityKey(start, meet.venue && meet.venue.name), date: wibDate(start),
     level_min: lvl ? lvl.min : null, level_max: lvl ? lvl.max : null} : null;
   return {source: 'Reclub', title, players, activity};
