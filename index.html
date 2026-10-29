@@ -3,11 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Tennis Mixer</title>
-<meta name="description" content="Americano and Mexicano doubles and singles rotation for social tennis.">
+<title>10nis</title>
+<meta name="description" content="Americano and Mexicano doubles and singles for social tennis. Rounds, scores, standings and player levels.">
 <meta name="theme-color" content="#f5f6f2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0a0d0b" media="(prefers-color-scheme: dark)">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23c6ef3a'/%3E%3Cpath d='M18 22c22 14 22 42 0 56M82 22c-22 14-22 42 0 56' fill='none' stroke='%23fff' stroke-width='6'/%3E%3C/svg%3E">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://10nis.win/">
+<meta property="og:title" content="10nis">
+<meta property="og:description" content="Americano and Mexicano doubles and singles for social tennis. Rounds, scores, standings and player levels.">
+<meta property="og:image" content="https://10nis.win/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="apple-mobile-web-app-title" content="10nis">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -38,8 +48,9 @@ button{font-family:inherit;color:inherit}
 /* top bar */
 .topbar{position:sticky;top:0;z-index:6;background:var(--glass);backdrop-filter:saturate(1.6) blur(16px);-webkit-backdrop-filter:saturate(1.6) blur(16px);border-bottom:1px solid var(--line)}
 .topbar .in{max-width:640px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:10px}
-.logo{width:28px;height:28px}
-.topbar b{font-size:16px;font-weight:800;letter-spacing:-.02em}
+.brand{color:var(--text);text-decoration:none;font-size:22px}
+.wm{font-weight:800;letter-spacing:-.045em;line-height:1;display:inline-flex;align-items:baseline;white-space:nowrap}
+.wm svg{width:.7em;height:.7em;margin:0 .05em 0 .04em;transform:translateY(.02em);flex:none}
 .status{margin-left:auto;font-size:12px;font-weight:700;color:var(--muted);background:var(--surface-2);padding:6px 11px;border-radius:999px;white-space:nowrap}
 .status:empty{display:none}
 .status i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:1px}
@@ -263,8 +274,7 @@ details.past .match{box-shadow:none}
 </head>
 <body>
 <div class="topbar"><div class="in">
-  <svg class="logo" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="#c6ef3a"/><path d="M18 22c22 14 22 42 0 56M82 22c-22 14-22 42 0 56" fill="none" stroke="#fff" stroke-width="7"/></svg>
-  <b>Tennis Mixer</b>
+  <a href="/" class="brand" onclick="if (claimView) { leaveClaim(); return false; }"><span class="wm" role="img" aria-label="10nis">1<svg viewBox="0 0 100 100" aria-hidden="true"><clipPath id="tb"><circle cx="50" cy="50" r="48"/></clipPath><circle cx="50" cy="50" r="48" fill="#c6ef3a"/><path clip-path="url(#tb)" d="M12 14c28 20 28 52 0 72M88 14c-28 20-28 52 0 72" fill="none" stroke="#fff" stroke-width="7"/></svg>nis</span></a>
   <span class="status" id="status"></span>
 </div></div>
 <main id="view"></main>
@@ -643,7 +653,7 @@ const ICONS = {
   ball: '<circle cx="12" cy="12" r="9.5"/><path d="M5.5 5.2c3.4 3.8 3.4 9.8 0 13.6M18.5 5.2c-3.4 3.8-3.4 9.8 0 13.6"/>',
 };
 const ic = n => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
-const LOGO = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="#c6ef3a"/><path d="M18 22c22 14 22 42 0 56M82 22c-22 14-22 42 0 56" fill="none" stroke="#fff" stroke-width="7"/></svg>';
+const LOGO = '<svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="24" fill="#101612"/><g stroke="#c6ef3a" stroke-linecap="round" stroke-width="6"><path d="M14 62h14" opacity=".3"/><path d="M20 74h12" opacity=".55"/></g><clipPath id="eb"><circle cx="60" cy="46" r="28"/></clipPath><circle cx="60" cy="46" r="28" fill="#c6ef3a"/><path clip-path="url(#eb)" d="M38 22c17 12 17 36 0 48M82 22c-17 12-17 36 0 48" fill="none" stroke="#fff" stroke-width="4.5"/></svg>';
 const GOOGLE = '<svg class="ic" viewBox="0 0 48 48" aria-hidden="true" style="stroke:none"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
 // Two players rallying, looped with CSS (see .rally): about 1 KB, no images.
 const RALLY = `<svg class="rally" viewBox="0 0 320 72" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -1042,6 +1052,12 @@ async function loadMe() {
   loadMe.busy = false;
   if (S.tab === 'account') render();
 }
+async function newCode() {
+  if (!confirm('Get a new player code? The old code and its QR stop working. Games you are already linked to stay linked.')) return;
+  const {data, error} = await sb.rpc('new_player_code');
+  if (error) { toast(error.message); return; }
+  me.code = data; render(); toast('New code ready');
+}
 async function setMyLevel(level) {
   const {error} = await sb.rpc('set_my_level', {level});
   if (error) { toast(error.message); return; }
@@ -1073,7 +1089,8 @@ function viewMe() {
   </div>
   ${me.code ? `<div class="sec-head"><p class="label">Your player code</p></div>
   <div class="card code"><div id="mycode" class="qr" aria-label="QR code of your player code"></div>
-    <div><b>${esc(me.code)}</b><p class="muted">Show this to the organizer. They scan it or type the code to add you to their game, so your results count.</p></div>
+    <div><b>${esc(me.code)}</b><p class="muted">Show this to the organizer. They scan it or type the code to add you to their game, so your results count.</p>
+      <button class="btn sm soft" style="margin-top:10px" onclick="newCode()">Get a new code</button></div>
   </div>` : ''}`;
 }
 

@@ -1,6 +1,6 @@
 // Helpers shared by the Kuyy/Reclub functions. Not a route: it exports no request handler.
 
-export const UA = 'Mozilla/5.0 (compatible; TennisMixer/1.0; +https://10nis.win)';
+export const UA = 'Mozilla/5.0 (compatible; 10nis/1.0; +https://10nis.win)';
 export const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status, headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store'}
 });

@@ -7,8 +7,9 @@
 body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 header,main,footer{max-width:680px;margin:0 auto;padding:0 20px}
 header{padding-top:18px}
-.brand{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:17px;color:var(--text);text-decoration:none;letter-spacing:-.02em}
-.brand svg{width:28px;height:28px}
+.brand{color:var(--text);text-decoration:none;font-size:24px}
+.wm{font-weight:800;letter-spacing:-.045em;line-height:1;display:inline-flex;align-items:baseline;white-space:nowrap}
+.wm svg{width:.7em;height:.7em;margin:0 .05em 0 .04em;transform:translateY(.02em);flex:none}
 h1{font-size:34px;line-height:1.1;letter-spacing:-.035em;margin:36px 0 6px}
 .date{color:var(--muted);font-size:14px;margin:0 0 28px}
 h2{font-size:19px;letter-spacing:-.02em;margin:34px 0 8px}
