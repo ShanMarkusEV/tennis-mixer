@@ -241,6 +241,10 @@ details.past .match{box-shadow:none}
 .scan p small{display:block;font-weight:500;font-size:13px;opacity:.8;margin-top:4px}
 .scan .row{position:relative}
 .scan .btn{background:rgba(255,255,255,.14);color:#fff;border-color:transparent}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+.sheetin{width:100%;max-width:520px;margin:0}
+.sheetin h3{margin:0 0 4px;font-size:18px;font-weight:800}
+.sheetin textarea{margin-top:10px;min-height:110px}
 .namebtn{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:0;cursor:pointer;font:inherit;color:inherit;text-align:left}
 .namebtn .ic{width:14px;height:14px;color:var(--faint);flex:none}
 .nameedit{width:100%;font:inherit;font-size:16px;font-weight:800;color:var(--text);background:var(--surface-2);border:1px solid var(--text);border-radius:12px;padding:8px 10px;outline:none}
@@ -327,7 +331,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.1';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -930,7 +934,8 @@ function viewPlayers() {
     <button class="btn text danger" onclick="resetAll()">Reset everything</button>
   </div>
   <p class="muted" style="text-align:center;font-size:12px">${user ? 'Saved on this phone and logged to your account.' : 'Saved on this phone automatically. Sign in under Account to keep a log.'}</p>
-  <div class="row" style="justify-content:center;margin-top:6px"><button class="btn text" onclick="shareApp()">${ic('share')}Share 10nis</button></div>`;
+  <div class="row" style="justify-content:center;margin-top:6px;gap:4px"><button class="btn text" onclick="shareApp()">${ic('share')}Share 10nis</button>
+    <button class="btn text" onclick="openReport()">Report a problem</button></div>`;
 }
 
 function matchCard(r, i, latest) {
@@ -1059,7 +1064,49 @@ const DEVICE = (() => {
   } catch (e) { return make(); }
 })();
 // Report a failed server call (anonymously) so it shows up in the usage_errors dashboard view.
-const report = (where, msg) => track('error', {where, msg: String(msg || '').slice(0, 200)});
+const recentErrors = [];
+const report = (where, msg) => {
+  recentErrors.push({where, msg: String(msg || '').slice(0, 120), at: new Date().toISOString().slice(11, 19)});
+  if (recentErrors.length > 5) recentErrors.shift();
+  track('error', {where, msg: String(msg || '').slice(0, 200)});
+};
+
+// ---------- report a problem ----------
+// A short message (plus optional contact) saved for the owner, with context that helps find the cause.
+function openReport() {
+  const box = document.createElement('div');
+  box.className = 'sheet';
+  box.innerHTML = `<div class="card sheetin" role="dialog" aria-label="Report a problem">
+    <h3>Report a problem</h3>
+    <p class="muted">What happened, and what were you trying to do?</p>
+    <textarea id="rp-msg" maxlength="2000" placeholder="e.g. I tapped Finish and it said it couldn't save"></textarea>
+    <p class="label" style="margin:12px 2px 6px">Contact (optional)</p>
+    <input id="rp-contact" class="linkin" maxlength="200" placeholder="Email or WhatsApp number, so we can reply" value="${esc((user && user.email) || '')}">
+    <p class="muted" style="font-size:12px;margin-top:10px">We also send the app version, the screen you're on, your browser and any recent errors.</p>
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn sm soft" data-a="cancel">Cancel</button><button class="btn sm primary" data-a="send">Send</button></div>
+  </div>`;
+  document.body.appendChild(box);
+  const close = () => box.remove();
+  box.addEventListener('click', e => { if (e.target === box) close(); });
+  box.querySelector('[data-a=cancel]').onclick = close;
+  box.querySelector('[data-a=send]').onclick = async e => {
+    const message = box.querySelector('#rp-msg').value.trim(), contact = box.querySelector('#rp-contact').value.trim();
+    if (message.length < 3) { toast('Please describe the problem'); return; }
+    const context = {v: APP_VERSION, tab: claimView ? 'link page' : S.tab, standalone: standalone(), online: navigator.onLine,
+      ua: navigator.userAgent.slice(0, 160), errors: recentErrors, rounds: S.rounds.length, players: S.players.length, signed_in: !!user};
+    e.target.disabled = true;
+    const res = sb ? await sb.rpc('submit_feedback', {message, contact: contact || null, device: DEVICE, context}) : {error: {message: 'offline'}};
+    if (res.error && !sb || res.error && !navigator.onLine) {
+      // Offline: hand it to the mail app instead so the report isn't lost.
+      location.href = `mailto:shanmarkusdiablo@gmail.com?subject=${encodeURIComponent('10nis problem')}&body=${encodeURIComponent(`${message}\n\n${contact}\n\n${JSON.stringify(context)}`)}`;
+      close(); return;
+    }
+    if (res.error) { e.target.disabled = false; toast(res.error.message); return; }
+    close(); toast("Thanks! We'll look into it");
+  };
+  setTimeout(() => box.querySelector('#rp-msg').focus(), 50);
+}
 function track(event, props = {}) {
   if (!sb) return;
   try { if (/^(localhost|127\.)/.test(location.hostname) && localStorage.getItem('10nis-track-local') !== '1') return; } catch (e) { return; }
@@ -1558,7 +1605,7 @@ function viewAccount() {
   <div class="row" style="justify-content:center;margin-top:20px"><button class="btn text danger" onclick="deleteAccount()">Delete account</button></div>
   ${LEGAL}`;
 }
-const LEGAL = `<p class="muted" style="text-align:center;font-size:12px;margin-top:10px"><a href="/privacy" style="color:inherit">Privacy</a> · <a href="/terms" style="color:inherit">Terms</a> · v${APP_VERSION}</p>`;
+const LEGAL = `<p class="muted" style="text-align:center;font-size:12px;margin-top:10px"><a href="/privacy" style="color:inherit">Privacy</a> · <a href="/terms" style="color:inherit">Terms</a> · <a href="#" style="color:inherit" onclick="openReport(); return false">Report a problem</a> · v${APP_VERSION}</p>`;
 
 // ---------- share link: players claim their name ----------
 // Organizer side: a link (and QR) for the logged session. Player side: /s/<token> shows its roster.
