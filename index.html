@@ -427,8 +427,9 @@ function playedIds() {
 
 function applyList() {
   const text = document.getElementById('paste').value;
-  // A pasted Kuyy/Reclub link goes through the importer instead.
-  if (/^\s*https?:\/\/\S+\s*$/.test(text)) { addTab = 'link'; render(); document.getElementById('link').value = text.trim(); importLink(); return; }
+  // A pasted Kuyy/Reclub invite (link plus description) goes through the importer instead.
+  const link = findLink(text);
+  if (link) { addTab = 'link'; render(); document.getElementById('link').value = link; importLink(); return; }
   const names = parseList(text);
   if (!names.length) { toast('Paste at least one name'); return; }
   applyNames(names);
@@ -455,10 +456,16 @@ function applyNames(names) {
   save(); render();
 }
 
+// Pull the activity link out of a shared invite, e.g. "[Title] ⏰ Sat 5 PM … RSVP: https://reclub.co/id/m/V93QU6".
+function findLink(text) {
+  const m = String(text).match(/(?:https?:\/\/)?(?:[\w-]+\.)*(?:reclub\.co|kuyy\.id|kuyy\.app)\/[^\s<>"']+/i);
+  return m ? (/^https?:/i.test(m[0]) ? m[0] : 'https://' + m[0]).replace(/[).,!?]+$/, '') : null;
+}
+
 let addTab = 'paste', importing = false, withWaitlist = false;
 function setAddTab(t) { addTab = t; render(); }
 async function importLink() {
-  const url = document.getElementById('link').value.trim();
+  const raw = document.getElementById('link').value, url = findLink(raw) || raw.trim();
   if (!url) { toast('Paste a Kuyy or Reclub activity link'); return; }
   importing = true; render();
   document.getElementById('link').value = url;
@@ -476,7 +483,7 @@ async function importLink() {
     importing = false;
     if (!names.length) { render(); toast(`No confirmed players on that ${d.source} activity yet`); return; }
     applyNames(names);
-    toast(`${names.length} players from ${d.source}${waiting && !withWaitlist ? ` · ${waiting} waitlisted not added` : ''}`);
+    toast(`${plural(names.length, 'player')} from ${d.source}${waiting && !withWaitlist ? ` · ${waiting} waitlisted not added` : ''}`);
   } catch (e) {
     importing = false; render();
     document.getElementById('link').value = url;
@@ -670,8 +677,8 @@ function viewPlayers() {
   </div>
   <div class="card">
     ${addTab === 'link' ? `
-    <p class="muted" style="margin-bottom:12px">Paste the activity link. Confirmed players are set to play, anyone missing is skipped, new names are added.</p>
-    <input id="link" class="linkin" type="url" inputmode="url" placeholder="https://reclub.co/m/… or kuyy.id/activities/…" onkeydown="if (event.key === 'Enter') importLink()">
+    <p class="muted" style="margin-bottom:12px">Paste the activity link, or the whole invite message. Confirmed players are set to play, anyone missing is skipped, new names are added.</p>
+    <input id="link" class="linkin" type="text" inputmode="url" autocomplete="off" placeholder="Paste the invite or link from Kuyy or Reclub" onkeydown="if (event.key === 'Enter') importLink()">
     <div class="row" style="margin-top:12px;justify-content:space-between">
       <label class="row" style="gap:10px;font-size:13.5px;font-weight:600;cursor:pointer">
         <button class="sw ${withWaitlist ? 'on' : ''}" role="switch" aria-checked="${withWaitlist}" onclick="withWaitlist = !withWaitlist; this.classList.toggle('on'); this.setAttribute('aria-checked', withWaitlist)"></button>Include waitlist</label>
