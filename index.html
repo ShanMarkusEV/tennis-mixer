@@ -210,6 +210,10 @@ details.past .match{box-shadow:none}
 .me .who b{display:block;font-size:17px;font-weight:800;overflow-wrap:anywhere}
 .me .who small{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
 .hist li{cursor:pointer}
+.avedit{position:relative;flex:none;cursor:pointer;display:inline-grid}
+.avedit .pen{position:absolute;right:-2px;bottom:-2px;width:22px;height:22px;border-radius:50%;background:var(--text);color:var(--bg);
+  display:grid;place-items:center;border:2px solid var(--surface)}
+.avedit .pen .ic{width:12px;height:12px;stroke-width:3}
 .share{display:flex;gap:14px;align-items:flex-start}
 .qr{width:112px;height:112px;flex:none;background:#fff;border-radius:12px;padding:4px}
 .qr svg{width:100%;height:100%;display:block}
@@ -973,7 +977,8 @@ function playerInfo(p) {
   const r = ratingsByPid[p.pid];
   return `<div class="pinfo">
     ${r ? `<b>${Number(r.score).toFixed(1)} · ${esc(r.label)}</b><p>${esc(levelText(r.score))}</p><p>${esc(r.confidence)}</p>` : '<b>Not rated yet</b><p>Scores from logged games will set a level.</p>'}
-    ${p.linked ? '<p style="color:var(--green);font-weight:700">Linked to a 10nis account</p>' : `
+    ${p.linked ? `<div class="row" style="justify-content:space-between"><span style="color:var(--green);font-weight:700">Linked to a 10nis account</span>
+        <button class="btn sm soft" onclick="unlinkName('${p.id}')">Unlink</button></div>` : `
       <div class="row"><input id="code-${p.id}" maxlength="6" placeholder="Player code" autocomplete="off" onkeydown="if (event.key === 'Enter') linkCode('${p.id}')">
         <button class="btn sm primary" onclick="linkCode('${p.id}')">Link</button></div>
       <p>Ask for their 10nis player code (Account tab), or scan their code's QR with your camera.</p>`}
@@ -983,6 +988,19 @@ async function linkCode(localId) {
   const code = (document.getElementById('code-' + localId) || {}).value || '';
   if (!/^[A-Za-z2-9]{6}$/.test(code.trim())) { toast('Player codes have 6 letters and numbers'); return; }
   await linkToPlayer(localId, code.trim().toUpperCase());
+}
+// Undo a wrong link: the name goes back to a private, unlinked record and its games stop counting for that player.
+async function unlinkName(localId) {
+  const p = S.players.find(x => x.id === localId);
+  const original = (p.aka && p.aka[0]) || p.name;
+  if (!confirm(`Unlink ${p.name}? Games under this name in your sessions stop counting for them${original !== p.name ? `, and the name goes back to "${original}"` : ''}.`)) return;
+  const {data, error} = await sb.rpc('unlink_roster_name', {roster_pid: p.pid, roster_name: original});
+  if (error) { toast(error.message); return; }
+  Object.assign(p, {pid: data, linked: false, name: original, aka: []});
+  delete p.photo; delete p.ext;
+  save(); openInfo = null; sessionLog = null;
+  syncRoster.last = null; await syncRoster(); loadRatings(); render();
+  toast(`${original} unlinked`);
 }
 // Organizer plays too: add yourself to the roster, already linked to your own record.
 async function addMe() {
@@ -1065,13 +1083,42 @@ async function loadMe() {
   if (!sb || !user || loadMe.busy) return;
   loadMe.busy = true;
   const [{data: p}, {data: code}] = await Promise.all([
-    sb.from('players').select('id, name, self_level').eq('user_id', user.id).is('merged_into', null).maybeSingle(),
+    sb.from('players').select('id, name, self_level, photo').eq('user_id', user.id).is('merged_into', null).maybeSingle(),
     sb.rpc('my_player_code')]);
   let rating = null;
   if (p) ({data: rating} = await sb.from('ratings').select('score, label, confidence, matches, wins').eq('player_id', p.id).maybeSingle());
   me = {player: p || null, rating: rating || null, code: code || null};
   loadMe.busy = false;
   if (S.tab === 'account') render();
+}
+// Resize on the phone to a 256px square, upload to the user's own folder, then use it as their photo.
+async function uploadPhoto(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file); });
+    const side = Math.min(img.naturalWidth, img.naturalHeight), c = document.createElement('canvas');
+    c.width = c.height = 256;
+    c.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, 256, 256);
+    URL.revokeObjectURL(img.src);
+    const blob = await new Promise(res => c.toBlob(res, 'image/webp', .85));
+    const path = `${user.id}/avatar`;
+    toast('Uploading…');
+    const {error} = await sb.storage.from('avatars').upload(path, blob, {upsert: true, contentType: blob.type, cacheControl: '3600'});
+    if (error) throw error;
+    const url = sb.storage.from('avatars').getPublicUrl(path).data.publicUrl + '?v=' + Date.now();
+    const {error: e2} = await sb.rpc('set_my_photo', {url});
+    if (e2) throw e2;
+    toast('Photo updated');
+  } catch (e) { toast(e.message || "Couldn't use that photo"); }
+  await loadMe();
+}
+async function useGooglePhoto() {
+  const {error} = await sb.rpc('set_my_photo', {url: null});
+  if (error) { toast(error.message); return; }
+  await sb.storage.from('avatars').remove([`${user.id}/avatar`]);
+  toast('Using your Google photo'); await loadMe();
 }
 async function newCode() {
   if (!confirm('Get a new player code? The old code and its QR stop working. Games you are already linked to stay linked.')) return;
@@ -1117,6 +1164,7 @@ function viewMe() {
 
 async function deleteAccount() {
   if (!confirm('Delete your account and every logged session? This cannot be undone. The mixer on this phone is kept.')) return;
+  await sb.storage.from('avatars').remove([`${user.id}/avatar`]).catch(() => {});
   const {error} = await sb.rpc('delete_my_account');
   if (error) { toast(error.message); return; }
   S.sessionId = null; S.owner = null; save();
@@ -1200,9 +1248,13 @@ function viewAccount() {
   return `
   <h1 class="title">Account</h1>
   <p class="sub">Sessions are logged automatically once round 1 starts.</p>
-  <div class="card me">${avatar(userName(), 'lg', (user.user_metadata || {}).avatar_url)}
+  <div class="card me"><label class="avedit" title="Change photo">${avatar(userName(), 'lg', (me && me.player && me.player.photo) || (user.user_metadata || {}).avatar_url)}
+      <input type="file" accept="image/*" hidden onchange="uploadPhoto(this)"><i class="pen">${ic('plus')}</i></label>
     <span class="who"><b>${esc(userName())}</b><small>${esc(user.email)}</small></span>
     <button class="btn sm soft" onclick="signOut()">Sign out</button></div>
+  ${me && me.player && /\/storage\/v1\/object\/public\/avatars\//.test(me.player.photo || '')
+    ? `<p class="muted" style="margin:-6px 4px 14px;font-size:12.5px">Tap your photo to change it · <a href="#" style="color:inherit" onclick="useGooglePhoto(); return false">Use Google photo</a></p>`
+    : `<p class="muted" style="margin:-6px 4px 14px;font-size:12.5px">Tap your photo to change it</p>`}
   <div class="sec-head"><p class="label">Your level</p></div>
   ${viewMe()}
   <div class="sec-head"><p class="label">Session log${sessionLog ? ` · ${list.length}` : ''}</p></div>
