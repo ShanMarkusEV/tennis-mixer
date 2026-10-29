@@ -41,6 +41,7 @@ button{font-family:inherit;color:inherit}
 .logo{width:28px;height:28px}
 .topbar b{font-size:16px;font-weight:800;letter-spacing:-.02em}
 .status{margin-left:auto;font-size:12px;font-weight:700;color:var(--muted);background:var(--surface-2);padding:6px 11px;border-radius:999px;white-space:nowrap}
+.status:empty{display:none}
 .status i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:1px}
 
 main{max-width:640px;margin:0 auto;padding:22px 20px 190px}
@@ -185,10 +186,20 @@ details.past .match{box-shadow:none}
 .me .who b{display:block;font-size:17px;font-weight:800;overflow-wrap:anywhere}
 .me .who small{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
 .hist li{cursor:pointer}
+.share{display:flex;gap:14px;align-items:flex-start}
+.qr{width:112px;height:112px;flex:none;background:#fff;border-radius:12px;padding:4px}
+.qr svg{width:100%;height:100%;display:block}
 .lvl .score{display:flex;align-items:baseline;gap:10px}
 .lvl .score b{font-size:40px;font-weight:800;letter-spacing:-.03em;line-height:1}
 .lvl .score span{font-size:17px;font-weight:800}
 .lvl .muted{margin-top:6px}
+.lvl .desc{margin:8px 0 0;font-size:14px}
+.lvlopt{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;border:0;background:none;padding:10px;border-radius:14px;cursor:pointer;font:inherit;color:inherit}
+.lvlopt:hover{background:var(--surface-2)}
+.lvlopt.on{background:var(--lime);color:var(--lime-ink)}
+.lvlopt b{width:28px;flex:none;font-size:20px;font-weight:800;text-align:center;line-height:1.2}
+.lvlopt strong{display:block;font-size:14px}
+.lvlopt small{display:block;font-size:12.5px;opacity:.75;line-height:1.4}
 .hist .day{width:44px;flex:none;text-align:center;line-height:1.1;background:var(--surface-2);border-radius:12px;padding:6px 0}
 .hist .day b{display:block;font-size:17px;font-weight:800}
 .hist .day small{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -554,7 +565,7 @@ function resetAll() {
   if (!confirm('Reset everything back to 4 default players?')) return;
   S = defaultState(); save(); render();
 }
-function goTab(t) { S.tab = t; save(); render(); window.scrollTo(0, 0); }
+function goTab(t) { if (claimView) leaveClaim(); S.tab = t; save(); render(); window.scrollTo(0, 0); }
 
 // ---------- sharing ----------
 async function copyText(text) {
@@ -779,7 +790,9 @@ function viewRounds() {
   <div class="actions">
     ${!scored ? `<button class="btn sm soft" onclick="reshuffle()">${ic('shuffle')}Reshuffle</button>` : ''}
     <button class="btn sm soft" onclick="copyRound(${r})">${ic('copy')}Copy for WhatsApp</button>
+    ${user ? `<button class="btn sm soft" onclick="shareSession()">${ic('share')}Players</button>` : ''}
   </div>
+  ${shareLink ? viewShare() : ''}
   ${rd.sitting.length ? `<p class="hint">${ic('shuffle')}Someone can't play? Tap their name to swap in the next person waiting.</p>` : ''}
   ${rd.matches.map((_, i) => matchCard(r, i, true)).join('')}
   ${bench(rd)}`;
@@ -849,7 +862,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_iYVtpH-Yb_ysG9liQ-NINw_h2DRDdNq';
 const GOOGLE_CLIENT_ID = '557073910029-b2eg9mfhq2ttugnpdlqebp6jlpequ0qp.apps.googleusercontent.com';
 const sb = window.supabase && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 let user = null, sessionLog = null, logLoading = false, ratingsByPid = {};
-let me = null, linking = false; // the signed-in user's own player row and rating, once loaded
+let me = null; // the signed-in user's own player row and rating, once loaded
 
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
 const userName = () => {
@@ -865,7 +878,7 @@ function queueSync() {
 // Register today's roster with the shared player directory; each player gets a server id (pid)
 // and we learn who already has a 10nis account. Skipped when nothing about the roster changed.
 async function syncRoster() {
-  const entries = S.players.map(p => ({local: p.id, name: p.name, photo: p.photo || null, att: !!p.active, ext: p.ext || null}));
+  const entries = S.players.map(p => ({local: p.id, pid: p.pid || null, name: p.name, photo: p.photo || null, att: !!p.active, ext: p.ext || null}));
   const sig = JSON.stringify([user.id, entries, S.activity || null]);
   if (sig === syncRoster.last) return true;
   const {data, error} = await sb.rpc('upsert_roster', {entries, activity: S.activity || null});
@@ -891,7 +904,7 @@ async function loadRatings() {
 }
 function ratingChip(p) {
   const r = ratingsByPid[p.pid];
-  const tip = (r ? `${r.label} · ${r.confidence}` : 'Not rated yet') + (p.linked ? ' · has a 10nis account' : ' · no 10nis account linked');
+  const tip = (r ? `${r.label}: ${levelText(r.score)} (${r.confidence})` : 'Not rated yet') + (p.linked ? ' · has a 10nis account' : ' · no 10nis account linked');
   return `<span class="rt" title="${esc(tip)}"><b class="num">${r ? Number(r.score).toFixed(1) : '–'}</b><small class="${p.linked ? 'on' : ''}">${p.linked ? 'linked' : r ? esc(r.label) : 'unrated'}</small></span>`;
 }
 async function syncSession() {
@@ -931,57 +944,58 @@ async function loadLog() {
 }
 
 // ---------- your level ----------
+// What each level means, so players can place themselves and organizers can read a score.
+const LEVELS = {
+  1: ['Newbie', 'New to tennis. Learning the grip and how to make contact with the ball.'],
+  2: ['Newbie', 'Can keep a slow rally going for a few shots. Serve is still a work in progress.'],
+  3: ['Beginner', 'Rallies of 4–6 shots at an easy pace. Gets most soft serves in.'],
+  4: ['Upper beginner', 'Steady forehand rally, backhand less reliable. Knows where to stand in doubles.'],
+  5: ['Upper beginner', 'Consistent at a moderate pace and starting to aim. Can volley at the net.'],
+  6: ['Low intermediate', 'Rallies with direction and some depth. Reliable serve; comfortable in fun games.'],
+  7: ['Intermediate', 'Uses spin and pace, moves the opponent around and holds serve most of the time.'],
+  8: ['Advanced', 'Strong on both wings, attacks short balls, solid at the net. Wins most social games.'],
+  9: ['Advanced', 'Tournament player. Varied serve and few unforced errors under pressure.'],
+  10: ['Advanced', 'Competes at a high level, around NTRP 5.0 and above.'],
+};
+const levelText = score => LEVELS[Math.min(10, Math.max(1, Math.round(score)))][1];
+
+let pickLevel = false;
 async function loadMe() {
   if (!sb || !user || loadMe.busy) return;
   loadMe.busy = true;
-  const {data: p} = await sb.from('players').select('id, name, kuyy_id, kuyy_username, reclub_id, reclub_username')
-    .eq('user_id', user.id).is('merged_into', null).maybeSingle();
+  const {data: p} = await sb.from('players').select('id, name, self_level').eq('user_id', user.id).is('merged_into', null).maybeSingle();
   let rating = null;
   if (p) ({data: rating} = await sb.from('ratings').select('score, label, confidence, matches, wins').eq('player_id', p.id).maybeSingle());
   me = {player: p || null, rating: rating || null};
   loadMe.busy = false;
   if (S.tab === 'account') render();
 }
-async function linkProfile() {
-  const raw = document.getElementById('plink').value.trim();
-  const url = (raw.match(/(?:https?:\/\/)?(?:[\w-]+\.)*(?:reclub\.co|kuyy\.id|kuyy\.app)\/[^\s<>"']+/i) || [])[0];
-  if (!url) { toast('Paste your Kuyy or Reclub profile link'); return; }
-  linking = true; render();
-  try {
-    const r = await fetch('/api/profile?url=' + encodeURIComponent(/^https?:/i.test(url) ? url : 'https://' + url));
-    const prof = await r.json().catch(() => ({error: 'Linking is unavailable right now'}));
-    if (!r.ok) throw new Error(prof.error);
-    const {data, error} = await sb.rpc('link_profile', {profile: prof});
-    if (error) throw new Error(error.message);
-    const src = prof.source === 'kuyy' ? 'Kuyy' : 'Reclub';
-    toast(data.added ? `${src} linked · ${data.added} ${data.added === 1 ? 'activity' : 'activities'} counted` : `${src} linked`);
-  } catch (e) { toast(e.message || "Couldn't link that profile"); }
-  linking = false; await loadMe();
-}
-async function unlinkProfile(src) {
-  if (!confirm(`Unlink your ${src === 'kuyy' ? 'Kuyy' : 'Reclub'} profile? Its activity history stops counting towards your level.`)) return;
-  const {error} = await sb.rpc('unlink_profile', {src});
+async function setMyLevel(level) {
+  const {error} = await sb.rpc('set_my_level', {level});
   if (error) { toast(error.message); return; }
+  pickLevel = false;
+  toast(`Level set to ${level} · ${LEVELS[level][0]}`);
   await loadMe();
 }
 function viewMe() {
   if (!me) return '<p class="muted" style="padding:0 4px">Loading…</p>';
-  const p = me.player, r = me.rating;
-  const linked = p ? [p.kuyy_id && ['kuyy', 'Kuyy', p.kuyy_username], p.reclub_id && ['reclub', 'Reclub', p.reclub_username]].filter(Boolean) : [];
+  const p = me.player, r = me.rating, own = p && p.self_level != null ? Number(p.self_level) : null;
   return `
   <div class="card lvl">
     ${r ? `<div class="score"><b class="num">${Number(r.score).toFixed(1)}</b><span>${esc(r.label)}</span></div>
+      <p class="desc">${esc(levelText(r.score))}</p>
       <p class="muted">${esc(r.confidence)}${r.matches ? ` · ${r.wins}W ${r.matches - r.wins}L` : ''}</p>`
-    : `<p class="muted">No level yet. Link your Kuyy or Reclub profile below, or play a session logged by an organizer on 10nis.</p>`}
+    : `<p class="muted">No level yet. Pick the one that fits you below, then play sessions logged on 10nis. When an organizer shares a players link, tap your name so those games count.</p>`}
+    <div class="row" style="margin-top:12px">
+      <button class="btn sm soft" onclick="pickLevel = !pickLevel; render()">${pickLevel ? 'Close' : own ? 'Change my level' : 'Set my level'}</button>
+    </div>
   </div>
-  <div class="card">
-    ${linked.map(([src, name, uname]) => `<div class="row" style="justify-content:space-between;margin-bottom:10px">
-      <span><b>${name}</b> <span class="muted">${uname ? '@' + esc(uname) : 'linked'}</span></span>
-      <button class="btn sm soft" onclick="unlinkProfile('${src}')">Unlink</button></div>`).join('')}
-    <p class="muted" style="margin-bottom:10px">${linked.length ? 'Link another profile' : 'Link your Kuyy or Reclub profile'} so organizers' imports recognise you and your past activities count.</p>
-    <input id="plink" class="linkin" type="text" inputmode="url" autocomplete="off" placeholder="kuyy.id/users/… or reclub.co/players/@…" onkeydown="if (event.key === 'Enter') linkProfile()">
-    <div class="row" style="margin-top:10px;justify-content:flex-end"><button class="btn primary" onclick="linkProfile()" ${linking ? 'disabled' : ''}>${linking ? 'Linking…' : 'Link profile'}</button></div>
-  </div>`;
+  ${pickLevel ? `<div class="card" style="padding:6px">
+    <p class="muted" style="padding:10px 10px 4px">Pick where you'd place yourself. Your games move your score up or down from here.</p>
+    ${Object.entries(LEVELS).map(([n, [label, text]]) => `
+      <button class="lvlopt ${own === Number(n) ? 'on' : ''}" onclick="setMyLevel(${n})">
+        <b class="num">${n}</b><span><strong>${label}</strong><small>${text}</small></span></button>`).join('')}
+  </div>` : ''}`;
 }
 
 async function deleteAccount() {
@@ -1088,16 +1102,101 @@ function viewAccount() {
   <div class="row" style="justify-content:center;margin-top:20px"><button class="btn text danger" onclick="deleteAccount()">Delete account</button></div>
   ${LEGAL}`;
 }
-const LEGAL = `<p class="muted" style="text-align:center;font-size:12px;margin-top:10px"><a href="privacy.html" style="color:inherit">Privacy</a> · <a href="terms.html" style="color:inherit">Terms</a></p>`;
+const LEGAL = `<p class="muted" style="text-align:center;font-size:12px;margin-top:10px"><a href="/privacy" style="color:inherit">Privacy</a> · <a href="/terms" style="color:inherit">Terms</a></p>`;
+
+// ---------- share link: players claim their name ----------
+// Organizer side: a link (and QR) for the logged session. Player side: /s/<token> shows its roster.
+const shareToken = (location.pathname.match(/^\/s\/([0-9a-f]{16})\/?$/) || [])[1] || null;
+let claimView = !!shareToken, claimData = null, shareLink = null;
+
+async function shareSession() {
+  await syncSession();
+  if (!S.sessionId) { toast('Generate a round first'); return; }
+  const {data, error} = await sb.rpc('create_share', {sid: S.sessionId});
+  if (error) { toast(error.message); return; }
+  shareLink = location.origin + '/s/' + data;
+  render();
+  try {
+    if (!window.qrcode) await new Promise((res, rej) => {
+      const el = document.createElement('script');
+      el.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js'; el.onload = res; el.onerror = rej;
+      document.head.appendChild(el);
+    });
+    const q = qrcode(0, 'M'); q.addData(shareLink); q.make();
+    const box = document.getElementById('qr');
+    if (box) box.innerHTML = q.createSvgTag({cellSize: 4, margin: 2, scalable: true});
+  } catch (e) {} // the link still works without the QR
+}
+function viewShare() {
+  const msg = `🎾 Tap your name so today's results count towards your 10nis level: ${shareLink}`;
+  return `<div class="card share">
+    <div id="qr" class="qr" aria-label="QR code for the link"></div>
+    <div class="grow" style="min-width:0">
+      <p class="label" style="margin-bottom:6px">Players link</p>
+      <p class="muted" style="margin-bottom:10px">Players scan this or open the link, sign in and tap their name to track their level.</p>
+      <div class="row" style="flex-wrap:wrap">
+        <button class="btn sm primary" onclick="copyText(this.dataset.t)" data-t="${esc(msg)}">${ic('copy')}Copy message</button>
+        <button class="btn sm soft" onclick="shareLink = null; render()">Close</button>
+      </div>
+    </div></div>`;
+}
+
+async function loadClaim() {
+  if (loadClaim.busy) return;
+  loadClaim.busy = true;
+  const {data, error} = await sb.rpc('share_roster', {t: shareToken});
+  loadClaim.busy = false;
+  claimData = error ? {error: error.message} : data || {error: 'This link has expired. Ask the organizer for a new one.'};
+  render();
+}
+async function claimName(local, name) {
+  if (!confirm(`Are you ${name}? Results under this name will count towards your level.`)) return;
+  const {error} = await sb.rpc('claim_name', {t: shareToken, local_id: local});
+  if (error) { toast(error.message); return; }
+  toast(`You're linked as ${name}`);
+  me = null; claimData = null; loadClaim();
+}
+function leaveClaim() { claimView = false; history.replaceState(null, '', '/'); render(); }
+function viewClaim() {
+  if (!sb) return `<div class="empty"><h3>Accounts unavailable</h3>Try again when you're online.</div>`;
+  if (!claimData) { loadClaim(); return '<p class="muted" style="padding:20px 4px">Loading…</p>'; }
+  if (claimData.error) return `<div class="empty"><div class="orb">${LOGO}</div><h3>Link not available</h3>${esc(claimData.error)}
+    <div style="margin-top:16px"><button class="btn" onclick="leaveClaim()">Open 10nis</button></div></div>`;
+  const day = new Date(claimData.played_on + 'T00:00').toLocaleDateString('en', {weekday: 'short', day: 'numeric', month: 'short'});
+  const mine = claimData.players.some(p => p.mine);
+  return `
+  <h1 class="title">Who are you?</h1>
+  <p class="sub">Session on ${day}. ${mine ? "You're linked. Your level is on the Account tab." : 'Tap your name so your results count towards your 10nis level.'}</p>
+  ${!user ? `<div class="card" style="padding:22px 18px"><p class="muted" style="text-align:center;margin-bottom:12px">Sign in first, then tap your name.</p>
+    <div id="gbtn" style="display:flex;justify-content:center;min-height:44px">
+      ${window.google && google.accounts ? '' : `<button class="btn" style="width:100%;padding:13px 14px" onclick="googleSignIn()">${GOOGLE}Continue with Google</button>`}
+    </div></div>` : ''}
+  <div class="card plist">${claimData.players.map(p => `
+    <div class="player">${avatar(p.name, '', p.photo || null)}
+      <span class="grow" style="font-weight:600;overflow-wrap:anywhere">${esc(p.name)}</span>
+      ${p.mine ? '<span class="tag">You</span>' : p.claimed ? '<span class="muted">Claimed</span>'
+        : p.claimable && user && !mine ? `<button class="btn sm primary" data-n="${esc(p.name)}" onclick="claimName('${p.local}', this.dataset.n)">That's me</button>` : ''}
+    </div>`).join('')}</div>
+  <div class="row" style="justify-content:center;margin-top:16px"><button class="btn text" onclick="leaveClaim()">Open 10nis</button></div>
+  ${LEGAL}`;
+}
 
 if (sb) sb.auth.onAuthStateChange((event, session) => {
   const was = user && user.id;
   user = session ? session.user : null;
   // Defer: Supabase calls made inside this callback can deadlock the auth lock.
-  if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; setTimeout(() => { render(); queueSync(); loadRatings(); }); }
+  if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; claimData = null; setTimeout(() => { render(); queueSync(); loadRatings(); }); }
 });
 
 function render() {
+  if (claimView) {
+    document.querySelectorAll('.tabbar button').forEach(b => b.classList.remove('on'));
+    document.getElementById('status').innerHTML = '';
+    document.getElementById('view').innerHTML = viewClaim();
+    document.getElementById('dock').innerHTML = '';
+    mountGoogleButton();
+    return;
+  }
   document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === S.tab));
   const avail = S.players.filter(p => p.active).length, n = S.rounds.length;
   document.getElementById('status').innerHTML = `<i></i>${n ? `Round ${n} · ` : ''}${avail} playing`;
