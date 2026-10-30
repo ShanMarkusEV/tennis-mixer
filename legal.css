@@ -1,16 +1,16 @@
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
-:root{--bg:#f5f6f2;--surface:#fff;--text:#101612;--muted:#6b756f;--line:rgba(16,22,18,.08);--link:#1f7a4a}
+@import url("https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..900;1,62..125,400..900&family=Plus+Jakarta+Sans:wght@800&display=swap");
+:root{--bg:#e9eef5;--surface:#fff;--text:#0a1633;--muted:#56627d;--line:#0a1633;--link:#2459d8}
 @media (prefers-color-scheme: dark){
-  :root{--bg:#0a0d0b;--surface:#121714;--text:#edf1ee;--muted:#8d9891;--line:rgba(255,255,255,.07);--link:#c6ef3a}
+  :root{--bg:#060b19;--surface:#0e1630;--text:#eef2ff;--muted:#94a0bf;--line:#2b3a68;--link:#c6ef3a}
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 "Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 header,main,footer{max-width:680px;margin:0 auto;padding:0 20px}
-header{padding-top:18px}
+header{padding-top:18px;padding-bottom:14px;border-bottom:2px solid var(--line)}
 .brand{color:var(--text);text-decoration:none;font-size:24px}
-.wm{font-weight:800;letter-spacing:-.045em;line-height:1;display:inline-flex;align-items:baseline;white-space:nowrap}
+.wm{font-family:"Plus Jakarta Sans",sans-serif;font-weight:800;letter-spacing:-.045em;line-height:1;display:inline-flex;align-items:baseline;white-space:nowrap}
 .wm svg{width:.7em;height:.7em;margin:0 .05em 0 .04em;transform:translateY(.02em);flex:none}
-h1{font-size:34px;line-height:1.1;letter-spacing:-.035em;margin:36px 0 6px}
+h1{font-size:48px;line-height:.95;font-weight:900;font-stretch:72%;font-style:italic;text-transform:uppercase;margin:36px 0 8px}
 .date{color:var(--muted);font-size:14px;margin:0 0 28px}
 h2{font-size:19px;letter-spacing:-.02em;margin:34px 0 8px}
 p,li{color:var(--text)}

@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>10nis</title>
-<meta name="description" content="Americano and Mexicano doubles and singles for social tennis. Rounds, scores, standings and player levels.">
-<meta name="theme-color" content="#f5f6f2" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0a0d0b" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Social and competitive doubles and singles for tennis groups. Fair rounds, live courts, scores, standings and player levels.">
+<meta name="theme-color" content="#e9eef5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#060b19" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -16,7 +16,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://10nis.win/">
 <meta property="og:title" content="10nis">
-<meta property="og:description" content="Americano and Mexicano doubles and singles for social tennis. Rounds, scores, standings and player levels.">
+<meta property="og:description" content="Social and competitive doubles and singles for tennis groups. Fair rounds, live courts, scores, standings and player levels.">
 <meta property="og:image" content="https://10nis.win/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -24,192 +24,268 @@
 <meta name="apple-mobile-web-app-title" content="10nis">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..900;1,62..125,400..900&family=Plus+Jakarta+Sans:wght@800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async onload="window.mountGoogleButton && mountGoogleButton()"></script>
 <style>
+/* 10nis design: hard-court blue, optic-yellow ball, scoreboard numbers. Condensed italic display type,
+   solid outlines and hard offset shadows (pressed in on tap). */
 :root{
-  --bg:#f5f6f2;--surface:#fff;--surface-2:#eef0eb;--text:#101612;--muted:#6b756f;--faint:#a3aba6;
-  --line:rgba(16,22,18,.08);--lime:#c6ef3a;--lime-ink:#172003;--green:#1f7a4a;
-  --primary:#101612;--primary-ink:#fff;--warn:#c2410c;
-  --match:#0f1a14;--match-line:rgba(255,255,255,.08);
-  --shadow:0 1px 2px rgba(16,22,18,.04),0 8px 24px -8px rgba(16,22,18,.10);
-  --glass:rgba(245,246,242,.78);
+  --bg:#e9eef5;--surface:#fff;--surface-2:#eef2f8;--text:#0a1633;--muted:#56627d;--faint:#97a2b8;
+  --line:rgba(10,22,51,.1);--edge:#0a1633;--hard:#0a1633;
+  --lime:#c6ef3a;--lime-ink:#0a1633;--green:#0e8a4a;--warn:#d9481c;
+  --primary:#c6ef3a;--primary-ink:#0a1633;
+  --court:#2459d8;--court-deep:#1a46b3;--court-line:rgba(255,255,255,.55);--board:#0a1633;
+  --glass:rgba(233,238,245,.86);
+  --font:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
 @media (prefers-color-scheme: dark){
-  :root{--bg:#0a0d0b;--surface:#121714;--surface-2:#1a201c;--text:#edf1ee;--muted:#8d9891;--faint:#5a645e;
-    --line:rgba(255,255,255,.07);--green:#4ade80;--primary:#c6ef3a;--primary-ink:#172003;--warn:#fb923c;
-    --match:#14201a;--match-line:rgba(255,255,255,.07);--shadow:none;--glass:rgba(10,13,11,.75)}
+  :root{--bg:#060b19;--surface:#0e1630;--surface-2:#16203f;--text:#eef2ff;--muted:#94a0bf;--faint:#56628a;
+    --line:rgba(255,255,255,.08);--edge:#2b3a68;--hard:#000;--green:#4ade80;--warn:#ff7a45;
+    --court:#1d4fc4;--court-deep:#163d9c;--board:#060b19;--glass:rgba(6,11,25,.82)}
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--text);font:15px/1.5 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
 button{font-family:inherit;color:inherit}
-.ic{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ic{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .num{font-variant-numeric:tabular-nums}
+/* display type: condensed, heavy, italic, like a scoreboard or a broadcast caption */
+.title,.big,.pin,.pinin,.lvtop .big,.code b,.pod .block,.team input,.hero .sc,.lb .score b,.mmlv b{font-stretch:72%;font-weight:900}
 
 /* top bar */
-.topbar{position:sticky;top:0;z-index:6;background:var(--glass);backdrop-filter:saturate(1.6) blur(16px);-webkit-backdrop-filter:saturate(1.6) blur(16px);border-bottom:1px solid var(--line)}
+.topbar{position:sticky;top:0;z-index:6;background:var(--glass);backdrop-filter:saturate(1.6) blur(16px);-webkit-backdrop-filter:saturate(1.6) blur(16px);border-bottom:2px solid var(--edge)}
 .topbar .in{max-width:640px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:10px}
-.brand{color:var(--text);text-decoration:none;font-size:22px}
-.wm{font-weight:800;letter-spacing:-.045em;line-height:1;display:inline-flex;align-items:baseline;white-space:nowrap}
+.brand{color:var(--text);text-decoration:none;font-size:23px}
+.wm{font-family:"Plus Jakarta Sans",var(--font);font-weight:800;letter-spacing:-.045em;line-height:1;display:inline-flex;align-items:baseline;white-space:nowrap}
 .wm svg{width:.7em;height:.7em;margin:0 .05em 0 .04em;transform:translateY(.02em);flex:none}
-.status{margin-left:auto;font-size:12px;font-weight:700;color:var(--muted);background:var(--surface-2);padding:6px 11px;border-radius:999px;white-space:nowrap}
+.status{margin-left:auto;font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text);background:var(--surface);border:2px solid var(--edge);padding:5px 11px;border-radius:999px;white-space:nowrap}
 .status:empty{display:none}
-.status i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:1px}
+.status i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:1px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-main{max-width:640px;margin:0 auto;padding:22px 20px 190px}
-.title{margin:0 0 4px;font-size:30px;font-weight:800;letter-spacing:-.035em;line-height:1.1;display:flex;align-items:center;gap:10px}
-.sub{margin:0 0 20px;color:var(--muted);font-size:14px;font-weight:500}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
-.label{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+main{max-width:640px;margin:0 auto;padding:24px 18px 210px}
+.title{margin:0 0 6px;font-size:46px;font-style:italic;text-transform:uppercase;letter-spacing:-.01em;line-height:.9;display:flex;align-items:center;gap:10px;flex-wrap:wrap;overflow-wrap:anywhere}
+.sub{margin:0 0 20px;color:var(--muted);font-size:14px;font-weight:600}
+.kicker{margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.card{background:var(--surface);border:2px solid var(--edge);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:3px 3px 0 var(--hard)}
+.label{font-size:11.5px;font-weight:800;font-stretch:90%;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
 .muted{color:var(--muted);font-size:13px;margin:0}
 .row{display:flex;gap:8px;align-items:center}
 .grow{flex:1}
-.sec-head{display:flex;align-items:center;justify-content:space-between;margin:26px 4px 10px}
-.sec-head .label{margin:0}
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin:28px 2px 10px}
+.sec-head .label{margin:0;color:var(--text)}
+.sec-head .label::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--lime);border:2px solid var(--edge);margin-right:8px;vertical-align:-1px}
 .sec-head.rhead{flex-wrap:wrap;gap:8px}
 .sec-head.rhead .label{white-space:nowrap}
 
-/* buttons */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700;border-radius:14px;border:1px solid var(--line);background:var(--surface);padding:10px 14px;cursor:pointer;transition:transform .08s,background .15s;white-space:nowrap}
-.btn:active{transform:scale(.97)}
+/* buttons: outlined, with a hard shadow that presses in */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:800;border-radius:12px;border:2px solid var(--edge);background:var(--surface);
+  padding:9px 14px;cursor:pointer;box-shadow:2px 2px 0 var(--hard);transition:transform .06s,box-shadow .06s;white-space:nowrap}
+.btn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--hard)}
+.btn:disabled{opacity:.55}
 .btn .ic{width:17px;height:17px}
-.btn.primary{background:var(--primary);color:var(--primary-ink);border-color:transparent}
-.btn.soft{background:var(--surface-2);border-color:transparent}
-.btn.sm{padding:8px 12px;font-size:13px;border-radius:12px}
-.btn.text{background:none;border:0;padding:8px 4px;color:var(--muted)}
+.btn.primary{background:var(--primary);color:var(--primary-ink);border-color:var(--edge)}
+@media (prefers-color-scheme: dark){.btn.primary{border-color:var(--lime)}}
+.btn.soft{background:var(--surface-2)}
+.btn.sm{padding:7px 11px;font-size:13px;border-radius:11px}
+.btn.big{padding:15px 18px;font-size:16px;border-radius:14px;width:100%}
+.btn.text{background:none;border:0;box-shadow:none;padding:8px 4px;color:var(--muted);font-weight:700}
+.btn.text:active{transform:none}
 .btn.text.danger{color:var(--warn)}
 
 /* format choice */
 .choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.choice{text-align:left;border:1.5px solid var(--line);background:var(--surface);border-radius:18px;padding:14px;cursor:pointer;position:relative;transition:border-color .15s,box-shadow .15s}
-.choice .ico{font-size:20px;line-height:1;display:block;margin-bottom:10px}
-.choice b{display:block;font-size:15px;font-weight:800;letter-spacing:-.01em}
-.choice span.d{display:block;font-size:12.5px;color:var(--muted);line-height:1.4;margin-top:3px}
-.choice.on{border-color:var(--text);box-shadow:0 0 0 1px var(--text)}
-.choice.on::after{content:"";position:absolute;top:12px;right:12px;width:20px;height:20px;border-radius:50%;
-  background:var(--lime) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23172003' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/12px no-repeat}
+.choice{text-align:left;border:2px solid var(--edge);background:var(--surface);border-radius:16px;padding:14px;cursor:pointer;position:relative;box-shadow:3px 3px 0 var(--hard);transition:transform .06s,box-shadow .06s}
+.choice:active{transform:translate(3px,3px);box-shadow:none}
+.choice .ico{font-size:22px;line-height:1;display:block;margin-bottom:10px}
+.choice b{display:block;font-size:22px;font-weight:900;font-stretch:72%;font-style:italic;text-transform:uppercase;letter-spacing:0;line-height:1}
+.choice span.d{display:block;font-size:12.5px;color:var(--muted);line-height:1.4;margin-top:5px;font-weight:500}
+.choice.on{background:var(--lime);color:var(--lime-ink)}
+.choice.on span.d{color:rgba(10,22,51,.72)}
+.choice.on::after{content:"";position:absolute;top:12px;right:12px;width:22px;height:22px;border-radius:50%;
+  background:#0a1633 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c6ef3a' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/12px no-repeat}
 .settings{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
-.setting{background:var(--surface-2);border-radius:16px;padding:10px 12px}
-.setting .label{margin:0 0 6px;font-size:10.5px}
+.setting{display:block;background:var(--surface-2);border:2px solid var(--edge);border-radius:14px;padding:10px 12px;min-width:0}
+.setting .label{display:block;margin:0 0 4px;font-size:10.5px}
 .stepper{display:flex;align-items:center;justify-content:space-between}
-.stepper button{width:34px;height:34px;border-radius:11px;border:0;background:var(--surface);font-size:18px;font-weight:700;cursor:pointer;box-shadow:var(--shadow)}
-.stepper span{font-size:20px;font-weight:800}
-.setting input{width:100%;border:0;background:none;font:inherit;font-size:20px;font-weight:800;color:var(--text);padding:3px 0;outline:none}
+.stepper button{width:36px;height:36px;border-radius:10px;border:2px solid var(--edge);background:var(--surface);font-size:18px;font-weight:900;cursor:pointer;box-shadow:2px 2px 0 var(--hard)}
+.stepper button:active{transform:translate(2px,2px);box-shadow:none}
+.stepper span{font-size:30px;font-weight:900;font-stretch:72%;line-height:1}
+.setting input{width:100%;min-width:0;border:0;background:none;font:inherit;font-size:16px;font-weight:800;color:var(--text);padding:3px 0;outline:none}
 .setting input::placeholder{color:var(--faint);font-weight:600;font-size:15px}
 
 /* avatars */
 .av{--h:140;width:34px;height:34px;flex:none;border-radius:50%;display:inline-grid;place-items:center;font-size:12px;font-weight:800;color:#fff;
-  background:linear-gradient(140deg,hsl(var(--h) 55% 52%),hsl(calc(var(--h) + 25) 50% 36%));letter-spacing:-.02em;position:relative;overflow:hidden}
+  background:linear-gradient(140deg,hsl(var(--h) 60% 52%),hsl(calc(var(--h) + 25) 55% 36%));letter-spacing:-.02em;position:relative;overflow:hidden;box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--edge)}
 .av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.av.sm{width:22px;height:22px;font-size:9.5px}
+.av.sm{width:22px;height:22px;font-size:9.5px;box-shadow:none}
 .av.lg{width:56px;height:56px;font-size:18px}
 .av.xl{width:68px;height:68px;font-size:22px}
 
 /* players */
-.plist{padding:6px 6px 6px 14px}
-.player{display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.plist{padding:4px 6px 4px 14px}
+.player{display:flex;gap:12px;align-items:center;padding:9px 0;border-bottom:1.5px dashed var(--line)}
 .player:last-child{border-bottom:0}
-.player input{flex:1;min-width:0;background:none;border:0;border-radius:10px;padding:8px 6px;margin-left:-6px;font:inherit;font-size:15px;font-weight:600;color:var(--text);outline:none}
+.player input{flex:1;min-width:0;background:none;border:0;border-radius:10px;padding:8px 6px;margin-left:-6px;font:inherit;font-size:15.5px;font-weight:700;color:var(--text);outline:none}
 .player input:focus{background:var(--surface-2)}
 .player.skip .av{filter:grayscale(1);opacity:.4}
 .player.skip input{color:var(--faint);text-decoration:line-through}
-:root{--lv1:#94a3a0;--lv2:#60a5fa;--lv3:#2dd4bf;--lv4:#4ade80;--lv5:#a3d930;--lv6:#f59e0b}
-.lv{--c:var(--faint);flex:none;min-width:44px;height:28px;padding:0 9px;border:0;border-radius:999px;cursor:pointer;font:inherit;font-size:13.5px;font-weight:800;
-  color:var(--text);background:color-mix(in srgb,var(--c) 24%,transparent);display:inline-flex;align-items:center;justify-content:center;gap:5px}
+:root{--lv1:#94a3b8;--lv2:#60a5fa;--lv3:#2dd4bf;--lv4:#4ade80;--lv5:#c6ef3a;--lv6:#f59e0b}
+.lv{--c:var(--faint);flex:none;min-width:46px;height:28px;padding:0 9px;border:2px solid var(--edge);border-radius:999px;cursor:pointer;font:inherit;font-size:14px;font-weight:900;font-stretch:80%;
+  color:var(--text);background:color-mix(in srgb,var(--c) 30%,var(--surface));display:inline-flex;align-items:center;justify-content:center;gap:5px}
 .lv::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c)}
-.lv.none{color:var(--faint);background:var(--surface-2)}
+.lv.none{color:var(--faint);background:var(--surface-2);border-color:var(--line)}
 .lv.none::before{display:none}
 .lv1{--c:var(--lv1)}.lv2{--c:var(--lv2)}.lv3{--c:var(--lv3)}.lv4{--c:var(--lv4)}.lv5{--c:var(--lv5)}.lv6{--c:var(--lv6)}
 .avw{position:relative;flex:none;display:inline-grid}
-.avw .lkd{position:absolute;right:-3px;bottom:-3px;width:15px;height:15px;border-radius:50%;background:var(--green);color:#fff;
+.avw .lkd{position:absolute;right:-4px;bottom:-4px;width:16px;height:16px;border-radius:50%;background:var(--green);color:#fff;
   border:2px solid var(--surface);display:grid;place-items:center;font-size:8px;font-style:normal;font-weight:900}
-.pinfo{margin:-2px 0 6px 46px;padding:12px 14px;border-radius:14px;background:var(--surface-2);font-size:13.5px}
+.pinfo{margin:-2px 0 8px 46px;padding:12px 14px;border-radius:14px;background:var(--surface-2);border:2px solid var(--edge);font-size:13.5px}
 .pinfo b{font-weight:800}
 .pinfo p{margin:4px 0 0;color:var(--muted)}
 .pinfo .row{margin-top:10px}
 .pinfo input{flex:1;min-width:0;font:inherit;font-size:15px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--text);
-  background:var(--surface);border:1px solid transparent;border-radius:12px;padding:8px 12px;outline:none}
-.pinfo input:focus{border-color:var(--text)}
-.sw{position:relative;width:44px;height:26px;flex:none;border-radius:999px;border:0;background:var(--surface-2);cursor:pointer;transition:background .2s}
-.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
-.sw.on{background:var(--green)}
-.sw.on::after{transform:translateX(18px)}
+  background:var(--surface);border:2px solid var(--edge);border-radius:11px;padding:7px 11px;outline:none}
+.sw{position:relative;width:46px;height:28px;flex:none;border-radius:999px;border:2px solid var(--edge);background:var(--surface-2);cursor:pointer;transition:background .2s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--surface);border:2px solid var(--edge);transition:transform .2s;box-sizing:border-box}
+.sw.on{background:var(--lime)}
+.sw.on::after{transform:translateX(18px);background:#0a1633;border-color:#0a1633}
 .x{border:0;background:none;color:var(--faint);width:30px;height:34px;cursor:pointer;display:grid;place-items:center}
 .x .ic{width:16px;height:16px}
-textarea{width:100%;min-height:130px;resize:vertical;font:inherit;font-size:14px;color:var(--text);background:var(--surface-2);border:1px solid transparent;border-radius:16px;padding:12px 14px;outline:none}
-textarea:focus{border-color:var(--text)}
-.linkin{width:100%;font:inherit;font-size:14px;color:var(--text);background:var(--surface-2);border:1px solid transparent;border-radius:14px;padding:12px 14px;outline:none}
-.linkin:focus{border-color:var(--text)}
+textarea{width:100%;min-height:130px;resize:vertical;font:inherit;font-size:14px;color:var(--text);background:var(--surface-2);border:2px solid var(--edge);border-radius:14px;padding:12px 14px;outline:none}
+textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
+.linkin{width:100%;font:inherit;font-size:14px;color:var(--text);background:var(--surface-2);border:2px solid var(--edge);border-radius:13px;padding:12px 14px;outline:none}
+
+/* game PIN */
+.pinbar{width:100%;display:flex;align-items:center;gap:10px;text-align:left;cursor:pointer;margin:0 0 16px;padding:12px 14px;border-radius:16px;
+  border:2px solid var(--edge);background:var(--board);color:#fff;box-shadow:3px 3px 0 var(--lime);font:inherit;transition:transform .06s,box-shadow .06s}
+.pinbar:active{transform:translate(3px,3px);box-shadow:none}
+.pinbar .label{margin:0;color:rgba(255,255,255,.6)}
+.pinbar b.num{font-size:26px;font-weight:900;font-stretch:72%;letter-spacing:.08em;color:var(--lime);line-height:1}
+.pinbar .ic{color:var(--lime)}
+.pinbar.ghost{background:var(--surface);color:var(--text);box-shadow:3px 3px 0 var(--hard)}
+.pinbar.ghost .ic{color:var(--text)}
+.pinbar.ghost b{display:block;font-weight:800;font-size:15px}
+.pinbar.ghost small{display:block;color:var(--muted);font-size:12.5px;line-height:1.35}
+.pincard{background:var(--board);color:#fff;border-color:var(--edge);box-shadow:4px 4px 0 var(--lime)}
+.pincard .muted{color:rgba(255,255,255,.68)}
+.pincard .label{color:rgba(255,255,255,.6)}
+.pinhead{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px}
+.pin{display:block;font-size:58px;line-height:.95;letter-spacing:.04em;color:var(--lime)}
+.pincard .qr{width:92px;height:92px}
+.pincard .settings{grid-template-columns:1fr}
+.pincard .setting{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.18)}
+.pincard .setting input{color:#fff;color-scheme:dark}
+.pincard .btn.soft{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.25);box-shadow:none}
+.joincard{display:flex;flex-direction:column;gap:12px;padding:16px}
+.pinin{width:100%;text-align:center;font:inherit;font-weight:900;font-stretch:72%;font-size:52px;letter-spacing:.16em;line-height:1;color:var(--text);
+  background:var(--surface-2);border:2px solid var(--edge);border-radius:14px;padding:16px 8px;outline:none}
+.pinin::placeholder{color:var(--faint);opacity:.6}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 18px}
+.meta span{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:2px solid var(--edge);border-radius:999px;padding:4px 11px;font-size:12.5px;font-weight:800}
+.meta .ic{width:14px;height:14px}
+.hero{position:relative;overflow:hidden;border:2px solid var(--edge);border-radius:22px;padding:16px 18px 18px;margin-bottom:14px;box-shadow:5px 5px 0 var(--hard)}
+.hero.court{background:var(--court);color:#fff}
+.hero.court::before{content:"";position:absolute;inset:10px;border:2px solid var(--court-line);border-radius:8px;pointer-events:none}
+.hero.court::after{content:"";position:absolute;left:50%;top:10px;bottom:10px;border-left:2px solid var(--court-line);pointer-events:none;opacity:.5}
+.hero.rest{background:var(--surface)}
+.hero.rest p{margin:6px 0 0;color:var(--muted);font-size:14px;font-weight:600;position:relative}
+.hero.flash{animation:flash .9s ease-out 2}
+@keyframes flash{0%{box-shadow:5px 5px 0 var(--hard),0 0 0 0 rgba(198,239,58,.9)}100%{box-shadow:5px 5px 0 var(--hard),0 0 0 18px rgba(198,239,58,0)}}
+.herohead{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center}
+.chipd{font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;background:var(--board);color:var(--lime);padding:4px 10px;border-radius:8px}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--lime);animation:pulse 1.2s infinite}
+.big{position:relative;z-index:1;font-size:72px;line-height:.86;font-style:italic;text-transform:uppercase;margin:12px 0 4px;letter-spacing:-.01em}
+.hero.court .big{color:var(--lime);text-shadow:3px 3px 0 var(--board)}
+.vs{position:relative;z-index:1;display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.vs .side{display:flex;align-items:center;gap:10px;background:rgba(10,22,51,.35);border-radius:14px;padding:10px 10px 10px 12px}
+.vs .duo{gap:6px}
+.vs .pn{font-size:15px}
+.vs .sc{width:52px;height:46px;flex:none;display:grid;place-items:center;border-radius:11px;background:var(--board);color:var(--lime);font-size:30px;line-height:1}
+.vsl{display:flex;align-items:center;gap:10px}
+.vsl::before,.vsl::after{content:"";flex:1;border-top:2px dashed rgba(255,255,255,.5)}
+.vsl span{font-size:11px;font-weight:900;letter-spacing:.16em}
+.notify{display:flex;align-items:center;gap:12px;padding:14px 16px}
+.notify b{display:block;font-weight:800}
+.notify small{display:block;color:var(--muted);font-size:12.5px;line-height:1.35}
+.lb li.me-row{background:color-mix(in srgb,var(--lime) 35%,transparent);margin:0 -16px;padding-left:16px;padding-right:16px}
 
 /* rounds */
-.tag{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);padding:4px 9px;border-radius:999px}
+.tag{font-size:11px;font-weight:900;font-style:normal;font-stretch:90%;letter-spacing:.08em;text-transform:uppercase;color:var(--lime-ink);background:var(--lime);border:2px solid var(--edge);padding:3px 8px;border-radius:8px;line-height:1.2}
+.title .tag{font-size:12px}
 .actions{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap}
-.stitle{display:inline-flex;align-items:center;gap:6px;max-width:100%;border:0;background:none;padding:0;margin:0 0 4px;cursor:pointer;
-  font:inherit;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--green);text-align:left}
+.stitle{display:inline-flex;align-items:center;gap:6px;max-width:100%;border:0;background:none;padding:0;margin:0 0 6px;cursor:pointer;
+  font:inherit;font-size:12.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--court);text-align:left}
+@media (prefers-color-scheme: dark){.stitle{color:var(--lime)}}
 .stitle .ic{width:13px;height:13px;flex:none;opacity:.7}
-.hint.fin{background:color-mix(in srgb,var(--lime) 25%,transparent);color:var(--text);padding:10px 12px;border-radius:14px}
-.hint{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted);margin:0 0 14px;padding:0 4px}
+.hint{display:flex;gap:10px;align-items:center;font-size:13px;font-weight:600;color:var(--muted);margin:0 0 14px;padding:0 4px}
 .hint .ic{width:16px;height:16px;color:var(--green)}
-.match{position:relative;border-radius:24px;padding:10px 22px 12px;margin-bottom:12px;color:#fff;overflow:hidden;
-  background:var(--match);box-shadow:0 10px 30px -12px rgba(10,30,18,.45)}
-.match::before{content:"";position:absolute;inset:8px;border:1.5px solid var(--match-line);border-radius:16px;pointer-events:none}
+.hint.fin{background:var(--lime);color:var(--lime-ink);border:2px solid var(--edge);padding:10px 12px;border-radius:14px}
+.hint.fin .ic{color:var(--lime-ink)}
+.hint.warn{color:var(--warn)}
+.hint.warn .ic{color:var(--warn)}
+/* a match is a little hard court: blue, white lines, scoreboard tiles for the score */
+.match{position:relative;border-radius:20px;padding:10px 20px 14px;margin-bottom:14px;color:#fff;overflow:hidden;
+  background:var(--court);border:2px solid var(--edge);box-shadow:4px 4px 0 var(--hard)}
+.match::before{content:"";position:absolute;inset:9px;border:2px solid var(--court-line);border-radius:8px;pointer-events:none}
+.match::after{content:"";position:absolute;left:9px;right:9px;top:50%;border-top:2px solid var(--court-line);pointer-events:none;opacity:.35}
 .mhead{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;padding:8px 0 0}
-.mhead span{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5)}
+.mhead span{font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;background:var(--board);color:var(--lime);padding:4px 10px;border-radius:8px}
 .team{position:relative;z-index:1;display:flex;align-items:center;gap:12px;padding:10px 0}
 .duo{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
-.pn{display:flex;align-items:center;gap:10px;min-width:0;font-size:15px;font-weight:700;color:#fff;background:none;border:0;padding:0;text-align:left}
+.pn{display:flex;align-items:center;gap:10px;min-width:0;font-size:15.5px;font-weight:800;color:#fff;background:none;border:0;padding:0;text-align:left}
+.pn .av{box-shadow:0 0 0 2px rgba(255,255,255,.85)}
 .pn .nm{overflow-wrap:anywhere}
 button.pn{cursor:pointer}
 button.pn:active{opacity:.7}
-.team input{width:62px;height:62px;flex:none;text-align:center;font:inherit;font-weight:800;font-size:26px;border-radius:18px;border:1px solid rgba(255,255,255,.1);
-  background:rgba(255,255,255,.07);color:#fff;outline:none;font-variant-numeric:tabular-nums;transition:background .15s}
-.team input::placeholder{color:rgba(255,255,255,.25)}
+.team input{width:64px;height:60px;flex:none;text-align:center;font:inherit;font-weight:900;font-stretch:72%;font-size:36px;border-radius:12px;border:2px solid rgba(255,255,255,.2);
+  background:var(--board);color:var(--lime);outline:none;font-variant-numeric:tabular-nums;transition:background .15s}
+.team input::placeholder{color:rgba(198,239,58,.3)}
 .team input:focus{border-color:var(--lime)}
-.team.win input{background:var(--lime);color:var(--lime-ink);border-color:transparent}
-.team.win .duo .pn:first-child::after{content:"WIN";font-size:9.5px;font-weight:800;letter-spacing:.08em;color:var(--lime-ink);background:var(--lime);padding:2px 6px;border-radius:6px;margin-left:2px}
-.net{position:relative;z-index:1;display:flex;align-items:center;gap:10px;margin-right:74px}
-.net::before,.net::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.14)}
-.net span{font-size:10px;font-weight:800;letter-spacing:.14em;color:rgba(255,255,255,.4)}
-.bench{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 4px 0}
+.team.win input{background:var(--lime);color:var(--lime-ink);border-color:var(--board)}
+.team.win .duo .pn:first-child::after{content:"WIN";font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--lime-ink);background:var(--lime);padding:2px 6px;border-radius:6px;margin-left:2px}
+.net{position:relative;z-index:1;display:flex;align-items:center;gap:10px;margin-right:76px}
+.net::before,.net::after{content:"";flex:1;border-top:2px dashed rgba(255,255,255,.55)}
+.net span{font-size:11px;font-weight:900;letter-spacing:.16em;color:#fff}
+.bench{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 2px 0}
 .bench .label{margin:0 6px 0 0}
-.chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:3px 10px 3px 3px;border-radius:999px;background:var(--surface);border:1px solid var(--line)}
-details.past{background:var(--surface);border:1px solid var(--line);border-radius:20px;margin-bottom:10px;box-shadow:var(--shadow)}
-details.past summary{list-style:none;display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:3px 10px 3px 3px;border-radius:999px;background:var(--surface);border:2px solid var(--edge)}
+details.past{background:var(--surface);border:2px solid var(--edge);border-radius:16px;margin-bottom:10px;box-shadow:3px 3px 0 var(--hard)}
+details.past summary{list-style:none;display:flex;align-items:center;gap:10px;padding:13px 15px;cursor:pointer}
 details.past summary::-webkit-details-marker{display:none}
-details.past summary b{font-size:15px;font-weight:800}
-details.past summary .scores{margin-left:auto;display:flex;gap:6px}
-details.past summary .scores span{font-size:12px;font-weight:700;background:var(--surface-2);padding:3px 8px;border-radius:8px}
+details.past summary b{font-size:20px;font-weight:900;font-stretch:72%;font-style:italic;text-transform:uppercase}
+details.past summary .scores{margin-left:auto;display:flex;gap:5px}
+details.past summary .scores span{font-size:13px;font-weight:900;font-stretch:80%;background:var(--board);color:var(--lime);padding:3px 8px;border-radius:7px}
 details.past summary .ic{width:18px;height:18px;color:var(--muted);transition:transform .2s}
 details.past[open] summary .ic{transform:rotate(180deg)}
 details.past .body{padding:0 10px 12px}
 details.past .match{box-shadow:none}
 
 /* standings */
-.podium{display:grid;grid-template-columns:1fr 1.1fr 1fr;align-items:end;gap:8px;margin:8px 0 18px}
+.podium{display:grid;grid-template-columns:1fr 1.1fr 1fr;align-items:end;gap:8px;margin:12px 0 18px}
 .pod{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0}
-.pod .nm{font-weight:800;font-size:14px;margin:8px 0 2px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pod .pts{font-size:12px;color:var(--muted);font-weight:700;margin-bottom:8px}
-.pod .block{width:100%;border-radius:16px 16px 6px 6px;display:grid;place-items:center;font-size:22px;font-weight:800;background:var(--surface-2);color:var(--muted)}
-.pod.p1 .block{height:104px;background:linear-gradient(180deg,var(--lime),#a8d42a);color:var(--lime-ink);font-size:30px}
-.pod.p2 .block{height:76px}
-.pod.p3 .block{height:58px}
-.pod .crown{font-size:20px;line-height:1;margin-bottom:4px}
+.pod .nm{font-weight:800;font-size:14px;margin:10px 0 2px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pod .pts{font-size:12px;color:var(--muted);font-weight:800;margin-bottom:8px}
+.pod .block{width:100%;border-radius:14px 14px 4px 4px;display:grid;place-items:center;font-size:40px;font-style:italic;background:var(--board);color:var(--lime);border:2px solid var(--edge)}
+.pod.p1 .block{height:112px;background:var(--lime);color:var(--lime-ink);font-size:56px;box-shadow:3px 3px 0 var(--hard)}
+.pod.p2 .block{height:80px}
+.pod.p3 .block{height:60px}
+.pod .crown{font-size:22px;line-height:1;margin-bottom:6px}
 .lb{list-style:none;margin:0;padding:4px 16px}
-.lb li{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.lb li{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1.5px dashed var(--line)}
 .lb li:last-child{border-bottom:0}
-.rank{width:22px;text-align:center;font-weight:800;color:var(--faint);font-size:14px;flex:none}
+.rank{width:24px;text-align:center;font-weight:900;font-stretch:72%;font-style:italic;color:var(--muted);font-size:20px;flex:none}
 .lb .who{flex:1;min-width:0}
-.lb .who b{display:block;font-weight:700;font-size:15px;overflow-wrap:anywhere}
-.lb .who small{color:var(--muted);font-size:12px;font-weight:500}
+.lb .who b{display:block;font-weight:800;font-size:15px;overflow-wrap:anywhere}
+.lb .who small{color:var(--muted);font-size:12px;font-weight:600}
 .lb .score{text-align:right;flex:none}
-.lb .score b{display:block;font-size:19px;font-weight:800;line-height:1.1}
-.lb .score small{color:var(--faint);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
-.seg{display:flex;background:var(--surface-2);border-radius:14px;padding:4px;gap:4px;margin-bottom:6px}
-.seg button{flex:1;border:0;background:none;color:var(--muted);padding:8px;font-size:13px;font-weight:700;border-radius:10px;cursor:pointer}
-.seg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.lb .score b{display:block;font-size:28px;line-height:1}
+.lb .score small{color:var(--faint);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.seg{display:flex;background:var(--surface);border:2px solid var(--edge);border-radius:14px;padding:3px;gap:3px;margin-bottom:8px}
+.seg button{flex:1;border:0;background:none;color:var(--muted);padding:8px;font-size:13px;font-weight:800;border-radius:10px;cursor:pointer}
+.seg button.on{background:var(--text);color:var(--bg)}
 .help summary{cursor:pointer;font-weight:800;list-style:none;display:flex;justify-content:space-between}
 .help summary::-webkit-details-marker{display:none}
 .help p{font-size:13.5px;color:var(--muted);margin:10px 0 0}
@@ -217,7 +293,7 @@ details.past .match{box-shadow:none}
 /* account */
 .me{display:flex;align-items:center;gap:14px}
 .me .who{flex:1;min-width:0}
-.me .who b{display:block;font-size:17px;font-weight:800;overflow-wrap:anywhere}
+.me .who b{display:block;font-size:18px;font-weight:800;overflow-wrap:anywhere}
 .me .who small{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
 .hist li{cursor:pointer}
 .mm{padding:14px 16px}
@@ -225,14 +301,16 @@ details.past .match{box-shadow:none}
 .mmhead b{display:block;font-weight:800}
 .mmhead small{display:block;color:var(--muted);font-size:12.5px}
 .mmlv{text-align:right;flex:none}
-.mmlv b{font-size:16px}
+.mmlv b{font-size:22px;line-height:1}
 .mmlv b.up{color:var(--green)}
 .mmlv b.down{color:var(--warn)}
-.mmrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
-.mmrow .res{width:22px;height:22px;flex:none;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:800;background:var(--surface-2);color:var(--muted)}
+.mmrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1.5px dashed var(--line);font-size:13.5px}
+.mmrow:first-child{border-top:0}
+.mmhead + .mmrow{border-top:1.5px dashed var(--line)}
+.mmrow .res{width:24px;height:24px;flex:none;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:900;background:var(--surface-2);color:var(--muted);border:2px solid var(--edge)}
 .mmrow .res.W{background:var(--lime);color:var(--lime-ink)}
-.mmrow .res.L{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
-.mmrow .sc{font-weight:800;width:38px;flex:none}
+.mmrow .res.L{background:color-mix(in srgb,var(--warn) 22%,var(--surface));color:var(--warn)}
+.mmrow .sc{font-weight:900;font-stretch:80%;font-size:15px;width:40px;flex:none}
 .scan{position:fixed;inset:0;z-index:20;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#fff;
   padding:24px 16px calc(24px + env(safe-area-inset-bottom))}
 .scan video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -240,41 +318,41 @@ details.past .match{box-shadow:none}
 .scan p{position:relative;margin:0;text-align:center;font-weight:800;font-size:16px}
 .scan p small{display:block;font-weight:500;font-size:13px;opacity:.8;margin-top:4px}
 .scan .row{position:relative}
-.scan .btn{background:rgba(255,255,255,.14);color:#fff;border-color:transparent}
-.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+.scan .btn{background:rgba(255,255,255,.14);color:#fff;border-color:transparent;box-shadow:none}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(6,11,25,.55);display:flex;align-items:flex-end;justify-content:center;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
 .sheetin{width:100%;max-width:520px;margin:0}
-.sheetin h3{margin:0 0 4px;font-size:18px;font-weight:800}
+.sheetin h3{margin:0 0 4px;font-size:28px;font-weight:900;font-stretch:72%;font-style:italic;text-transform:uppercase}
 .sheetin textarea{margin-top:10px;min-height:110px}
 .namebtn{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:0;cursor:pointer;font:inherit;color:inherit;text-align:left}
 .namebtn .ic{width:14px;height:14px;color:var(--faint);flex:none}
-.nameedit{width:100%;font:inherit;font-size:16px;font-weight:800;color:var(--text);background:var(--surface-2);border:1px solid var(--text);border-radius:12px;padding:8px 10px;outline:none}
+.nameedit{width:100%;font:inherit;font-size:16px;font-weight:800;color:var(--text);background:var(--surface-2);border:2px solid var(--edge);border-radius:12px;padding:8px 10px;outline:none}
 .avedit{position:relative;flex:none;cursor:pointer;display:inline-grid}
-.avedit .pen{position:absolute;right:-2px;bottom:-2px;width:22px;height:22px;border-radius:50%;background:var(--text);color:var(--bg);
-  display:grid;place-items:center;border:2px solid var(--surface)}
+.avedit .pen{position:absolute;right:-3px;bottom:-3px;width:22px;height:22px;border-radius:50%;background:var(--lime);color:var(--lime-ink);
+  display:grid;place-items:center;border:2px solid var(--edge)}
 .avedit .pen .ic{width:12px;height:12px;stroke-width:3}
 .share{display:flex;gap:14px;align-items:flex-start}
-.qr{width:112px;height:112px;flex:none;background:#fff;border-radius:12px;padding:4px}
+.qr{width:112px;height:112px;flex:none;background:#fff;border-radius:12px;padding:4px;border:2px solid var(--edge)}
 .qr svg{width:100%;height:100%;display:block}
 .lvtop{display:flex;align-items:center;gap:14px}
-.lvtop .big{width:64px;height:64px;flex:none;border-radius:20px;display:grid;place-items:center;font-size:26px;font-weight:800;letter-spacing:-.03em;
-  background:color-mix(in srgb,var(--c) 28%,transparent)}
-.lvtop strong{display:block;font-size:18px;font-weight:800;letter-spacing:-.02em}
-.lvtop small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
-.meter{position:relative;height:8px;margin:16px 0 4px;border-radius:999px;
+.lvtop .big{width:72px;height:72px;flex:none;border-radius:18px;display:grid;place-items:center;font-size:40px;font-style:italic;margin:0;
+  background:color-mix(in srgb,var(--c) 45%,var(--surface));border:2px solid var(--edge);box-shadow:3px 3px 0 var(--hard)}
+.lvtop strong{display:block;font-size:24px;font-weight:900;font-stretch:72%;font-style:italic;text-transform:uppercase;line-height:1}
+.lvtop small{display:block;color:var(--muted);font-size:12.5px;margin-top:4px;font-weight:600}
+.meter{position:relative;height:10px;margin:18px 0 6px;border-radius:999px;border:2px solid var(--edge);
   background:linear-gradient(90deg,var(--lv1) 0 16.6%,var(--lv2) 0 33.3%,var(--lv3) 0 50%,var(--lv4) 0 66.6%,var(--lv5) 0 83.3%,var(--lv6) 0)}
-.meter i{position:absolute;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:var(--surface);border:3px solid var(--text)}
-.meter-ends{display:flex;justify-content:space-between;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.meter i{position:absolute;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:var(--surface);border:3px solid var(--edge)}
+.meter-ends{display:flex;justify-content:space-between;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
 .lvl .desc{margin:12px 0 0;font-size:14px;line-height:1.5}
 .lvgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:4px}
-.lvgrid button{height:44px;border:0;border-radius:14px;cursor:pointer;font:inherit;font-size:16px;font-weight:800;color:var(--text);
-  background:color-mix(in srgb,var(--c) 18%,transparent)}
-.lvgrid button.on{background:var(--c);color:#101612;box-shadow:0 0 0 2px var(--text)}
-.lvpick{margin-top:14px;padding:12px 14px;border-radius:14px;background:var(--surface-2)}
+.lvgrid button{height:46px;border:2px solid var(--edge);border-radius:12px;cursor:pointer;font:inherit;font-size:22px;font-weight:900;font-stretch:72%;color:var(--text);
+  background:color-mix(in srgb,var(--c) 22%,var(--surface))}
+.lvgrid button.on{background:var(--c);color:#0a1633;box-shadow:3px 3px 0 var(--hard)}
+.lvpick{margin-top:14px;padding:12px 14px;border-radius:14px;background:var(--surface-2);border:2px solid var(--edge)}
 .lvpick strong{display:block;font-weight:800}
 .lvpick p{margin:4px 0 0;font-size:13.5px;color:var(--muted);line-height:1.45}
 .code{display:flex;gap:16px;align-items:center}
 .code .qr{width:104px;height:104px}
-.code b{display:block;font-size:30px;font-weight:800;letter-spacing:.14em;font-variant-numeric:tabular-nums}
+.code b{display:block;font-size:40px;letter-spacing:.12em;line-height:1;margin-bottom:6px}
 /* rally animation: two players hitting a ball back and forth, pure CSS on an inline SVG */
 .rally{display:block;width:100%;max-width:340px;height:64px;margin:0 auto 14px;color:var(--text)}
 .rally .net{stroke:var(--faint)}
@@ -285,33 +363,35 @@ details.past .match{box-shadow:none}
 @keyframes rx{0%,100%{transform:translateX(0)}50%{transform:translateX(180px)}}
 @keyframes ry{0%{transform:translateY(0);animation-timing-function:ease-out}50%{transform:translateY(-30px);animation-timing-function:ease-in}100%{transform:translateY(0)}}
 @keyframes sw{0%{transform:rotate(-45deg)}6%{transform:rotate(30deg)}22%{transform:rotate(0)}80%,100%{transform:rotate(-45deg)}}
-@media (prefers-reduced-motion:reduce){.rally *{animation:none!important}}
-.hist .day{width:44px;flex:none;text-align:center;line-height:1.1;background:var(--surface-2);border-radius:12px;padding:6px 0}
-.hist .day b{display:block;font-size:17px;font-weight:800}
-.hist .day small{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.rally *,.hero,.live i,.status i{animation:none!important}}
+.hist .day{width:46px;flex:none;text-align:center;line-height:1;background:var(--board);color:#fff;border-radius:11px;padding:7px 0}
+.hist .day b{display:block;font-size:22px;font-weight:900;font-stretch:72%;color:var(--lime)}
+.hist .day small{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.7}
 
 /* empty */
 .empty{text-align:center;padding:56px 20px;color:var(--muted)}
-.empty .orb{width:84px;height:84px;margin:0 auto 18px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;box-shadow:var(--shadow)}
+.empty .orb{width:84px;height:84px;margin:0 auto 18px;border-radius:50%;background:var(--surface);border:2px solid var(--edge);display:grid;place-items:center;box-shadow:3px 3px 0 var(--hard)}
 .empty .orb svg{width:44px;height:44px}
-.empty h3{color:var(--text);margin:0 0 6px;font-size:18px;font-weight:800;letter-spacing:-.02em}
+.empty h3{color:var(--text);margin:0 0 6px;font-size:32px;font-weight:900;font-stretch:72%;font-style:italic;text-transform:uppercase;line-height:1}
 
-/* dock + tab bar */
-.dock{position:fixed;left:0;right:0;bottom:calc(72px + env(safe-area-inset-bottom));z-index:5;padding:0 20px 12px;pointer-events:none}
+/* dock + floating tab bar */
+.dock{position:fixed;left:0;right:0;bottom:calc(86px + env(safe-area-inset-bottom));z-index:5;padding:0 14px 10px;pointer-events:none}
 .dock .in{max-width:600px;margin:0 auto;display:flex;gap:8px;pointer-events:auto}
-.dock .btn{padding:16px 18px;font-size:15px;border-radius:18px;box-shadow:0 12px 30px -10px rgba(0,0,0,.45)}
-.dock .btn.primary{box-shadow:0 0 0 4px var(--bg),0 12px 30px -10px rgba(0,0,0,.45)}
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--glass);backdrop-filter:saturate(1.6) blur(16px);-webkit-backdrop-filter:saturate(1.6) blur(16px);
-  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-.tabbar .in{max-width:640px;margin:0 auto;display:flex}
-.tabbar button{flex:1;border:0;background:none;padding:8px 4px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:700;color:var(--muted);cursor:pointer}
-.tabbar .pill{width:56px;height:30px;border-radius:999px;display:grid;place-items:center;transition:background .2s}
-.tabbar button.on{color:var(--text)}
-.tabbar button.on .pill{background:var(--lime);color:var(--lime-ink)}
+.dock .btn{padding:15px 18px;font-size:16px;border-radius:16px;box-shadow:4px 4px 0 var(--hard)}
+.dock .btn:active{box-shadow:0 0 0 var(--hard)}
+.tabbar{position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:6;background:#0a1633;border:2px solid #0a1633;border-radius:22px;
+  box-shadow:0 10px 30px -10px rgba(6,11,25,.55);max-width:616px;margin:0 auto}
+@media (prefers-color-scheme: dark){.tabbar{background:#101a38;border-color:var(--edge)}}
+.tabbar .in{display:flex;padding:5px}
+.tabbar button{flex:1;min-width:0;border:0;background:none;padding:5px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:rgba(255,255,255,.55);cursor:pointer}
+.tabbar .pill{width:48px;height:30px;border-radius:11px;display:grid;place-items:center;transition:background .2s}
+.tabbar button.on{color:#fff}
+.tabbar button.on .pill{background:var(--lime);color:#0a1633}
 
-.toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(8px);background:var(--text);color:var(--bg);
-  padding:11px 18px;border-radius:14px;font-size:13.5px;font-weight:600;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:9;max-width:calc(100% - 40px);text-align:center;box-shadow:0 10px 30px -10px rgba(0,0,0,.4)}
+.toast{position:fixed;left:50%;bottom:calc(160px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(8px);background:#0a1633;color:#fff;border:2px solid var(--lime);
+  padding:11px 18px;border-radius:14px;font-size:13.5px;font-weight:700;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:9;max-width:calc(100% - 40px);text-align:center;box-shadow:4px 4px 0 rgba(6,11,25,.35)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (max-width:380px){.title{font-size:40px}.big{font-size:60px}.pin{font-size:48px}.pinin{font-size:44px}}
 </style>
 </head>
 <body>
@@ -325,13 +405,14 @@ details.past .match{box-shadow:none}
   <button data-tab="players"><span class="pill" data-ic="users"></span>Players</button>
   <button data-tab="rounds"><span class="pill" data-ic="court"></span>Rounds</button>
   <button data-tab="standings"><span class="pill" data-ic="trophy"></span>Standings</button>
+  <button data-tab="join"><span class="pill" data-ic="ticket"></span>Join</button>
   <button data-tab="account"><span class="pill" data-ic="user"></span>Account</button>
 </div></nav>
 <div class="toast" id="toast"></div>
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.1.0';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -386,12 +467,12 @@ function toast(msg) {
 }
 
 // ---------- stats ----------
-function computeStats() {
+function computeStats(players = S.players, rounds = S.rounds) {
   const st = {}, partners = {}, opps = {};
   const blank = () => ({pts: 0, played: 0, last: -1, scored: 0, w: 0, d: 0, l: 0, diff: 0, sat: 0});
-  S.players.forEach(p => st[p.id] = blank());
+  players.forEach(p => st[p.id] = blank());
   const get = id => st[id] || (st[id] = blank());
-  S.rounds.forEach((r, ri) => {
+  rounds.forEach((r, ri) => {
     r.sitting.forEach(id => get(id).sat++);
     r.matches.forEach(m => {
       [...m.a, ...m.b].forEach(id => { get(id).played++; get(id).last = ri; });
@@ -502,7 +583,7 @@ function nextRound() {
   if (courts < 1) { alert(`Need at least ${per} available players.`); return; }
   const last = S.rounds[S.rounds.length - 1];
   if (S.mode === 'mexicano' && last && last.matches.some(m => !hasScore(m)) &&
-      !confirm('Some scores in the last round are empty. Mexicano uses scores to pick the next matches. Continue anyway?')) return;
+      !confirm('Some scores in the last round are empty. Competitive uses scores to pick the next matches. Continue anyway?')) return;
 
   const {st, partners, opps} = computeStats();
   // Fewest matches played go first; ties go to whoever has waited longest since their last match.
@@ -694,9 +775,9 @@ async function doneEditing() {
   toast('Scores saved');
 }
 function closeSession() {
-  Object.assign(S, {rounds: [], sessionId: null, activity: null, title: null, finishedAt: null});
+  Object.assign(S, {rounds: [], sessionId: null, activity: null, title: null, finishedAt: null, pin: null, venue: null, startsAt: null, notified: null});
   S.players.forEach(p => p.active = true);
-  shareLink = null; sessionLog = null; myMatches = null;
+  shareLink = null; sessionLog = null; myMatches = null; pinOpen = false;
   save(); S.tab = 'players'; render();
 }
 const newSession = finishSession;
@@ -704,13 +785,13 @@ function resetAll() {
   if (!confirm('Reset everything back to 4 default players?')) return;
   S = defaultState(); save(); render();
 }
-function goTab(t) { if (claimView) leaveClaim(); S.tab = t; save(); render(); window.scrollTo(0, 0); }
+function goTab(t) { if (claimView) leaveClaim(); S.tab = t; save(); render(); window.scrollTo(0, 0); if (t === 'join' && follow.pin) loadGame(true); }
 
 // ---------- sharing ----------
 // Invite others to 10nis: the phone's share sheet where available, otherwise copy the message.
 const APP_URL = 'https://10nis.win';
 async function shareApp() {
-  const text = 'Run Americano & Mexicano tennis sessions with 10nis: rounds, scores, standings and player levels.';
+  const text = 'Run social or competitive tennis sessions with 10nis: fair rounds, live courts, scores and player levels.';
   if (navigator.share) {
     try { await navigator.share({title: '10nis', text, url: APP_URL}); return; }
     catch (e) { if (e.name === 'AbortError') return; }
@@ -785,6 +866,10 @@ const ICONS = {
   scan: '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/>',
   pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  ticket: '<path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M14 6v2M14 11v2M14 16v2"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
   ball: '<circle cx="12" cy="12" r="9.5"/><path d="M5.5 5.2c3.4 3.8 3.4 9.8 0 13.6M18.5 5.2c-3.4 3.8-3.4 9.8 0 13.6"/>',
 };
 const ic = n => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
@@ -796,24 +881,25 @@ const RALLY = `<svg class="rally" viewBox="0 0 320 72" aria-hidden="true" fill="
   <g transform="translate(44 30)"><line x1="0" y1="5" x2="0" y2="24"/><line x1="0" y1="24" x2="-6" y2="38"/><line x1="0" y1="24" x2="6" y2="38"/><line x1="0" y1="10" x2="-8" y2="18"/><circle cx="0" cy="0" r="5"/><g transform="translate(0 10)"><g class="arm"><line x1="0" y1="0" x2="15" y2="6"/><ellipse cx="21" cy="8" rx="5" ry="6.5"/></g></g></g><g class="pb" transform="translate(276 30) scale(-1 1)"><line x1="0" y1="5" x2="0" y2="24"/><line x1="0" y1="24" x2="-6" y2="38"/><line x1="0" y1="24" x2="6" y2="38"/><line x1="0" y1="10" x2="-8" y2="18"/><circle cx="0" cy="0" r="5"/><g transform="translate(0 10)"><g class="arm"><line x1="0" y1="0" x2="15" y2="6"/><ellipse cx="21" cy="8" rx="5" ry="6.5"/></g></g></g>
   <g class="bx"><g class="by"><circle cx="70" cy="44" r="4" fill="var(--lime)" stroke="#5f7d12" stroke-width="1.5"/></g></g></svg>`;
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : (w.endsWith('ch') ? 'es' : 's')}`;
-const modeName = m => m === 'mexicano' ? 'Mexicano' : 'Americano';
+// Stored as 'americano' / 'mexicano' (the classic names); shown as what they mean.
+const modeName = m => m === 'mexicano' ? 'Competitive' : 'Social';
 const roundLabel = rd => modeName(rd.mode) + (roundFormat(rd) === 'singles' ? ' singles' : '');
 
 // Draw the standings onto a canvas and share it as a PNG (WhatsApp etc.), or download as fallback.
 async function shareStandingsImage() {
   const rows = standingsRows(), avg = S.sort === 'avg', n = S.rounds.length;
   const W = 1080, rowH = 104, cardY = 250, cardH = rows.length * rowH + 60, H = cardY + cardH + 120;
-  const F = (w, s) => `${w} ${s}px "Plus Jakarta Sans", system-ui, sans-serif`;
+  const F = (w, s) => `${w} ${s}px "Archivo", system-ui, sans-serif`;
   try { await Promise.all([document.fonts.load(F(800, 40)), document.fonts.load(F(600, 30)), document.fonts.load(F(700, 30))]); } catch (e) {}
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
   const rr = (X, Y, w, h, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); };
   const fit = (t, max) => { if (x.measureText(t).width <= max) return t; while (t && x.measureText(t + '…').width > max) t = t.slice(0, -1); return t + '…'; };
 
-  x.fillStyle = '#f5f6f2'; x.fillRect(0, 0, W, H);
-  x.fillStyle = '#101612'; x.fillRect(0, 0, W, 330);
+  x.fillStyle = '#e9eef5'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#2459d8'; x.fillRect(0, 0, W, 330);
   // faint court lines in the header
-  x.strokeStyle = 'rgba(255,255,255,.07)'; x.lineWidth = 3;
+  x.strokeStyle = 'rgba(255,255,255,.45)'; x.lineWidth = 4;
   x.strokeRect(40, 30, W - 80, 260); x.beginPath(); x.moveTo(W / 2, 30); x.lineTo(W / 2, 290); x.stroke();
   // tennis ball
   x.save(); x.beginPath(); x.arc(126, 128, 50, 0, Math.PI * 2); x.fillStyle = '#c6ef3a'; x.fill(); x.clip();
@@ -821,14 +907,14 @@ async function shareStandingsImage() {
   x.beginPath(); x.arc(126 - 78, 128, 62, -1, 1); x.stroke();
   x.beginPath(); x.arc(126 + 78, 128, 62, Math.PI - 1, Math.PI + 1); x.stroke(); x.restore();
   x.textBaseline = 'middle'; x.fillStyle = '#fff';
-  x.font = F(800, 60); x.fillText('Standings', 204, 108);
+  x.font = 'italic ' + F(900, 72); x.fillText('STANDINGS', 204, 108);
   const date = new Date().toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
-  x.font = F(600, 28); x.fillStyle = 'rgba(255,255,255,.6)';
+  x.font = F(600, 28); x.fillStyle = 'rgba(255,255,255,.8)';
   x.fillText(fit(`${S.title ? S.title + ' · ' : ''}After ${plural(n, 'round')} · ${date}${avg ? ' · avg per match' : ''}`, W - 204 - 50), 204, 160);
 
   x.shadowColor = 'rgba(16,22,18,.14)'; x.shadowBlur = 40; x.shadowOffsetY = 12;
   rr(40, cardY, W - 80, cardH, 36); x.fillStyle = '#fff'; x.fill();
-  x.shadowColor = 'transparent';
+  x.shadowColor = 'transparent'; x.lineWidth = 4; x.strokeStyle = '#0a1633'; x.stroke();
 
   const medals = ['🥇', '🥈', '🥉'];
   rows.forEach((r, i) => {
@@ -843,11 +929,11 @@ async function shareStandingsImage() {
     gr.addColorStop(0, `hsl(${h} 55% 52%)`); gr.addColorStop(1, `hsl(${h + 25} 50% 36%)`);
     x.beginPath(); x.arc(206, cy, 34, 0, Math.PI * 2); x.fillStyle = gr; x.fill();
     x.fillStyle = '#fff'; x.font = F(800, 26); x.fillText(ini, 206, cy + 1);
-    x.textAlign = 'left'; x.fillStyle = '#101612'; x.font = F(700, 36);
+    x.textAlign = 'left'; x.fillStyle = '#0a1633'; x.font = F(700, 36);
     x.fillText(fit(r.name, W - 270 - 220), 262, cy - 16);
     x.fillStyle = '#6b756f'; x.font = F(500, 24);
     x.fillText(`${plural(r.scored, 'match')} · ${r.w}W ${r.l}L${r.d ? ` ${r.d}D` : ''} · ${r.diff > 0 ? '+' : ''}${r.diff}`, 262, cy + 24);
-    x.textAlign = 'right'; x.fillStyle = '#101612'; x.font = F(800, 46);
+    x.textAlign = 'right'; x.fillStyle = '#0a1633'; x.font = F(900, 50);
     x.fillText(avg ? r.avg.toFixed(1) : String(r.pts), W - 90, cy - 10);
     x.fillStyle = '#a3aba6'; x.font = F(800, 19); x.fillText(avg ? 'AVG' : 'GAMES', W - 90, cy + 28);
   });
@@ -875,6 +961,7 @@ function viewPlayers() {
   return `
   <h1 class="title">Players</h1>
   <p class="sub">${avail} playing · ${plural(courtsUsed, 'court')}${sit ? ` · ${sit} sit${sit === 1 ? 's' : ''} out each round` : ''}</p>
+  ${S.pin ? viewPin() : `<button class="pinbar ghost" onclick="openPin()">${ic('ticket')}<span class="grow"><b>Get a game PIN</b><small>Players follow their court live and get pinged each round</small></span>${ic('arrow')}</button>`}
 
   <p class="label">Format</p>
   <div class="seg" style="margin-bottom:10px">
@@ -883,9 +970,9 @@ function viewPlayers() {
   </div>
   <div class="choices">
     <button class="choice ${S.mode === 'americano' ? 'on' : ''}" onclick="setMode('americano')">
-      <span class="ico">🔄</span><b>Americano</b><span class="d">${single ? 'New opponent every round. Meet everyone.' : 'New partner every round. The most social.'}</span></button>
+      <span class="ico">🤝</span><b>Social</b><span class="d">${single ? 'New opponent every round. Meet everyone.' : 'New partner every round. Everyone plays with everyone.'}</span></button>
     <button class="choice ${S.mode === 'mexicano' ? 'on' : ''}" onclick="setMode('mexicano')">
-      <span class="ico">📈</span><b>Mexicano</b><span class="d">Matched by standings so games stay close.</span></button>
+      <span class="ico">🔥</span><b>Competitive</b><span class="d">Matched by standings, so games stay close.</span></button>
   </div>
   <div class="settings" style="grid-template-columns:1fr">
     <div class="setting"><p class="label">Courts</p>
@@ -978,9 +1065,11 @@ function viewRounds() {
   <div class="actions">
     ${!scored && !S.finishedAt ? `<button class="btn sm soft" onclick="reshuffle()">${ic('shuffle')}Reshuffle</button>` : ''}
     <button class="btn sm soft" onclick="copyRound(${r})">${ic('copy')}Copy for WhatsApp</button>
+    ${!S.pin && !S.finishedAt ? `<button class="btn sm soft" onclick="openPin()">${ic('ticket')}Game PIN</button>` : ''}
     ${user ? `<button class="btn sm soft" onclick="shareSession()">${ic('share')}Players</button>` : ''}
     ${!S.finishedAt ? `<button class="btn sm soft" onclick="finishSession()">${ic('trophy')}Finish</button>` : ''}
   </div>
+  ${S.pin ? viewPin() : ''}
   ${shareLink ? viewShare() : ''}
   ${rd.sitting.length ? `<p class="hint">${ic('shuffle')}Someone can't play? Tap their name to swap in the next person waiting.</p>` : ''}
   ${rd.matches.map((_, i) => matchCard(r, i, true)).join('')}
@@ -1003,10 +1092,10 @@ function viewRounds() {
   return html;
 }
 
-function standingsRows() {
-  const {st} = computeStats();
-  const rows = S.players.filter(p => st[p.id] && (st[p.id].played || p.active)).map(p => ({name: p.name, ...st[p.id]}));
-  const key = S.sort === 'avg' ? 'avg' : 'pts';
+function standingsRows(players = S.players, rounds = S.rounds, sort = S.sort) {
+  const {st} = computeStats(players, rounds);
+  const rows = players.filter(p => st[p.id] && (st[p.id].played || p.active)).map(p => ({id: p.id, name: p.name, photo: p.photo, ...st[p.id]}));
+  const key = sort === 'avg' ? 'avg' : 'pts';
   return rows.sort((a, b) => b[key] - a[key] || b.diff - a.diff || b.w - a.w);
 }
 
@@ -1037,10 +1126,10 @@ function viewStandings() {
       <span class="who"><b>${esc(r.name)}</b><small>${plural(r.scored, 'match')} · ${r.w}W ${r.l}L${r.d ? ` ${r.d}D` : ''} · ${r.diff > 0 ? '+' : ''}${r.diff}</small></span>
       <span class="score"><b class="num">${val(r)}</b><small>${avg ? 'avg' : 'games'}</small></span></li>`).join('')}</ol></div>` : ''}
   <p class="muted" style="margin:4px 4px 14px;font-size:12.5px">If some people sat out or skipped more, "Avg per match" is the fairer ranking.</p>
-  <details class="card help"><summary>Americano vs Mexicano ${ic('chev')}</summary>
-    <p><b>Americano:</b> partners rotate so everyone plays with everyone. Points are the games your team wins.</p>
-    <p><b>Mexicano:</b> after round 1, players are re-matched by standings (1st &amp; 4th vs 2nd &amp; 3rd on court 1, and so on), so later games are closer.</p>
-    <p><b>Singles:</b> one against one. Americano rotates opponents; Mexicano plays 1st vs 2nd, 3rd vs 4th, and so on.</p>
+  <details class="card help"><summary>Social vs Competitive ${ic('chev')}</summary>
+    <p><b>Social</b> (also called Americano): partners rotate so everyone plays with everyone. Points are the games your team wins.</p>
+    <p><b>Competitive</b> (also called Mexicano): after round 1, players are re-matched by standings (1st &amp; 4th vs 2nd &amp; 3rd on court 1, and so on), so later games are closer.</p>
+    <p><b>Singles:</b> one against one. Social rotates opponents; Competitive plays 1st vs 2nd, 3rd vs 4th, and so on.</p>
   </details>`;
 }
 
@@ -1138,7 +1227,7 @@ async function saveName() {
 
 // Log the current session once it has a round; writes are debounced while scores are typed.
 function queueSync() {
-  if (!sb || !user || !S.rounds.length) return;
+  if (!sb || !user || (!S.rounds.length && !S.pin)) return;
   clearTimeout(queueSync.t); queueSync.t = setTimeout(syncSession, 800);
 }
 // Register today's roster with the shared player directory; each player gets a server id (pid)
@@ -1318,23 +1407,25 @@ async function linkToPlayer(localId, code, done) {
   openInfo = null; syncRoster.last = null; await syncRoster(); loadRatings(); render();
   return true;
 }
-async function syncSession() {
+async function syncSession(force) {
   clearTimeout(queueSync.t);
-  if (!sb || !user || !S.rounds.length) return false;
+  if (!sb || !user || (!S.rounds.length && !S.pin && !force)) return false;
   if (!S.sessionId || S.owner !== user.id) {
     S.sessionId = crypto.randomUUID(); S.owner = user.id; S.playedOn = today();
     try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
   }
   if (!(await syncRoster())) { if (!syncSession.warned) toast("Couldn't log session, will retry"); syncSession.warned = true; return false; }
   const row = {id: S.sessionId, mode: S.mode, courts: S.courts, total: S.total, title: S.title || null,
-    finished_at: S.finishedAt || null, players: S.players, rounds: S.rounds, played_on: S.playedOn || today()};
+    finished_at: S.finishedAt || null, players: S.players, rounds: S.rounds, played_on: S.playedOn || today(),
+    venue: S.venue || null, starts_at: S.startsAt || null};
   // Tab switches and sorting also call save(); skip the write when nothing logged has changed.
   const sig = JSON.stringify(row);
-  if (sig === syncSession.last) return true;
+  if (sig === syncSession.last) { notifyFollowers(); return true; }
   const {error} = await sb.from('sessions').upsert(row);
   syncSession.error = error ? error.message : null;
   if (error) { if (!syncSession.warned) { toast("Couldn't log session, will retry"); report('session', error.message); } syncSession.warned = true; return false; }
   syncSession.warned = false; syncSession.last = sig;
+  notifyFollowers();
   loadRatings();
   if (sessionLog) {
     const i = sessionLog.findIndex(h => h.id === row.id);
@@ -1348,7 +1439,7 @@ window.addEventListener('online', queueSync);
 async function loadLog() {
   if (logLoading) return;
   logLoading = true;
-  const {data, error} = await sb.from('sessions').select('id, mode, played_on, players, rounds, title, finished_at')
+  const {data, error} = await sb.from('sessions').select('id, mode, played_on, players, rounds, title, finished_at, pin, venue, starts_at')
     .order('played_on', {ascending: false}).order('created_at', {ascending: false}).limit(50);
   logLoading = false;
   sessionLog = error ? [] : data;
@@ -1544,7 +1635,9 @@ async function openSession(id) {
   await syncSession();
   const last = row.rounds[row.rounds.length - 1];
   Object.assign(S, {sessionId: row.id, owner: user.id, playedOn: row.played_on, mode: row.mode, title: row.title || null,
-    finishedAt: row.finished_at || null, players: row.players, rounds: row.rounds, format: last ? roundFormat(last) : S.format});
+    finishedAt: row.finished_at || null, players: row.players, rounds: row.rounds, format: last ? roundFormat(last) : S.format,
+    pin: row.pin || null, venue: row.venue || null, startsAt: row.starts_at || null, notified: null});
+  S.notified = notifySig();
   goTab(row.rounds.length ? 'rounds' : 'players');
   toast('Session opened');
 }
@@ -1731,6 +1824,268 @@ function viewClaim() {
   ${LEGAL}`;
 }
 
+// ---------- game PIN: host side ----------
+// Players enter the PIN under Join (or open 10nis.win/j/<pin>) and follow the game live: their court,
+// partner and opponents each round, with a notification when a new round starts.
+const pinText = p => p ? p.slice(0, 3) + ' ' + p.slice(3) : '';
+const localInput = iso => { const d = new Date(iso); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16); };
+let pinOpen = false;
+async function openPin() {
+  if (!user) { toast('Sign in under Account to get a game PIN'); goTab('account'); return; }
+  if (!(await syncSession(true))) { toast(`Couldn't save (${saveError()}). Try again.`); return; }
+  const {data, error} = await sb.rpc('create_pin', {sid: S.sessionId});
+  if (error) { report('pin', error.message); toast(error.message); return; }
+  // Followers only hear about changes from here on.
+  S.pin = data; S.notified = notifySig(); pinOpen = true; save(); render();
+}
+async function dropPin() {
+  if (!confirm('Turn off this game PIN? Players following the game stop seeing it.')) return;
+  const {error} = await sb.rpc('drop_pin', {sid: S.sessionId});
+  if (error) { toast(error.message); return; }
+  S.pin = null; pinOpen = false; save(); render();
+}
+function setWhere(el) { S.venue = el.value.trim().slice(0, 120) || null; save(); }
+function setWhen(el) { S.startsAt = el.value ? new Date(el.value).toISOString() : null; save(); }
+// What followers are told about: the round, who is on which court, who sits out, and the end.
+const notifySig = () => {
+  const rd = S.rounds[S.rounds.length - 1];
+  return JSON.stringify([S.rounds.length, rd ? rd.matches.map(m => [m.a, m.b]) : null, rd ? rd.sitting : null, !!S.finishedAt]);
+};
+// After the session is saved: ping phones following by PIN if their court may have changed.
+async function notifyFollowers() {
+  if (!S.pin || !S.sessionId) return;
+  const sig = notifySig();
+  if (sig === S.notified) return;
+  S.notified = sig;
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+  const {data} = await sb.auth.getSession();
+  const token = data && data.session && data.session.access_token;
+  if (!token) return;
+  fetch('/api/notify', {method: 'POST', headers: {'content-type': 'application/json', authorization: 'Bearer ' + token},
+    body: JSON.stringify({sid: S.sessionId})})
+    .then(r => { if (!r.ok && r.status !== 503) r.json().then(d => report('notify', d.error), () => {}); }, () => {});
+}
+async function sharePin(text) {
+  if (navigator.share) {
+    try { await navigator.share({text}); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  copyText(text);
+}
+function viewPin() {
+  if (!pinOpen) return `<button class="pinbar" onclick="pinOpen = true; render()">${ic('ticket')}<span class="label">Game PIN</span>
+    <b class="num">${pinText(S.pin)}</b><span class="grow"></span>${ic('chev')}</button>`;
+  const link = `${APP_URL}/j/${S.pin}`;
+  const msg = `🎾 ${S.title || 'Tennis'}${S.venue ? ` at ${S.venue}` : ''}: see your court and get pinged when it's your turn. Open ${link} (or enter PIN ${S.pin} under Join on 10nis.win)`;
+  return `<div class="card pincard">
+    <div class="pinhead"><div><p class="label">Game PIN</p><b class="pin num">${pinText(S.pin)}</b></div>
+      <div id="pinqr" class="qr" aria-label="QR code to join"></div></div>
+    <p class="muted">Players open <b>10nis.win</b>, tap <b>Join</b> and enter the PIN, or scan the QR. They see their court, partner and opponents every round and can get a notification when it's their turn.</p>
+    <div class="settings">
+      <label class="setting"><span class="label">Where</span><input value="${esc(S.venue || '')}" placeholder="Venue, court" maxlength="120" onchange="setWhere(this)"></label>
+      <label class="setting"><span class="label">When</span><input type="datetime-local" value="${S.startsAt ? localInput(S.startsAt) : ''}" onchange="setWhen(this)"></label>
+    </div>
+    <div class="row" style="flex-wrap:wrap;margin-top:14px">
+      <button class="btn sm primary" onclick="sharePin(this.dataset.t)" data-t="${esc(msg)}">${ic('share')}Invite players</button>
+      <button class="btn sm soft" onclick="pinOpen = false; render()">Hide</button>
+      <button class="btn sm text danger" onclick="dropPin()">Turn off PIN</button>
+    </div></div>`;
+}
+
+// ---------- game PIN: player side (Join) ----------
+// Remembered on this phone only: the game's PIN, which name on its roster is you, and the push address
+// if notifications are on. The service worker reads the same thing to word notifications.
+const FOLLOW_KEY = '10nis-follow';
+const VAPID_PUBLIC_KEY = 'BM_Saadl2okzD7CQlHWrmixmiTflfeKQ3khy5pAHa5ex3A11v26ukzVwBpLfhu_Jiu1ByiHcfOAy3e-Z1_CUSho';
+let follow = (() => { try { return JSON.parse(localStorage.getItem(FOLLOW_KEY)) || {}; } catch (e) { return {}; } })();
+let game = null, gameErr = null, joinPin = '', flash = false;
+function saveFollow() {
+  try { localStorage.setItem(FOLLOW_KEY, JSON.stringify(follow)); } catch (e) {}
+  if ('caches' in window) caches.open('10nis-follow').then(c => c.put('/__follow', new Response(JSON.stringify(follow)))).catch(() => {});
+}
+function openGame(pin) {
+  if (follow.pin !== pin) { follow = {pin}; game = null; track('join', {via: 'link'}); }
+  gameErr = null; saveFollow();
+  S.tab = 'join';
+}
+// 10nis.win/j/<pin> (the host's invite or QR, or a tapped notification).
+const deepPin = (location.pathname.match(/^\/j\/(\d{6})\/?$/) || [])[1];
+if (deepPin) { openGame(deepPin); history.replaceState(null, '', '/'); }
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => {
+  const m = String((e.data && e.data.open) || '').match(/^\/j\/(\d{6})/);
+  if (m) { openGame(m[1]); goTab('join'); }
+});
+
+async function loadGame(quiet) {
+  if (!follow.pin || !sb || loadGame.busy) return;
+  loadGame.busy = true;
+  const {data, error} = await sb.rpc('pin_session', {p: follow.pin});
+  loadGame.busy = false;
+  if (error) { gameErr = navigator.onLine ? "Couldn't reach 10nis" : "You're offline"; if (!quiet || !game) render(); return; }
+  if (!data) { gameErr = 'expired'; game = null; render(); return; }
+  const before = game && game.pin === data.pin && follow.me ? spotSig(game) : null;
+  const changed = !game || game.updated_at !== data.updated_at || gameErr;
+  gameErr = null; game = data;
+  // Someone who claimed their name in this game is picked automatically.
+  if (!follow.me && game.players.some(p => p.mine)) { follow.me = game.players.find(p => p.mine).id; saveFollow(); }
+  if (before !== null && spotSig(game) !== before) alertSpot();
+  if (changed && S.tab === 'join' && !claimView) render();
+}
+// Live while the app is open; push notifications cover the rest.
+setInterval(() => { if (follow.pin && gameErr !== 'expired' && !document.hidden) loadGame(true); }, 8000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && follow.pin && gameErr !== 'expired') loadGame(true); });
+
+const gName = id => (game.players.find(p => p.id === id) || {name: '?'}).name;
+const gPhoto = id => (game.players.find(p => p.id === id) || {}).photo || null;
+// Where the player is right now: waiting, playing (court, team, opponents, score), sitting out, or done.
+function spot(g = game, me = follow.me) {
+  const n = g.rounds.length, rd = g.rounds[n - 1];
+  if (g.finished) return {kind: 'finished', n};
+  if (!rd) return {kind: 'waiting', n: 0};
+  const ci = rd.matches.findIndex(m => m.a.includes(me) || m.b.includes(me));
+  if (ci < 0) return {kind: rd.sitting.includes(me) ? 'sitting' : 'out', n};
+  const m = rd.matches[ci], a = m.a.includes(me);
+  return {kind: 'playing', n, court: ci + 1, mine: a ? m.a : m.b, theirs: a ? m.b : m.a, my: a ? m.sa : m.sb, their: a ? m.sb : m.sa};
+}
+const spotSig = g => { const s = spot(g); return JSON.stringify([s.kind, s.n, s.court, s.mine, s.theirs]); };
+function spotLine(s) {
+  const others = ids => ids.filter(id => id !== follow.me).map(gName).join(' & ');
+  if (s.kind === 'playing') return {title: `Round ${s.n} · Court ${s.court}: you're on!`, body: `${others(s.mine) ? `You & ${others(s.mine)}` : 'You'} vs ${others(s.theirs)}`};
+  if (s.kind === 'sitting') return {title: `Round ${s.n}: you sit out`, body: "You're likely on next round."};
+  if (s.kind === 'finished') return {title: `${game.title || 'The game'} is finished`, body: 'Final standings are in.'};
+  return {title: game.title || '10nis game', body: 'Your game has an update.'};
+}
+function alertSpot() {
+  const msg = spotLine(spot());
+  try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (e) {}
+  if (document.hidden && !follow.push && window.Notification && Notification.permission === 'granted' && 'serviceWorker' in navigator)
+    navigator.serviceWorker.ready.then(r => r.showNotification(msg.title, {body: msg.body, icon: '/icon-192.png',
+      tag: '10nis-' + follow.pin, renotify: true, data: {url: '/j/' + follow.pin}})).catch(() => {});
+  else toast(msg.title);
+  flash = true;
+}
+
+async function joinGame() {
+  const v = String(joinPin).replace(/\D/g, '');
+  if (!/^[1-9]\d{5}$/.test(v)) { toast('Game PINs have 6 digits'); return; }
+  if (follow.pin !== v) { follow = {pin: v}; game = null; track('join', {via: 'pin'}); }
+  gameErr = null; joinPin = ''; saveFollow();
+  render(); await loadGame();
+}
+async function pickMe(id) {
+  follow.me = id; saveFollow(); flash = false; render(); window.scrollTo(0, 0);
+  if (follow.push) await sb.rpc('follow_push', {p: follow.pin, who: id, ep: follow.push});
+}
+async function leaveGame() {
+  if (!confirm('Leave this game? You can join again with the PIN.')) return;
+  if (follow.push && sb) await sb.rpc('unfollow_push', {ep: follow.push});
+  follow = {}; game = null; gameErr = null; saveFollow(); render();
+}
+const pushable = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const b64uBytes = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+async function enablePush() {
+  if (!pushable()) {
+    toast(isIOS && !standalone() ? 'On iPhone, add 10nis to your Home Screen first, then open it from there' : "This browser can't show notifications");
+    return;
+  }
+  if (await Notification.requestPermission() !== 'granted') { toast('Notifications are blocked. Allow them for 10nis.win in your settings'); return; }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription()
+      || await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64uBytes(VAPID_PUBLIC_KEY)});
+    const {error} = await sb.rpc('follow_push', {p: follow.pin, who: follow.me, ep: sub.endpoint});
+    if (error) throw error;
+    follow.push = sub.endpoint; saveFollow(); render();
+    toast("You'll get a notification every round");
+  } catch (e) { report('push', e.message); toast(e.message || "Couldn't turn on notifications"); }
+}
+async function disablePush() {
+  if (follow.push && sb) await sb.rpc('unfollow_push', {ep: follow.push});
+  follow.push = null; saveFollow(); render();
+}
+async function claimFromGame() {
+  const p = game.players.find(x => x.id === follow.me);
+  if (!confirm(`Are you ${p.name}? Results under this name will count towards your 10nis level.`)) return;
+  const {error} = await sb.rpc('claim_by_pin', {p: follow.pin, local_id: follow.me});
+  if (error) { toast(error.message); return; }
+  toast(`You're linked as ${p.name}`); me = null; loadGame();
+}
+
+function viewJoin() {
+  if (!follow.pin || gameErr === 'expired') return `
+    <p class="kicker">Playing, not hosting?</p>
+    <h1 class="title">Join a game</h1>
+    <p class="sub">Enter the game PIN from your host. You'll see your court, partner and opponents every round.</p>
+    ${gameErr === 'expired' ? `<p class="hint warn">${ic('x')}No active game with PIN ${esc(pinText(follow.pin))}. Check the number with your host.</p>` : ''}
+    <div class="card joincard">
+      <input id="pin" class="pinin num" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000 000"
+        aria-label="Game PIN" value="${esc(joinPin)}" oninput="joinPin = this.value" onkeydown="if (event.key === 'Enter') joinGame()">
+      <button class="btn primary big" onclick="joinGame()">Join game${ic('arrow')}</button>
+    </div>
+    <p class="muted" style="text-align:center;margin-top:12px">No account needed. Hosting today? Get a PIN on the Players tab.</p>`;
+  if (!game) {
+    if (!gameErr) { loadGame(); return '<p class="muted" style="padding:20px 4px">Loading game…</p>'; }
+    return `<div class="empty"><h3>${esc(gameErr)}</h3><button class="btn" onclick="gameErr = null; loadGame()">Try again</button></div>`;
+  }
+  const when = game.starts_at
+    ? new Date(game.starts_at).toLocaleString('en', {weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit'})
+    : new Date(game.played_on + 'T00:00').toLocaleDateString('en', {weekday: 'short', day: 'numeric', month: 'short'});
+  const head = `<p class="kicker">PIN ${esc(pinText(game.pin))}${game.host ? ` · Hosted by ${esc(game.host)}` : ''}</p>
+    <h1 class="title">${esc(game.title || 'Tennis game')}</h1>
+    <div class="meta"><span>${ic('clock')}${esc(when)}</span>${game.venue ? `<span>${ic('pin')}${esc(game.venue)}</span>` : ''}<span>${esc(modeName(game.mode))}</span></div>`;
+  const meP = game.players.find(p => p.id === follow.me);
+  if (!meP) return `${head}
+    <div class="sec-head"><p class="label">Who are you?</p></div>
+    <div class="card plist">${game.players.map(p => `<div class="player">${avatar(p.name, '', p.photo)}
+      <span class="grow" style="font-weight:700;overflow-wrap:anywhere">${esc(p.name)}</span>
+      <button class="btn sm soft" onclick="pickMe('${esc(p.id)}')">That's me</button></div>`).join('')}</div>
+    <div class="row" style="justify-content:center;margin-top:16px"><button class="btn text" onclick="leaveGame()">Leave game</button></div>`;
+
+  const s = spot();
+  const side = (ids, sc) => `<div class="side"><div class="duo">${ids.map(id => `<span class="pn">${avatar(gName(id), 'sm', gPhoto(id))}<span class="nm">${id === follow.me ? 'You' : esc(gName(id))}</span></span>`).join('')}</div>
+    <b class="sc num">${sc ?? '–'}</b></div>`;
+  const rows = standingsRows(game.players, game.rounds, 'pts');
+  const place = rows.findIndex(r => r.id === follow.me) + 1;
+  const hero = s.kind === 'playing' ? `<div class="hero court ${flash ? 'flash' : ''}">
+      <div class="herohead"><span class="chipd">Round ${s.n}</span><span class="live"><i></i>Live</span></div>
+      <div class="big">Court ${s.court}</div>
+      <div class="vs">${side(s.mine, s.my)}<div class="vsl"><span>VS</span></div>${side(s.theirs, s.their)}</div></div>`
+    : `<div class="hero rest ${flash ? 'flash' : ''}">
+      <div class="herohead"><span class="chipd">${s.kind === 'finished' ? 'Final' : s.n ? `Round ${s.n}` : 'Before round 1'}</span></div>
+      <div class="big">${s.kind === 'finished' ? (place ? `#${place}` : 'Done') : s.kind === 'sitting' ? 'Sit out' : s.kind === 'out' ? 'Not playing' : 'Warm up'}</div>
+      <p>${s.kind === 'finished' ? `${place ? `You finished ${place} of ${rows.length}. ` : ''}Final standings are below.`
+        : s.kind === 'sitting' ? "Grab some water. You're likely on next round."
+        : s.kind === 'out' ? "The host has you marked as not playing right now."
+        : "The host hasn't started yet. Your court shows here as soon as round 1 starts."}</p></div>`;
+  flash = false;
+  const played = game.rounds.map((rd, ri) => {
+    const ci = rd.matches.findIndex(m => m.a.includes(follow.me) || m.b.includes(follow.me));
+    if (ci < 0) return null;
+    const m = rd.matches[ci], a = m.a.includes(follow.me), my = a ? m.sa : m.sb, their = a ? m.sb : m.sa;
+    const others = ids => ids.filter(id => id !== follow.me).map(id => esc(gName(id))).join(' & ');
+    const res = my == null || their == null ? '' : my > their ? 'W' : my < their ? 'L' : 'D';
+    return `<div class="mmrow"><span class="res ${res}">${res || '·'}</span><span class="num sc">${res ? `${my}–${their}` : `R${ri + 1}`}</span>
+      <span class="grow">${others(a ? m.a : m.b) ? `with ${others(a ? m.a : m.b)} ` : ''}vs ${others(a ? m.b : m.a)}</span>
+      <small class="muted">R${ri + 1} · C${ci + 1}</small></div>`;
+  }).filter(Boolean).reverse();
+  return `${head}${hero}
+    ${s.kind !== 'finished' ? `<div class="card notify">${ic('bell')}<span class="grow"><b>${follow.push ? 'Notifications on' : 'Notify me each round'}</b>
+      <small>${follow.push ? "We'll ping this phone when your court changes." : isIOS && !standalone() ? 'On iPhone: add 10nis to your Home Screen first, then open it from there.' : 'Know your court the moment the host starts a round.'}</small></span>
+      <button class="sw ${follow.push ? 'on' : ''}" role="switch" aria-checked="${!!follow.push}" aria-label="Notifications" onclick="${follow.push ? 'disablePush()' : 'enablePush()'}"></button></div>` : ''}
+    ${meP.mine ? `<p class="hint">${ic('ball')}These games count towards your 10nis level.</p>`
+      : meP.claimable ? (user ? `<button class="pinbar ghost" onclick="claimFromGame()">${ic('trophy')}<span class="grow"><b>Count these games for my level</b><small>Link ${esc(meP.name)} to your 10nis account</small></span>${ic('arrow')}</button>`
+        : `<p class="hint">${ic('trophy')}Sign in under Account to count these games towards your level.</p>`) : ''}
+    ${played.length ? `<div class="sec-head"><p class="label">Your games</p></div><div class="card mm">${played.join('')}</div>` : ''}
+    ${game.rounds.some(rd => rd.matches.some(hasScore)) ? `<div class="sec-head"><p class="label">Standings</p></div>
+    <div class="card" style="padding:0;overflow:hidden"><ol class="lb">${rows.map((r, i) => `<li class="${r.id === follow.me ? 'me-row' : ''}">
+      <span class="rank">${i + 1}</span>${avatar(r.name, '', r.photo || null)}
+      <span class="who"><b>${r.id === follow.me ? 'You' : esc(r.name)}</b><small>${plural(r.scored, 'match')} · ${r.w}W ${r.l}L</small></span>
+      <span class="score"><b class="num">${r.pts}</b><small>games</small></span></li>`).join('')}</ol></div>` : ''}
+    <div class="row" style="justify-content:center;gap:16px;margin-top:18px">
+      <button class="btn text" onclick="follow.me = null; saveFollow(); render()">Not ${esc(meP.name)}?</button>
+      <button class="btn text danger" onclick="leaveGame()">Leave game</button></div>`;
+}
+
 if (sb) sb.auth.onAuthStateChange((event, session) => {
   const was = user && user.id;
   user = session ? session.user : null;
@@ -1738,7 +2093,7 @@ if (sb) sb.auth.onAuthStateChange((event, session) => {
   // the user just did (Google button, or coming back from the Google redirect).
   try { if (user && sessionStorage.getItem('10nis-signing-in')) { sessionStorage.removeItem('10nis-signing-in'); setTimeout(() => track('signin')); } } catch (e) {}
   // Defer: Supabase calls made inside this callback can deadlock the auth lock.
-  if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; myMatches = null; allMatches = false; claimData = null; codeData = undefined; setTimeout(() => { render(); queueSync(); loadRatings(); }); }
+  if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; myMatches = null; allMatches = false; claimData = null; codeData = undefined; setTimeout(() => { render(); queueSync(); loadRatings(); if (follow.pin) loadGame(true); }); }
 });
 
 function render() {
@@ -1752,9 +2107,12 @@ function render() {
   }
   document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === S.tab));
   const avail = S.players.filter(p => p.active).length, n = S.rounds.length;
-  document.getElementById('status').innerHTML = `<i></i>${n ? `Round ${n} · ` : ''}${avail} playing`;
+  document.getElementById('status').innerHTML = S.tab === 'join' ? (game && follow.pin ? `<i></i>PIN ${pinText(follow.pin)}` : '')
+    : `<i></i>${n ? `Round ${n} · ` : ''}${avail} playing`;
   document.getElementById('view').innerHTML =
-    S.tab === 'rounds' ? viewRounds() : S.tab === 'standings' ? viewStandings() : S.tab === 'account' ? viewAccount() : viewPlayers();
+    S.tab === 'rounds' ? viewRounds() : S.tab === 'standings' ? viewStandings() : S.tab === 'account' ? viewAccount()
+    : S.tab === 'join' ? viewJoin() : viewPlayers();
+  if (S.pin && pinOpen && document.getElementById('pinqr')) drawQR('pinqr', `${APP_URL}/j/${S.pin}`);
   mountGoogleButton();
   if (S.tab === 'account' && me && me.code && document.getElementById('mycode')) drawQR('mycode', location.origin + '/p/' + me.code);
   // Main action floats above the tab bar, within thumb reach.
