@@ -25,7 +25,8 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--text);font:14.5px/1.5 var(--font);-webkit-font-smoothing:antialiased}
-button,input,select{font:inherit;color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--bar)}
 .top{position:sticky;top:0;z-index:5;background:var(--board);color:#fff;border-bottom:2px solid var(--edge)}
 .top .in{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:10px}
 .wm{font-family:"Plus Jakarta Sans",var(--font);font-weight:800;letter-spacing:-.045em;line-height:1;display:inline-flex;align-items:baseline;font-size:22px;color:#fff;text-decoration:none}
@@ -191,7 +192,8 @@ async function load() {
     const {data, error} = await sb.rpc('admin_stats');
     if (error) return fail(error);
     stats = data; render();
-  } else if (tab !== 'tools') await loadList(tab, true);
+  } else if (tab === 'threads') await loadSocial();
+  else if (tab !== 'tools') await loadList(tab, true);
 }
 async function loadList(kind, fresh) {
   const cur = fresh ? [] : lists[kind] || [];
@@ -273,6 +275,94 @@ async function purge() {
   if (!confirm(`Delete ${kind ? `"${kind}"` : 'ALL'} usage events before ${before}? This can't be undone.`)) return;
   const n = await act('admin_purge_events', {kind, before}, 'Done');
   if (n != null) toast(`${fmt(n)} events removed`);
+}
+
+// ---------- Threads agent ----------
+// Drafts from the agent wait here; approved items are published by the next run (every 15 minutes).
+let social = null, socialTab = 'draft', settingsOpen = false;
+async function loadSocial() {
+  const [a, b] = await Promise.all([sb.rpc('admin_social_state'), sb.rpc('admin_social_list', {st: socialTab, lim: 100})]);
+  if (a.error || b.error) return fail(a.error || b.error);
+  social = {state: a.data, list: b.data}; render();
+}
+function setSocialTab(t) { socialTab = t; social = social && {...social, list: null}; render(); loadSocial(); }
+async function decide(id, approve) {
+  const el = $('t-' + id);
+  if (busy) return; busy = true;
+  const {error} = await sb.rpc('admin_social_decide', {qid: id, new_text: el ? el.value : '', approve});
+  busy = false;
+  if (error) return fail(error);
+  toast(approve ? 'Approved: it goes out with the next run' : 'Skipped'); loadSocial();
+}
+async function saveSocial(patch, done) {
+  const {error} = await sb.rpc('admin_social_config', {patch});
+  if (error) return fail(error);
+  toast(done || 'Saved'); loadSocial();
+}
+function saveSettings() {
+  saveSocial({queries: $('sq').value.split('\n').map(x => x.trim()).filter(Boolean), voice: $('sv').value,
+    auto_own_replies: $('sa').checked, max_replies_day: parseInt($('sr').value, 10), max_posts_day: parseInt($('sp').value, 10)});
+}
+function saveToken() {
+  const t = $('stk').value.trim();
+  if (t.length < 20) { toast('Paste the long-lived Threads token'); return; }
+  saveSocial({token: t}, 'Token saved: the next run connects');
+}
+async function runNow(params, label) {
+  const {data: {session}} = await sb.auth.getSession();
+  toast(label + '…');
+  try {
+    const r = await fetch('/api/social/run?' + params, {method: 'POST', headers: {authorization: 'Bearer ' + session.access_token}});
+    const d = await r.json().catch(() => ({}));
+    toast(r.ok ? (d.log || []).join(' · ') || 'Done' : d.error || 'Run failed');
+  } catch (e) { toast("Couldn't reach the agent"); }
+  loadSocial();
+}
+const KIND = {post: 'Post', reply: 'Reply', own_reply: 'Comment on our post'};
+function viewSocial() {
+  if (!social) return '<p class="muted">Loading…</p>';
+  const st = social.state, c = st.counts || {}, L = social.list;
+  const item = q => `<div class="item"><div class="main">
+      <div class="row"><span class="tag lime" style="margin:0">${KIND[q.kind]}</span>${q.score != null ? `<span class="meta">fit ${Math.round(q.score * 100)}%</span>` : ''}
+        ${q.query ? `<span class="meta">“${esc(q.query)}”</span>` : ''}${q.status !== 'draft' ? `<span class="tag">${esc(q.status)}</span>` : ''}</div>
+      ${q.target_text || q.target_author ? `<div class="meta" style="margin-top:6px">@${esc(q.target_author || '?')}: ${esc(q.target_text || '')}
+        ${q.target_url ? ` <a href="${esc(q.target_url)}" target="_blank" rel="noopener noreferrer">open</a>` : ''}</div>` : ''}
+      ${q.status === 'draft' || q.status === 'failed' || q.status === 'approved'
+        ? `<textarea class="in" id="t-${Number(q.id)}" maxlength="500" rows="3" style="width:100%;margin-top:8px;resize:vertical">${esc(q.text)}</textarea>`
+        : `<div style="margin-top:6px"><b>${esc(q.text)}</b></div>`}
+      ${q.reason ? `<div class="meta">Why: ${esc(q.reason)}</div>` : ''}
+      ${q.error ? `<div class="meta" style="color:var(--warn)">${esc(q.error)}</div>` : ''}
+      ${q.posted_url ? `<div class="meta"><a href="${esc(q.posted_url)}" target="_blank" rel="noopener noreferrer">See it on Threads</a> · ${esc(when(q.posted_at))}</div>` : ''}</div>
+    ${q.status === 'draft' || q.status === 'failed' || q.status === 'approved' ? `<div class="acts">
+      <button class="btn primary" onclick="decide(${Number(q.id)}, true)">${q.status === 'approved' ? 'Save' : 'Approve'}</button>
+      <button class="btn" onclick="decide(${Number(q.id)}, false)">Skip</button></div>` : ''}</div>`;
+  return `
+  <div class="card"><div class="row"><div class="grow">
+      <b>${st.connected ? `Connected${st.threads_username ? ` as @${esc(st.threads_username)}` : ' (checks on the next run)'}` : 'Not connected'}</b>
+      <div class="meta">${st.connected ? `Token ${st.token_age_days ?? 0} days old, renewed automatically · ` : ''}Last run ${esc(when(st.last_run))} · last search ${esc(when(st.last_discovery))}</div>
+      ${st.last_error ? `<div class="meta" style="color:var(--warn)">${esc(st.last_error)}</div>` : ''}
+      ${!st.cron_ready ? '<div class="meta" style="color:var(--warn)">Schedule not set up yet.</div>' : ''}</div>
+    <div class="acts"><button class="btn" onclick="runNow('discover=1&dry=1', 'Finding posts and drafting')">Draft now</button>
+      <button class="btn" onclick="runNow('', 'Running')">Run now</button></div></div>
+    <p class="muted small" style="margin:8px 0 0">Runs every 15 minutes: publishes one approved item at a time (max ${st.max_replies_day} replies and ${st.max_posts_day} post a day, 10 minutes apart), and drafts new ones each morning.</p></div>
+  <nav class="tabs">${[['draft', `To review${c.draft ? ` (${c.draft})` : ''}`], ['approved', `Approved${c.approved ? ` (${c.approved})` : ''}`], ['history', 'History']]
+    .map(([k, l]) => `<button class="${socialTab === k ? 'on' : ''}" onclick="setSocialTab('${k}')">${l}</button>`).join('')}</nav>
+  ${!L ? '<p class="muted">Loading…</p>' : L.length ? `<div class="list">${L.map(item).join('')}</div>`
+    : `<p class="muted">${socialTab === 'draft' ? 'Nothing to review. New drafts arrive each morning, or tap Draft now.' : 'Nothing here yet.'}</p>`}
+  <details class="card" style="margin-top:14px" ${settingsOpen ? 'open' : ''} ontoggle="settingsOpen = this.open"><summary>Settings</summary>
+    <p class="small muted" style="margin:10px 0 4px">Search queries (one per line, up to 10)</p>
+    <textarea class="in" id="sq" rows="5" style="width:100%">${esc((st.queries || []).join('\n'))}</textarea>
+    <p class="small muted" style="margin:10px 0 4px">About 10nis and the voice to use</p>
+    <textarea class="in" id="sv" rows="6" style="width:100%">${esc(st.voice)}</textarea>
+    <div class="row" style="margin-top:10px"><label class="row small"><input type="checkbox" id="sa" ${st.auto_own_replies ? 'checked' : ''}> Reply to comments on our posts without asking</label></div>
+    <div class="row" style="margin-top:8px"><label class="small">Replies a day <input class="in" id="sr" type="number" min="0" max="30" value="${Number(st.max_replies_day)}" style="width:70px"></label>
+      <label class="small">Posts a day <input class="in" id="sp" type="number" min="0" max="5" value="${Number(st.max_posts_day)}" style="width:70px"></label></div>
+    <div class="row" style="margin-top:12px"><button class="btn primary" onclick="saveSettings()">Save settings</button></div>
+    <p class="small muted" style="margin:16px 0 4px">Threads token (long-lived, from your Meta app). Stored on the server only; it can't be shown again.</p>
+    <div class="row"><input class="in grow" id="stk" type="password" autocomplete="off" placeholder="${st.connected ? 'Paste a new token to replace it' : 'Paste token'}">
+      <button class="btn" onclick="saveToken()">Save token</button>
+      ${st.connected ? `<button class="btn danger" onclick="if (confirm('Disconnect Threads?')) saveSocial({clear_token: true}, 'Disconnected')">Disconnect</button>` : ''}</div>
+  </details>`;
 }
 
 // ---------- charts: one measure per chart, a bar per day, hover/tap for the value ----------
@@ -411,7 +501,7 @@ function viewTools() {
   <div class="card"><b>Database dashboard</b><p class="muted small">For anything not here, use the Supabase dashboard directly.</p>
     <a class="btn" href="https://supabase.com/dashboard/project/tuaomjxnhlwhddiucigb" target="_blank" rel="noopener">Open Supabase</a></div>`;
 }
-const TABS = [['overview', 'Overview'], ['users', 'Users'], ['sessions', 'Sessions'], ['players', 'Players'], ['feedback', 'Reports'], ['errors', 'Errors'], ['log', 'Change log'], ['tools', 'Tools']];
+const TABS = [['overview', 'Overview'], ['threads', 'Threads'], ['users', 'Users'], ['sessions', 'Sessions'], ['players', 'Players'], ['feedback', 'Reports'], ['errors', 'Errors'], ['log', 'Change log'], ['tools', 'Tools']];
 function render() {
   $('who').textContent = user ? user.email : '';
   $('out').style.display = user ? '' : 'none';
@@ -440,7 +530,7 @@ function render() {
   const open = stats && stats.feedback_open;
   v.innerHTML = `<h1>${esc(TABS.find(t => t[0] === tab)[1])}</h1>
     <nav class="tabs">${TABS.map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="goTab('${k}')">${l}${k === 'feedback' && open ? `<span class="n">${open}</span>` : ''}</button>`).join('')}</nav>
-    ${tab === 'overview' ? viewOverview() : tab === 'tools' ? viewTools() : viewList()}`;
+    ${tab === 'overview' ? viewOverview() : tab === 'tools' ? viewTools() : tab === 'threads' ? viewSocial() : viewList()}`;
 }
 if (sb) sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') { user = null; gate = 'signin'; render(); } });
 check();
