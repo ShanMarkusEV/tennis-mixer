@@ -50,7 +50,8 @@ For each item return {i, relevant, reply, reason}:
 - reason: a few words on why.
 
 Also write "post": one original Threads post for the 10nis account (at most 400 characters, one idea, practical and
-friendly, not repeating the recent posts given), or an empty string if no post is requested.
+friendly, not repeating the recent posts given), or an empty string if no post is requested. It goes out with a
+screenshot of the app showing post_topic_hint, so the text can point to it but needn't describe it.
 
 About 10nis and the voice to use:
 `;
@@ -86,7 +87,8 @@ export async function draft(env, {voice, items, wantPost, recentPosts, topic}) {
   return JSON.parse(text);
 }
 
-export const TOPICS = ['fair rounds where everyone plays the same amount', 'Social vs Competitive formats',
-  'the game PIN: players see their court and get notified', 'levels 1 to 10 that move with results',
-  'importing players from a Kuyy or Reclub link', 'sharing the standings picture after a session',
-  'a quick tip for organising a weekend doubles session'];
+// Each topic comes with the app screenshot attached to that day's post (files in /promo, made with demo players).
+export const TOPICS = [['fair rounds where everyone plays the same amount', 'rounds'], ['Social vs Competitive formats', 'players'],
+  ['the game PIN: players see their court and get notified', 'join'], ['levels 1 to 10 that move with results', 'standings'],
+  ['importing players from a Kuyy or Reclub link', 'players'], ['sharing the standings picture after a session', 'standings'],
+  ['a quick tip for organising a weekend doubles session', 'rounds']];

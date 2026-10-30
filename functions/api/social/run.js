@@ -6,7 +6,8 @@
 //      most one reply per person per day.
 //   2. Once a day (from 08:00 Jakarta time): find new matching posts, comments on our posts and mentions,
 //      and draft replies plus one original post with Claude. Drafts wait for approval in /ad4min, except replies
-//      to comments on our own posts and the daily post (under its topic tag) when those are set to go out alone.
+//      to comments on our own posts and the daily post (under its topic tag, with an app screenshot from /promo)
+//      when those are set to go out alone.
 // Needs Cloudflare secrets SOCIAL_CRON_SECRET and ANTHROPIC_API_KEY; the Threads token is set in /ad4min.
 import {json} from '../_shared.js';
 import {rpc, threads, draft, TOPICS} from './_lib.js';
@@ -70,6 +71,7 @@ export async function onRequestPost({request, env}) {
     try {
       if (!creation) {
         const c = await T.post(`/${S.threads_user_id}/threads`, {media_type: 'TEXT', text: item.text,
+          ...(item.image ? {media_type: 'IMAGE', image_url: new URL('/' + item.image, request.url).href} : {}),
           ...(item.kind !== 'post' && item.target_id ? {reply_to_id: item.target_id} : {}),
           ...(item.kind === 'post' && item.topic ? {topic_tag: item.topic} : {})});
         creation = c.id;
@@ -112,8 +114,8 @@ export async function onRequestPost({request, env}) {
     const wantPost = !S.drafted_post_today && S.max_posts_day > 0;
     if (!items.length && !wantPost) return `nothing new (${found.length} found)`;
 
-    const out = await draft(env, {voice: S.voice, wantPost, recentPosts: S.recent_posts,
-      topic: TOPICS[Math.floor(Date.now() / 864e5) % TOPICS.length],
+    const [topic, shot] = TOPICS[Math.floor(Date.now() / 864e5) % TOPICS.length];
+    const out = await draft(env, {voice: S.voice, wantPost, recentPosts: S.recent_posts, topic,
       items: items.map((x, i) => ({i, kind: x.kind, author: x.username, text: x.text.slice(0, 600), query: x.query || null}))});
     const drafts = (out.replies || []).map(d => {
       const x = items[d.i];
@@ -122,7 +124,7 @@ export async function onRequestPost({request, env}) {
         target_url: x.permalink, query: x.query || null, score: d.relevant, reason: d.reason,
         status: x.kind === 'own_reply' && S.auto_own_replies ? 'approved' : 'draft'};
     }).filter(Boolean);
-    if (wantPost && out.post && out.post.trim()) drafts.push({kind: 'post', text: out.post.trim().slice(0, 500)});
+    if (wantPost && out.post && out.post.trim()) drafts.push({kind: 'post', text: out.post.trim().slice(0, 500), image: `promo/${shot}.jpg`});
     const added = drafts.length ? await rpc('social_cron_add', {secret, items: drafts}) : 0;
     return `${found.length} found, ${items.length} new, ${added} drafted`;
   }

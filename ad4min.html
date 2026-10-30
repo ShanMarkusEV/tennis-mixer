@@ -337,6 +337,7 @@ function viewSocial() {
       ${q.status === 'draft' || q.status === 'failed' || q.status === 'approved'
         ? `<textarea class="in" id="t-${Number(q.id)}" maxlength="500" rows="3" style="width:100%;margin-top:8px;resize:vertical">${esc(q.text)}</textarea>`
         : `<div style="margin-top:6px"><b>${esc(q.text)}</b></div>`}
+      ${q.image ? `<a href="/${esc(q.image)}" target="_blank" rel="noopener"><img src="/${esc(q.image)}" alt="Screenshot posted with it" style="width:120px;border-radius:10px;border:2px solid var(--edge);margin-top:8px;display:block"></a>` : ''}
       ${q.reason ? `<div class="meta">Why: ${esc(q.reason)}</div>` : ''}
       ${q.error ? `<div class="meta" style="color:var(--warn)">${esc(q.error)}</div>` : ''}
       ${q.posted_url ? `<div class="meta"><a href="${esc(q.posted_url)}" target="_blank" rel="noopener noreferrer">See it on Threads</a> · ${esc(when(q.posted_at))}</div>` : ''}</div>
