@@ -13,6 +13,13 @@ export async function rpc(name, args, token) {
   return body;
 }
 
+// A signed-in admin who passed the authenticator step (the /ad4min login).
+export async function isAdmin(request) {
+  const token = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  const chk = token ? await rpc('admin_check', {}, token).catch(() => null) : null;
+  return !!(chk && chk.listed && chk.aal === 'aal2');
+}
+
 // ---------- Threads ----------
 export function threads(token, base = 'https://graph.threads.com/v1.0') {
   const host = base.replace(/\/v[\d.]+\/?$/, '');
@@ -29,6 +36,25 @@ export function threads(token, base = 'https://graph.threads.com/v1.0') {
     post: (path, params) => call('POST', path, params),
     // Long-lived tokens last 60 days; refreshing gives a new 60 days.
     refresh: () => call('GET', '/refresh_access_token', {grant_type: 'th_refresh_token'}, host),
+  };
+}
+
+// ---------- Instagram (Instagram API with Instagram Login; posts only, always with a picture) ----------
+export function instagram(token, base = 'https://graph.instagram.com/v26.0') {
+  const host = base.replace(/\/v[\d.]+\/?$/, '');
+  const call = async (method, path, params = {}, root = base) => {
+    const u = new URL(root + path);
+    Object.entries({...params, access_token: token}).forEach(([k, v]) => v != null && u.searchParams.set(k, String(v)));
+    const r = await fetch(u, {method});
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) throw new Error(`Instagram ${path.split('?')[0]}: ${(d.error && d.error.message) || r.status}`);
+    return d;
+  };
+  return {
+    get: (path, params) => call('GET', path, params),
+    post: (path, params) => call('POST', path, params),
+    // Long-lived tokens last 60 days; refreshing (allowed once a day old) gives a new 60 days.
+    refresh: () => call('GET', '/refresh_access_token', {grant_type: 'ig_refresh_token'}, host),
   };
 }
 
@@ -51,7 +77,8 @@ For each item return {i, relevant, reply, reason}:
 
 Also write "post": one original Threads post for the 10nis account (at most 400 characters, one idea, practical and
 friendly, not repeating the recent posts given), or an empty string if no post is requested. It goes out with a
-screenshot of the app showing post_topic_hint, so the text can point to it but needn't describe it.
+screenshot of the app showing post_topic_hint, so the text can point to it but needn't describe it. When
+admin_idea_for_the_post is given, the 10nis team wrote it: build the post around that idea.
 
 About 10nis and the voice to use:
 `;
@@ -68,7 +95,7 @@ const SCHEMA = {
 };
 
 // One request for the day's batch. Server-side fallback is on, so a safety decline is retried on another model.
-export async function draft(env, {voice, items, wantPost, recentPosts, topic}) {
+export async function draft(env, {voice, items, wantPost, recentPosts, topic, idea}) {
   if (!env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not set');
   const r = await fetch(`${env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com'}/v1/messages`, {method: 'POST',
     headers: {'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2026-10-21',
@@ -77,7 +104,8 @@ export async function draft(env, {voice, items, wantPost, recentPosts, topic}) {
       model: 'claude-opus-5-5', max_tokens: 16000, fallbacks: 'default',
       output_config: {effort: 'low', format: {type: 'json_schema', schema: SCHEMA}},
       system: SYSTEM + voice,
-      messages: [{role: 'user', content: JSON.stringify({items, post_requested: wantPost, post_topic_hint: topic, recent_posts: recentPosts})}],
+      messages: [{role: 'user', content: JSON.stringify({items, post_requested: wantPost, post_topic_hint: topic, recent_posts: recentPosts,
+        ...(idea ? {admin_idea_for_the_post: idea} : {})})}],
     })});
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`Claude: ${(d.error && d.error.message) || r.status}`);

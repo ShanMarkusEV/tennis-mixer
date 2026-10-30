@@ -1,15 +1,16 @@
-// Cloudflare Pages Function: POST /api/social/run — one run of the 10nis Threads agent.
+// Cloudflare Pages Function: POST /api/social/run — one run of the 10nis social agent (Threads and Instagram).
 // Called every 15 minutes by Supabase pg_cron (header x-cron-secret), or by the admin console's "Run now"
 // (an admin login that passed the authenticator code). ?dry=1 drafts without publishing; ?discover=1 forces
 // today's discovery to run again.
-//   1. Publish at most one approved item per run, within the daily caps, 10+ minutes between replies, and at
-//      most one reply per person per day.
+//   1. Publish at most one due approved item per platform per run: the agent's posts and replies within the daily
+//      caps (10+ minutes between replies, one reply per person a day); posts the admin wrote, at their set time.
 //   2. Once a day (from 08:00 Jakarta time): find new matching posts, comments on our posts and mentions,
 //      and draft replies plus one original post with Claude (under its topic tag, with an app screenshot from
 //      /promo). Every draft waits for approval in /ad4min; nothing is published without it.
-// Needs Cloudflare secrets SOCIAL_CRON_SECRET and ANTHROPIC_API_KEY; the Threads token is set in /ad4min.
+// Needs Cloudflare secrets SOCIAL_CRON_SECRET and ANTHROPIC_API_KEY; the Threads and Instagram tokens come from
+// connecting the accounts in /ad4min.
 import {json} from '../_shared.js';
-import {rpc, threads, draft, TOPICS} from './_lib.js';
+import {rpc, isAdmin, threads, instagram, draft, TOPICS} from './_lib.js';
 
 const MIN_REPLY_GAP_MS = 10 * 60e3;
 const jakarta = d => new Date(new Date(d).getTime() + 7 * 3600e3);   // UTC+7, no DST
@@ -25,30 +26,35 @@ export async function onRequestPost({request, env}) {
   if (!secret) return json({error: 'The Threads agent is not set up yet (SOCIAL_CRON_SECRET)'}, 503);
   const url = new URL(request.url), dry = url.searchParams.get('dry') === '1';
   let force = url.searchParams.get('discover') === '1';
-  if (!(await sameSecret(request.headers.get('x-cron-secret'), secret))) {
-    const token = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
-    const chk = token ? await rpc('admin_check', {}, token).catch(() => null) : null;
-    if (!chk || !chk.listed || chk.aal !== 'aal2') return json({error: 'Not allowed'}, 403);
-  }
+  if (!(await sameSecret(request.headers.get('x-cron-secret'), secret)) && !(await isAdmin(request))) return json({error: 'Not allowed'}, 403);
 
   const S = await rpc('social_cron_state', {secret});
   const save = {}, log = [];
   try {
-    if (!S.token) throw new Error('No Threads token yet: paste one in /ad4min → Threads');
-    const T = threads(S.token, env.THREADS_API_BASE);
-    if (!S.threads_user_id) {
+    if (!S.token && !S.ig_token) throw new Error('Nothing connected yet: connect Threads or Instagram in /ad4min');
+    const T = S.token && threads(S.token, env.THREADS_API_BASE);
+    const I = S.ig_token && instagram(S.ig_token, env.INSTAGRAM_API_BASE);
+    if (T && !S.threads_user_id) {
       const me = await T.get('/me', {fields: 'id,username'});
       S.threads_user_id = save.threads_user_id = me.id; S.threads_username = save.threads_username = me.username;
       force = true;   // first run with a new token: draft straight away
     }
-    if (!S.token_refreshed_at || Date.now() - new Date(S.token_refreshed_at) > 30 * 864e5) {
+    const old = d => !d || Date.now() - new Date(d) > 30 * 864e5;
+    if (T && old(S.token_refreshed_at)) {
       const r = await T.refresh();
-      if (r.access_token) { save.token = r.access_token; log.push('token refreshed'); }
+      if (r.access_token) { save.token = r.access_token; log.push('Threads token refreshed'); }
     }
-    if (!dry) log.push(await publishOne(T, S));
+    if (I && old(S.ig_token_refreshed_at)) {
+      const r = await I.refresh().catch(e => ({error: e.message}));
+      if (r.access_token) { save.ig_token = r.access_token; log.push('Instagram token refreshed'); }
+    }
+    if (!dry) {
+      if (T) log.push(await publishOne('threads', T, S));
+      if (I) log.push(await publishOne('instagram', I, S));
+    }
     const now = jakarta(Date.now()), last = S.last_discovery && jakarta(S.last_discovery);
     const due = !last || (last.toISOString().slice(0, 10) < now.toISOString().slice(0, 10) && now.getUTCHours() >= 8);
-    if (due || force) { log.push(await discover(T, S, env)); save.last_discovery = new Date().toISOString(); }
+    if (T && (due || force)) { log.push(await discover(T, S, env)); save.last_discovery = new Date().toISOString(); }
     save.last_error = null;
   } catch (e) {
     save.last_error = e.message;
@@ -57,33 +63,43 @@ export async function onRequestPost({request, env}) {
   await rpc('social_cron_save', {secret, patch: save});
   return json({ok: !save.last_error, dry, log: log.filter(Boolean)});
 
-  // ---------- 1. publish ----------
-  async function publishOne(T, S) {
+  // ---------- 1. publish: at most one due item per platform per run ----------
+  async function publishOne(platform, api, S) {
     const lastReply = S.last_reply_at ? new Date(S.last_reply_at).getTime() : 0;
-    const item = S.approved.find(q => q.kind === 'post'
-      ? S.posts_today < S.max_posts_day
+    const mine = S.approved.filter(q => q.platform === platform);
+    const item = mine.find(q => q.kind === 'post'
+      ? q.manual || S.posts_today[platform] < S.max_posts_day
       : S.replies_today < S.max_replies_day && Date.now() - lastReply >= MIN_REPLY_GAP_MS
         && !(q.target_author && S.authors_today.includes(q.target_author)));
-    if (!item) return S.approved.length ? `${S.approved.length} approved, waiting for daily limits or spacing` : null;
+    if (!item) return mine.length ? `${platform}: ${mine.length} approved, waiting for daily limits or spacing` : null;
     const mark = (status, extra = {}) => rpc('social_cron_mark', {secret, qid: item.id, new_status: status, ...extra});
+    const image = item.image ? new URL('/' + item.image, request.url).href : null;
     let creation = item.creation_id;
     try {
-      if (!creation) {
-        const c = await T.post(`/${S.threads_user_id}/threads`, {media_type: 'TEXT', text: item.text,
-          ...(item.image ? {media_type: 'IMAGE', image_url: new URL('/' + item.image, request.url).href} : {}),
-          ...(item.kind !== 'post' && item.target_id ? {reply_to_id: item.target_id} : {}),
-          ...(item.kind === 'post' && item.topic ? {topic_tag: item.topic} : {})});
-        creation = c.id;
+      let link;
+      if (platform === 'instagram') {
+        if (!creation) creation = (await api.post(`/${S.ig_user_id}/media`, {image_url: image, caption: item.text})).id;
+        const p = await api.post(`/${S.ig_user_id}/media_publish`, {creation_id: creation});
+        link = (await api.get(`/${p.id}`, {fields: 'permalink'}).catch(() => ({}))).permalink;
+        await mark('posted', {pid: p.id, purl: link || null});
+      } else {
+        if (!creation) {
+          const c = await api.post(`/${S.threads_user_id}/threads`, {media_type: 'TEXT', text: item.text,
+            ...(image ? {media_type: 'IMAGE', image_url: image} : {}),
+            ...(item.kind !== 'post' && item.target_id ? {reply_to_id: item.target_id} : {}),
+            ...(item.kind === 'post' && item.topic ? {topic_tag: item.topic} : {})});
+          creation = c.id;
+        }
+        const p = await api.post(`/${S.threads_user_id}/threads_publish`, {creation_id: creation});
+        link = (await api.get(`/${p.id}`, {fields: 'permalink'}).catch(() => ({}))).permalink;
+        await mark('posted', {pid: p.id, purl: link || null});
       }
-      const p = await T.post(`/${S.threads_user_id}/threads_publish`, {creation_id: creation});
-      const m = await T.get(`/${p.id}`, {fields: 'permalink'}).catch(() => ({}));
-      await mark('posted', {pid: p.id, purl: m.permalink || null});
-      return `posted ${item.kind} #${item.id}`;
+      return `${platform}: posted ${item.kind} #${item.id}`;
     } catch (e) {
       // Meta asks to give a new post a moment before publishing: a first failure keeps the post for the next run.
-      if (creation && !item.creation_id) { await mark('approved', {creation, err: e.message}); return `#${item.id} will publish next run`; }
+      if (creation && !item.creation_id) { await mark('approved', {creation, err: e.message}); return `${platform}: #${item.id} will publish next run`; }
       await mark('failed', {err: e.message});
-      return `#${item.id} failed: ${e.message}`;
+      return `${platform}: #${item.id} failed: ${e.message}`;
     }
   }
 
