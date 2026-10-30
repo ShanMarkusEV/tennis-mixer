@@ -104,8 +104,11 @@ async function gemini(env, {system, input, schema, search}) {
       generation_config: {thinking_level: 'low', max_output_tokens: 8192},
       ...(search ? {tools: [{type: 'google_search'}]} : {}),
       ...(schema ? {response_format: {type: 'text', mime_type: 'application/json', schema}} : {})})});
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok || d.error) throw new Error(`Gemini: ${(d.error && (d.error.message || d.error)) || r.status}`);
+  const raw = await r.text(), d = (() => { try { return JSON.parse(raw); } catch (e) { return {}; } })();
+  if (!r.ok || d.error) {
+    const why = (d.error && (d.error.message || d.error.status || d.error)) || raw.replace(/\s+/g, ' ').slice(0, 300);
+    throw new Error(`Gemini ${r.status}${why ? ': ' + why : ''}`);
+  }
   // The answer is the text of the model's output steps (thought steps are skipped).
   const blocks = (d.steps || []).filter(x => x.type === 'model_output').flatMap(x => x.content || []).filter(b => b.type === 'text');
   const text = blocks.map(b => b.text).join('') || d.output_text || '';
