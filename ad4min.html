@@ -365,7 +365,7 @@ async function writeWithAI() {
   if (busy) return; busy = true; render();
   try {
     const [ok, d] = await agentFetch('/api/social/write', {idea: compose.idea, image: compose.image});
-    if (ok && d.text) compose.text = d.text; else toast(d.error || 'Claude had nothing to say, try again');
+    if (ok && d.text) compose.text = d.text; else toast(d.error || 'The AI had nothing to say, try again');
   } catch (e) { toast("Couldn't reach the agent"); }
   busy = false; render();
 }
@@ -384,7 +384,7 @@ async function sendCompose() {
   if (at) { toast('Scheduled for ' + when(at)); loadSocial(); }
   else runNow('', 'Posting');
 }
-// Tennis news: drafted per time slot by Claude from today's news; each waits for approval, then posts at its slot.
+// Tennis news: drafted per time slot by the AI from today's news; each waits for approval, then posts at its slot.
 async function saveNews(enabled) {
   const slots = ($('nslots').value.match(/\d{1,2}[:.]\d{2}/g) || []).map(t => t.replace('.', ':').padStart(5, '0'));
   const {error} = await sb.rpc('admin_social_news_config', {enabled, slots});
@@ -404,7 +404,7 @@ function viewNews(item) {
   const n = social.news;
   if (!n) return '<p class="muted">Loading…</p>';
   return `<div class="card"><b>Tennis news on Threads</b>
-    <p class="muted small" style="margin:6px 0 10px">Claude searches the web for today's tennis news and writes one short post per time slot, ending with a light 10nis plug.
+    <p class="muted small" style="margin:6px 0 10px">The AI searches the web for today's tennis news and writes one short post per time slot, ending with a light 10nis plug.
       Each one waits for you below and in To review; approve it and it goes out at its time. Ones not approved within 3 hours of their time are dropped.</p>
     <label class="chk"><input type="checkbox" id="non" ${n.enabled ? 'checked' : ''} onchange="saveNews(this.checked)"> Draft news every morning (05:30)</label>
     <p class="small muted" style="margin:12px 0 4px">Times (Jakarta)</p>
@@ -481,7 +481,7 @@ function viewCompose(st) {
     <div class="shots">${c.platforms.includes('instagram') ? '' : `<button class="pick ${c.image ? '' : 'on'}" onclick="composeSet('image', '')"><span>No picture</span></button>`}
       ${PROMO.map(([f, l]) => `<button class="pick ${c.image === `promo/${f}.jpg` ? 'on' : ''}" onclick="composeSet('image', 'promo/${f}.jpg')" title="${l}"><img src="/promo/${f}.jpg" alt="${l}"></button>`).join('')}</div>
     ${c.platforms.includes('instagram') ? '<p class="meta">Instagram posts always need a picture.</p>' : ''}
-    <p class="label">Idea for Claude (optional)</p>
+    <p class="label">Idea for the AI (optional)</p>
     <div class="row"><input class="in grow" id="cidea" maxlength="500" value="${esc(c.idea)}" placeholder="e.g. weekend doubles, invite friends, new game PIN feature" oninput="compose.idea = this.value">
       <button class="btn" onclick="writeWithAI()" ${busy ? 'disabled' : ''}>${busy ? 'Writing…' : 'Write with AI'}</button></div>
     <p class="label">Post</p>
