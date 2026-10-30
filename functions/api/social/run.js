@@ -6,9 +6,9 @@
 //      caps (10+ minutes between replies, one reply per person a day); posts the admin wrote, at their set time.
 //   With ?news=1 (a morning cron job, or "Generate news now"): draft tennis news posts for the open time slots.
 //   2. Once a day (from 08:00 Jakarta time): find new matching posts, comments on our posts and mentions,
-//      and draft replies plus one original post with Claude (under its topic tag, with an app screenshot from
+//      and draft replies plus one original post with Gemini (under its topic tag, with an app screenshot from
 //      /promo). Every draft waits for approval in /ad4min; nothing is published without it.
-// Needs Cloudflare secrets SOCIAL_CRON_SECRET and ANTHROPIC_API_KEY; the Threads and Instagram tokens come from
+// Needs Cloudflare secrets SOCIAL_CRON_SECRET and GEMINI_API_KEY; the Threads and Instagram tokens come from
 // connecting the accounts in /ad4min.
 import {json} from '../_shared.js';
 import {rpc, isAdmin, threads, instagram, draft, newsDraft, TOPICS} from './_lib.js';

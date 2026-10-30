@@ -1,4 +1,4 @@
-// Cloudflare Pages Function: POST /api/social/write — the AI (Gemini or Claude) writes a promo post for the Compose screen in /ad4min.
+// Cloudflare Pages Function: POST /api/social/write — Gemini writes a promo post for the Compose screen in /ad4min.
 // Body {idea?, image?}; returns {text}. Only for a signed-in admin; nothing is posted or saved here.
 import {json} from '../_shared.js';
 import {rpc, isAdmin, draft, TOPICS} from './_lib.js';
