@@ -309,6 +309,12 @@ function saveToken() {
   if (t.length < 20) { toast('Paste the long-lived Threads token'); return; }
   saveSocial({token: t}, 'Token saved, checking it…').then(saved => saved && runNow('discover=1&dry=1', 'Connecting to Threads'));
 }
+// Connect with Threads' own sign-in: the server gets and stores the token; it is never shown here.
+async function connectThreads() {
+  const {data, error} = await sb.rpc('admin_social_oauth_start');
+  if (error) return fail(error);
+  location.href = '/api/social/connect?state=' + encodeURIComponent(data);
+}
 async function runNow(params, label) {
   const {data: {session}} = await sb.auth.getSession();
   toast(label + '…');
@@ -343,8 +349,9 @@ function viewSocial() {
       <div class="meta">${st.connected ? `Token ${st.token_age_days ?? 0} days old, renewed automatically · ` : ''}Last run ${esc(when(st.last_run))} · last search ${esc(when(st.last_discovery))}</div>
       ${st.last_error ? `<div class="meta" style="color:var(--warn)">${esc(st.last_error)}</div>` : ''}
       ${!st.cron_ready ? '<div class="meta" style="color:var(--warn)">Schedule not set up yet.</div>' : ''}</div>
-    <div class="acts"><button class="btn" onclick="runNow('discover=1&dry=1', 'Finding posts and drafting')">Draft now</button>
-      <button class="btn" onclick="runNow('', 'Running')">Run now</button></div></div>
+    <div class="acts"><button class="btn ${st.connected ? '' : 'primary'}" onclick="connectThreads()">${st.connected ? 'Reconnect' : 'Connect Threads'}</button>
+      ${st.connected ? `<button class="btn" onclick="runNow('discover=1&dry=1', 'Finding posts and drafting')">Draft now</button>
+      <button class="btn" onclick="runNow('', 'Running')">Run now</button>` : ''}</div></div>
     <p class="muted small" style="margin:8px 0 0">Runs every 15 minutes: publishes one approved item at a time (max ${st.max_replies_day} replies and ${st.max_posts_day} post a day, 10 minutes apart), and drafts new ones each morning.
       ${st.auto_post ? `The daily post goes out on its own${st.post_topic ? ` under the topic “${esc(st.post_topic)}”` : ''}.` : 'The daily post waits for your approval.'}</p></div>
   <nav class="tabs">${[['draft', `To review${c.draft ? ` (${c.draft})` : ''}`], ['approved', `Approved${c.approved ? ` (${c.approved})` : ''}`], ['history', 'History']]
@@ -363,7 +370,7 @@ function viewSocial() {
     <div class="row" style="margin-top:8px"><label class="small">Replies a day <input class="in" id="sr" type="number" min="0" max="30" value="${Number(st.max_replies_day)}" style="width:70px"></label>
       <label class="small">Posts a day <input class="in" id="sp" type="number" min="0" max="5" value="${Number(st.max_posts_day)}" style="width:70px"></label></div>
     <div class="row" style="margin-top:12px"><button class="btn primary" onclick="saveSettings()">Save settings</button></div>
-    <p class="small muted" style="margin:16px 0 4px">Threads token (long-lived, from your Meta app). Stored on the server only; it can't be shown again.</p>
+    <p class="small muted" style="margin:16px 0 4px">Or paste a long-lived Threads token instead of using Connect Threads. Stored on the server only; it can't be shown again.</p>
     <div class="row"><input class="in grow" id="stk" type="password" autocomplete="off" placeholder="${st.connected ? 'Paste a new token to replace it' : 'Paste token'}">
       <button class="btn" onclick="saveToken()">Save token</button>
       ${st.connected ? `<button class="btn danger" onclick="if (confirm('Disconnect Threads?')) saveSocial({clear_token: true}, 'Disconnected')">Disconnect</button>` : ''}</div>
@@ -536,6 +543,14 @@ function render() {
   v.innerHTML = `<h1>${esc(TABS.find(t => t[0] === tab)[1])}</h1>
     <nav class="tabs">${TABS.map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="goTab('${k}')">${l}${k === 'feedback' && open ? `<span class="n">${open}</span>` : ''}</button>`).join('')}</nav>
     ${tab === 'overview' ? viewOverview() : tab === 'tools' ? viewTools() : tab === 'threads' ? viewSocial() : viewList()}`;
+}
+// Back from Threads sign-in: open the Threads tab and say how it went.
+const threadsResult = new URLSearchParams(location.search).get('threads');
+if (threadsResult) {
+  history.replaceState(null, '', '/ad4min');
+  tab = 'threads';
+  setTimeout(() => toast(threadsResult === 'connected' ? 'Threads connected' : 'Threads: ' + threadsResult.slice(0, 160)), 800);
+  if (threadsResult === 'connected') setTimeout(() => runNow('discover=1&dry=1', 'Drafting'), 1500);
 }
 if (sb) sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') { user = null; gate = 'signin'; render(); } });
 check();
