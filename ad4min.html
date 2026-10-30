@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>10nis Admin</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..900;1,62..125,400..900&family=Plus+Jakarta+Sans:wght@800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async onload="window.mountGoogle && mountGoogle()"></script>
+<style>
+:root{
+  --bg:#e9eef5;--surface:#fff;--surface-2:#eef2f8;--text:#0a1633;--muted:#56627d;--faint:#97a2b8;
+  --line:rgba(10,22,51,.1);--edge:#0a1633;--hard:#0a1633;--lime:#c6ef3a;--green:#0e8a4a;--warn:#d9481c;
+  --bar:#2459d8;--board:#0a1633;--font:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#060b19;--surface:#0e1630;--surface-2:#16203f;--text:#eef2ff;--muted:#94a0bf;--faint:#56628a;
+    --line:rgba(255,255,255,.08);--edge:#2b3a68;--hard:#000;--green:#4ade80;--warn:#ff7a45;--bar:#5b8cff;--board:#060b19}
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:14.5px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+.top{position:sticky;top:0;z-index:5;background:var(--board);color:#fff;border-bottom:2px solid var(--edge)}
+.top .in{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:10px}
+.wm{font-family:"Plus Jakarta Sans",var(--font);font-weight:800;letter-spacing:-.045em;line-height:1;display:inline-flex;align-items:baseline;font-size:22px;color:#fff;text-decoration:none}
+.wm svg{width:.7em;height:.7em;margin:0 .05em 0 .04em;transform:translateY(.02em)}
+.badge{font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;background:var(--lime);color:#0a1633;padding:3px 8px;border-radius:7px}
+.who{margin-left:auto;font-size:12.5px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+h1{margin:0 0 6px;font-size:40px;font-weight:900;font-stretch:72%;font-style:italic;text-transform:uppercase;line-height:.95}
+h2{margin:26px 0 10px;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.sub{margin:0 0 18px;color:var(--muted);font-weight:600}
+.card{background:var(--surface);border:2px solid var(--edge);border-radius:16px;padding:16px;box-shadow:3px 3px 0 var(--hard);margin-bottom:12px}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.btn{display:inline-flex;align-items:center;gap:6px;justify-content:center;border:2px solid var(--edge);background:var(--surface);border-radius:10px;padding:7px 12px;
+  font-weight:800;font-size:13px;cursor:pointer;box-shadow:2px 2px 0 var(--hard);white-space:nowrap}
+.btn:active{transform:translate(2px,2px);box-shadow:none}
+.btn.primary{background:var(--lime);color:#0a1633}
+.btn.danger{color:var(--warn)}
+.btn.ghost{box-shadow:none;border-color:var(--line)}
+.btn:disabled{opacity:.5}
+input.in,select.in{border:2px solid var(--edge);background:var(--surface-2);border-radius:10px;padding:8px 11px;outline:none;min-width:0}
+input.code{font-size:34px;font-weight:900;font-stretch:72%;letter-spacing:.3em;text-align:center;width:100%;padding:12px}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;margin:0 -2px 6px;scrollbar-width:none}
+.tabs button{flex:none;border:2px solid var(--edge);background:var(--surface);border-radius:999px;padding:6px 13px;font-weight:800;font-size:13px;cursor:pointer}
+.tabs button.on{background:var(--text);color:var(--bg)}
+.tabs button .n{margin-left:6px;font-size:11px;background:var(--warn);color:#fff;border-radius:999px;padding:1px 6px}
+/* stat tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tile{background:var(--surface);border:2px solid var(--edge);border-radius:14px;padding:12px 14px;box-shadow:3px 3px 0 var(--hard)}
+.tile .k{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.tile .v{font-size:40px;font-weight:900;font-stretch:72%;line-height:1;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.tile .s{font-size:12px;color:var(--muted);font-weight:600}
+/* charts */
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.chart h3{margin:0;font-size:14px;font-weight:800}
+.chart .tot{font-size:12px;color:var(--muted);font-weight:600;margin:0 0 6px}
+.chart svg{display:block;width:100%;height:150px;overflow:visible}
+.chart .bar{fill:var(--bar)}
+.chart .hit{fill:transparent;cursor:pointer}
+.chart .hit:hover + .bar,.chart .bar.on{fill:var(--text)}
+.chart .axis{stroke:var(--line);stroke-width:1}
+.chart text{fill:var(--muted);font-size:10px;font-weight:600}
+.tip{position:fixed;z-index:30;pointer-events:none;background:var(--board);color:#fff;border:2px solid var(--lime);border-radius:10px;padding:6px 10px;font-size:12.5px;font-weight:700;display:none;white-space:nowrap}
+/* lists */
+.list{display:flex;flex-direction:column;gap:8px}
+.item{background:var(--surface);border:2px solid var(--edge);border-radius:14px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.item .main{flex:1;min-width:220px}
+.item b{font-weight:800;overflow-wrap:anywhere}
+.item .meta{color:var(--muted);font-size:12.5px;font-weight:600;overflow-wrap:anywhere}
+.item .acts{display:flex;gap:6px;flex-wrap:wrap}
+.tag{display:inline-block;font-size:10.5px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:6px;background:var(--surface-2);border:1.5px solid var(--edge);margin-left:6px;vertical-align:1px}
+.tag.lime{background:var(--lime);color:#0a1633}
+.tag.warn{color:var(--warn)}
+.av{width:36px;height:36px;border-radius:50%;flex:none;background:var(--surface-2);border:2px solid var(--edge);object-fit:cover;display:grid;place-items:center;font-weight:800;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.scroll{overflow-x:auto}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--surface-2);border-radius:10px;padding:10px;font-size:12px;margin:8px 0 0}
+details summary{cursor:pointer;font-weight:700}
+.center{text-align:center}
+.gate{max-width:420px;margin:40px auto}
+.qrbox{background:#fff;border-radius:12px;padding:8px;width:200px;margin:12px auto;border:2px solid var(--edge)}
+.qrbox img{display:block;width:100%}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--board);color:#fff;border:2px solid var(--lime);padding:10px 16px;border-radius:12px;font-weight:700;
+  opacity:0;transition:opacity .2s;pointer-events:none;z-index:40;max-width:calc(100% - 32px);text-align:center}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="top"><div class="in">
+  <a class="wm" href="/" aria-label="10nis">1<svg viewBox="0 0 100 100" aria-hidden="true"><clipPath id="tb"><circle cx="50" cy="50" r="48"/></clipPath><circle cx="50" cy="50" r="48" fill="#c6ef3a"/><path clip-path="url(#tb)" d="M12 14c28 20 28 52 0 72M88 14c-28 20-28 52 0 72" fill="none" stroke="#fff" stroke-width="7"/></svg>nis</a>
+  <span class="badge">Admin</span>
+  <span class="who" id="who"></span>
+  <button class="btn ghost" id="out" style="display:none;color:#fff;background:transparent;border-color:rgba(255,255,255,.35)" onclick="signOut()">Sign out</button>
+</div></div>
+<main id="view"><p class="muted">Loading…</p></main>
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"></div>
+<script>
+// 10nis admin console. The page only shows things; the database decides who may see or change anything:
+// every admin function requires an account on the admins list that signed in with Google AND an
+// authenticator-app code (aal2). This login lives only in this browser tab (sessionStorage), apart from the app.
+const SUPABASE_URL = 'https://tuaomjxnhlwhddiucigb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_iYVtpH-Yb_ysG9liQ-NINw_h2DRDdNq';
+const GOOGLE_CLIENT_ID = '557073910029-b2eg9mfhq2ttugnpdlqebp6jlpequ0qp.apps.googleusercontent.com';
+const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY,
+  {auth: {storageKey: '10nis-admin', storage: window.sessionStorage, persistSession: true}}) : null;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const fmt = n => Number(n || 0).toLocaleString('en');
+const pl = (n, w) => `${fmt(n)} ${w}${Number(n) === 1 ? '' : (w.endsWith('ch') ? 'es' : 's')}`;
+const day = d => d ? new Date(d).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'}) : '–';
+const when = d => d ? new Date(d).toLocaleString('en-GB', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}) : '–';
+const $ = id => document.getElementById(id);
+function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200); }
+
+let user = null, gate = 'loading', gateMsg = '', enrolling = null, tab = 'overview', stats = null, lists = {}, query = {}, busy = false;
+
+// ---------- sign-in: Google, then the authenticator code ----------
+async function check() {
+  if (!sb) { gate = 'offline'; return render(); }
+  const {data: {session}} = await sb.auth.getSession();
+  user = session ? session.user : null;
+  if (!user) { gate = 'signin'; return render(); }
+  const {data, error} = await sb.rpc('admin_check');
+  if (error) { gate = 'error'; gateMsg = error.message; return render(); }
+  if (!data.listed) { gate = 'denied'; return render(); }
+  if (data.aal !== 'aal2') {
+    const {data: f} = await sb.auth.mfa.listFactors();
+    gate = f && f.totp && f.totp.length ? 'code' : 'enroll';
+    return render();
+  }
+  gate = 'ok'; render(); load();
+}
+const googleNonce = (async () => {
+  const raw = crypto.randomUUID();
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+  return {raw, hashed: [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('')};
+})();
+let googleInit = false;
+async function mountGoogle() {
+  const el = $('gbtn');
+  if (!el || !window.google || !google.accounts) return;
+  const nonce = await googleNonce;
+  if (!googleInit) {
+    google.accounts.id.initialize({client_id: GOOGLE_CLIENT_ID, nonce: nonce.hashed, use_fedcm_for_button: true,
+      callback: async ({credential}) => {
+        const {error} = await sb.auth.signInWithIdToken({provider: 'google', token: credential, nonce: nonce.raw});
+        if (error) toast(error.message); else check();
+      }});
+    googleInit = true;
+  }
+  el.innerHTML = '';
+  google.accounts.id.renderButton(el, {theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'filled_black' : 'outline',
+    size: 'large', shape: 'pill', text: 'continue_with', locale: 'en'});
+}
+async function startEnroll() {
+  // Drop any half-finished setup first, then make a new authenticator entry.
+  const {data: f} = await sb.auth.mfa.listFactors();
+  for (const x of (f && f.all) || []) if (x.status !== 'verified') await sb.auth.mfa.unenroll({factorId: x.id});
+  const {data, error} = await sb.auth.mfa.enroll({factorType: 'totp', friendlyName: '10nis admin ' + new Date().toISOString().slice(0, 10)});
+  if (error) { toast(error.message); return; }
+  enrolling = data; render();
+}
+async function verify() {
+  const code = $('code').value.replace(/\D/g, '');
+  if (code.length !== 6) { toast('Enter the 6-digit code'); return; }
+  let factorId = enrolling && enrolling.id;
+  if (!factorId) { const {data: f} = await sb.auth.mfa.listFactors(); factorId = f.totp[0].id; }
+  $('verify').disabled = true;
+  const {error} = await sb.auth.mfa.challengeAndVerify({factorId, code});
+  if (error) { $('verify').disabled = false; toast(error.message.includes('Invalid') ? 'Wrong code, try again' : error.message); return; }
+  enrolling = null; check();
+}
+async function signOut() { await sb.auth.signOut({scope: 'local'}); user = null; stats = null; lists = {}; check(); }
+
+// ---------- data ----------
+async function load() {
+  if (tab === 'overview') {
+    const {data, error} = await sb.rpc('admin_stats');
+    if (error) return fail(error);
+    stats = data; render();
+  } else if (tab !== 'tools') await loadList(tab, true);
+}
+async function loadList(kind, fresh) {
+  const cur = fresh ? [] : lists[kind] || [];
+  const {data, error} = await sb.rpc('admin_list', {kind, q: query[kind] || '', lim: 50, off: cur.length});
+  if (error) return fail(error);
+  lists[kind] = cur.concat(data); lists[kind].more = data.length === 50;
+  render();
+}
+function fail(error) {
+  if (/Not allowed|JWT|jwt/.test(error.message)) { check(); return; }
+  toast(error.message);
+}
+async function act(fn, args, done) {
+  if (busy) return; busy = true;
+  const {data, error} = await sb.rpc(fn, args);
+  busy = false;
+  if (error) return fail(error);
+  toast(done || 'Saved'); stats = null; load();
+  return data;
+}
+function goTab(t) { tab = t; window.scrollTo(0, 0); render(); load(); }
+let searchT;
+function search(kind, v) { query[kind] = v; clearTimeout(searchT); searchT = setTimeout(() => loadList(kind, true), 300); }
+
+// ---------- actions ----------
+async function renameUser(id, name) {
+  const v = prompt('Display name', name); if (v === null) return;
+  act('admin_update_user', {uid: id, new_name: v}, 'Name changed');
+}
+async function deleteUser(id, email) {
+  const v = prompt(`Delete ${email} with all their sessions? This can't be undone. Type DELETE to confirm.`);
+  if (v !== 'DELETE') return;
+  await sb.storage.from('avatars').remove([`${id}/avatar`]).catch(() => {});
+  act('admin_delete_user', {uid: id}, 'User deleted');
+}
+function findRow(kind, id) { return (lists[kind] || []).find(r => String(r.id) === String(id)); }
+async function editSession(id) {
+  const s = findRow('sessions', id);
+  const title = prompt('Title', s.title || ''); if (title === null) return;
+  const venue = prompt('Venue', s.venue || ''); if (venue === null) return;
+  act('admin_update_session', {sid: id, new_title: title, new_venue: venue, finished: !!s.finished_at, pin_off: false});
+}
+function sessionFlag(id, what) {
+  const s = findRow('sessions', id);
+  act('admin_update_session', {sid: id, new_title: s.title, new_venue: s.venue,
+    finished: what === 'finish' ? !s.finished_at : !!s.finished_at, pin_off: what === 'pin'},
+    what === 'pin' ? 'PIN turned off' : s.finished_at ? 'Reopened' : 'Marked finished');
+}
+async function deleteSession(id) {
+  const s = findRow('sessions', id);
+  if (!confirm(`Delete "${s.title || day(s.played_on)}" by ${s.host || s.host_email}? Its matches stop counting for ratings.`)) return;
+  act('admin_delete_session', {sid: id}, 'Session deleted');
+}
+let openSession = null;
+async function viewSession(id) {
+  if (openSession && openSession.id === id) { openSession = null; return render(); }
+  const {data, error} = await sb.rpc('admin_session', {sid: id});
+  if (error) return fail(error);
+  openSession = data; render();
+}
+async function editPlayer(id) {
+  const p = findRow('players', id);
+  const name = prompt('Name', p.name); if (name === null) return;
+  const lv = prompt('Self rating 1–10 (empty for none)', p.self_level ?? ''); if (lv === null) return;
+  const level = lv.trim() === '' ? null : parseInt(lv, 10);
+  if (level !== null && !(level >= 1 && level <= 10)) { toast('Level must be 1 to 10'); return; }
+  act('admin_update_player', {pid: id, new_name: name, new_level: level});
+}
+function deletePlayer(id) {
+  const p = findRow('players', id);
+  if (!confirm(`Delete player "${p.name}"? Only players without games or an account can be deleted.`)) return;
+  act('admin_delete_player', {pid: id}, 'Player deleted');
+}
+function feedback(id, done) { act('admin_feedback', {fid: id, done}, done ? 'Marked resolved' : 'Reopened'); }
+function deleteFeedback(id) { if (confirm('Delete this report?')) act('admin_delete_feedback', {fid: id}, 'Report deleted'); }
+async function purge() {
+  const kind = $('pk').value || null, before = $('pd').value;
+  if (!before) { toast('Choose a date'); return; }
+  if (!confirm(`Delete ${kind ? `"${kind}"` : 'ALL'} usage events before ${before}? This can't be undone.`)) return;
+  const n = await act('admin_purge_events', {kind, before}, 'Done');
+  if (n != null) toast(`${fmt(n)} events removed`);
+}
+
+// ---------- charts: one measure per chart, a bar per day, hover/tap for the value ----------
+function barChart(title, rows, key) {
+  const W = 300, H = 120, max = Math.max(1, ...rows.map(r => r[key])), bw = W / rows.length;
+  const total = rows.reduce((t, r) => t + r[key], 0);
+  const bars = rows.map((r, i) => {
+    const h = r[key] ? Math.max(2, r[key] / max * H) : 0, x = i * bw + 1, w = bw - 2, y = H - h;
+    const label = `${day(r.day)}: ${fmt(r[key])} ${title.toLowerCase()}`;
+    return `<rect class="hit" x="${i * bw}" y="0" width="${bw}" height="${H}" data-tip="${esc(label)}"></rect>` +
+      (h ? `<path class="bar" d="M${x},${H} v${-(h - Math.min(4, h))} q0,-${Math.min(4, h)} ${Math.min(4, w / 2)},-${Math.min(4, h)} h${w - 2 * Math.min(4, w / 2)} q${Math.min(4, w / 2)},0 ${Math.min(4, w / 2)},${Math.min(4, h)} v${h - Math.min(4, h)} z"></path>` : '<path class="bar"></path>');
+  }).join('');
+  return `<div class="card chart"><h3>${esc(title)}</h3><p class="tot">${fmt(total)} in 30 days · max ${fmt(max)} a day</p>
+    <svg viewBox="0 -12 ${W} ${H + 28}" role="img" aria-label="${esc(title)} per day, last 30 days">
+      <text x="0" y="-2">${fmt(max)}</text>
+      ${bars}<line class="axis" x1="0" x2="${W}" y1="${H}" y2="${H}"></line>
+      <text x="0" y="${H + 14}">${esc(day(rows[0].day).replace(/ \d{4}$/, ''))}</text>
+      <text x="${W}" y="${H + 14}" text-anchor="end">Today</text></svg></div>`;
+}
+document.addEventListener('pointermove', e => tip(e));
+document.addEventListener('pointerdown', e => tip(e));
+function tip(e) {
+  const t = $('tip'), el = e.target.closest && e.target.closest('[data-tip]');
+  document.querySelectorAll('.bar.on').forEach(b => b.classList.remove('on'));
+  if (!el) { t.style.display = 'none'; return; }
+  if (el.nextElementSibling) el.nextElementSibling.classList.add('on');
+  t.textContent = el.dataset.tip; t.style.display = 'block';
+  const r = t.getBoundingClientRect();
+  t.style.left = Math.min(innerWidth - r.width - 8, Math.max(8, e.clientX - r.width / 2)) + 'px';
+  t.style.top = (e.clientY - r.height - 14) + 'px';
+}
+
+// ---------- views ----------
+const tile = (k, v, s) => `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${fmt(v)}</div><div class="s">${s || '&nbsp;'}</div></div>`;
+function viewOverview() {
+  if (!stats) return '<p class="muted">Loading numbers…</p>';
+  const s = stats;
+  return `
+  <h2>People</h2>
+  <div class="tiles">
+    ${tile('Accounts', s.accounts, `+${fmt(s.accounts_7d)} this week · +${fmt(s.accounts_30d)} in 30 days`)}
+    ${tile('Signed in, 7 days', s.signed_in_7d, 'accounts active')}
+    ${tile('Phones today', s.phones_today, 'opened 10nis (incl. no account)')}
+    ${tile('Phones, 7 days', s.phones_7d, `${fmt(s.phones_30d)} in 30 days · ${fmt(s.phones)} ever`)}
+    ${tile('Home-screen installs', s.installs, 'phones')}
+  </div>
+  <h2>Play</h2>
+  <div class="tiles">
+    ${tile('Sessions', s.sessions, `+${fmt(s.sessions_7d)} this week · ${fmt(s.sessions_finished)} finished`)}
+    ${tile('Matches', s.matches, `+${fmt(s.matches_7d)} this week · ${fmt(s.rounds)} rounds`)}
+    ${tile('Social sessions', s.formats.social, `${pl(s.formats.competitive, 'competitive session')}`)}
+    ${tile('Players', s.players, `${fmt(s.players_linked)} with an account · ${fmt(s.players_rated)} rated`)}
+    ${tile('Live game PINs', s.pins_active, `${fmt(s.followers)} phones with notifications · ${fmt(s.joins_7d)} joins this week`)}
+  </div>
+  <h2>Health</h2>
+  <div class="tiles">
+    ${tile('Open reports', s.feedback_open, '<a href="#" onclick="goTab(\'feedback\'); return false">Read them</a>')}
+    ${tile('Errors, 7 days', s.errors_7d, '<a href="#" onclick="goTab(\'errors\'); return false">See errors</a>')}
+  </div>
+  <h2>Last 30 days</h2>
+  <div class="charts">
+    ${barChart('Active phones', s.daily, 'phones')}
+    ${barChart('Matches', s.daily, 'matches')}
+    ${barChart('Sessions', s.daily, 'sessions')}
+    ${barChart('Sign-ups', s.daily, 'signups')}
+  </div>
+  <details class="card"><summary>Show as a table</summary><div class="scroll"><table>
+    <tr><th>Day</th><th>Phones</th><th>Matches</th><th>Sessions</th><th>Sign-ups</th></tr>
+    ${s.daily.slice().reverse().map(d => `<tr><td>${esc(day(d.day))}</td><td>${d.phones}</td><td>${d.matches}</td><td>${d.sessions}</td><td>${d.signups}</td></tr>`).join('')}
+  </table></div></details>
+  <h2>App versions in use</h2>
+  <div class="card scroll"><table><tr><th>Version</th><th>Phones</th><th>Last 7 days</th><th>Last seen</th></tr>
+    ${s.versions.map(v => `<tr><td>${esc(v.version)}</td><td>${fmt(v.phones)}</td><td>${fmt(v.phones_last_7_days)}</td><td>${esc(when(v.last_seen))}</td></tr>`).join('')}
+  </table></div>`;
+}
+const searchBox = (kind, ph) => `<div class="row" style="margin-bottom:10px"><input class="in grow" placeholder="${esc(ph)}" value="${esc(query[kind] || '')}"
+  oninput="search('${kind}', this.value)" aria-label="Search"></div>`;
+const more = kind => lists[kind] && lists[kind].more ? `<div class="center" style="margin-top:10px"><button class="btn" onclick="loadList('${kind}')">Load more</button></div>` : '';
+const pic = (url, name) => /^https:\/\//.test(url || '') ? `<img class="av" src="${esc(url)}" alt="" referrerpolicy="no-referrer">`
+  : `<span class="av">${esc(String(name || '?').trim().slice(0, 2).toUpperCase())}</span>`;
+function viewList() {
+  const L = lists[tab];
+  if (!L) return '<p class="muted">Loading…</p>';
+  const none = '<p class="muted">Nothing here.</p>';
+  if (tab === 'users') return searchBox('users', 'Search name or email') + `<div class="list">${L.map(u => `<div class="item">${pic(u.photo, u.name)}
+    <div class="main"><b>${esc(u.name || '–')}</b>${u.admin ? '<span class="tag lime">Admin</span>' : ''}
+      <div class="meta">${esc(u.email)} · joined ${esc(day(u.created_at))} · last sign-in ${esc(when(u.last_sign_in_at))}</div>
+      <div class="meta">${pl(u.sessions, 'session')} hosted · ${u.matches ? `game rating ${Number(u.score).toFixed(1)} from ${fmt(u.matches)} matches` : 'no games'}${u.self_level ? ` · self rating ${esc(u.self_level)}` : ''}${u.code ? ` · code ${esc(u.code)}` : ''}</div></div>
+    <div class="acts"><button class="btn" data-id="${esc(u.id)}" data-n="${esc(u.name || '')}" onclick="renameUser(this.dataset.id, this.dataset.n)">Rename</button>
+      ${u.admin ? '' : `<button class="btn danger" data-id="${esc(u.id)}" data-e="${esc(u.email)}" onclick="deleteUser(this.dataset.id, this.dataset.e)">Delete</button>`}</div></div>`).join('') || none}</div>${more('users')}`;
+  if (tab === 'sessions') return searchBox('sessions', 'Search title, host, email or PIN') + `<div class="list">${L.map(s => `<div class="item">
+    <div class="main"><b>${esc(s.title || 'Untitled session')}</b>${s.finished_at ? '<span class="tag">Finished</span>' : '<span class="tag lime">Open</span>'}${s.pin ? `<span class="tag">PIN ${esc(s.pin)}</span>` : ''}
+      <div class="meta">${esc(day(s.played_on))} · by ${esc(s.host || '–')} (${esc(s.host_email)})${s.venue ? ` · ${esc(s.venue)}` : ''}</div>
+      <div class="meta">${s.mode === 'mexicano' ? 'Competitive' : 'Social'} · ${pl(s.players, 'player')} · ${pl(s.rounds, 'round')} · ${pl(s.matches, 'scored match')}</div>
+      ${openSession && openSession.id === s.id ? sessionDetail(openSession) : ''}</div>
+    <div class="acts"><button class="btn" data-id="${esc(s.id)}" onclick="viewSession(this.dataset.id)">${openSession && openSession.id === s.id ? 'Hide' : 'View'}</button>
+      <button class="btn" data-id="${esc(s.id)}" onclick="editSession(this.dataset.id)">Edit</button>
+      <button class="btn" data-id="${esc(s.id)}" onclick="sessionFlag(this.dataset.id, 'finish')">${s.finished_at ? 'Reopen' : 'Finish'}</button>
+      ${s.pin ? `<button class="btn" data-id="${esc(s.id)}" onclick="sessionFlag(this.dataset.id, 'pin')">PIN off</button>` : ''}
+      <button class="btn danger" data-id="${esc(s.id)}" onclick="deleteSession(this.dataset.id)">Delete</button></div></div>`).join('') || none}</div>${more('sessions')}`;
+  if (tab === 'players') return searchBox('players', 'Search name, email or player code') + `<div class="list">${L.map(p => `<div class="item">${pic(p.photo, p.name)}
+    <div class="main"><b>${esc(p.name)}</b>${p.user_id ? '<span class="tag lime">Account</span>' : ''}${p.source ? `<span class="tag">${esc(p.source)}</span>` : ''}
+      <div class="meta">${p.email ? esc(p.email) : p.owner ? `On ${esc(p.owner)}'s roster` : 'Shared (imported)'} · added ${esc(day(p.created_at))}${p.code ? ` · code ${esc(p.code)}` : ''}</div>
+      <div class="meta">Self rating ${p.self_level ? esc(p.self_level) : '–'} · Game rating ${p.matches ? `${Number(p.score).toFixed(1)} (${fmt(p.matches)} matches)` : '–'}</div></div>
+    <div class="acts"><button class="btn" data-id="${esc(p.id)}" onclick="editPlayer(this.dataset.id)">Edit</button>
+      ${p.user_id ? '' : `<button class="btn danger" data-id="${esc(p.id)}" onclick="deletePlayer(this.dataset.id)">Delete</button>`}</div></div>`).join('') || none}</div>${more('players')}`;
+  if (tab === 'feedback') return searchBox('feedback', 'Search reports') + `<div class="list">${L.map(f => `<div class="item">
+    <div class="main"><b>${esc(f.message)}</b>${f.resolved ? '<span class="tag">Resolved</span>' : '<span class="tag warn">Open</span>'}
+      <div class="meta">${esc(when(f.at_jakarta))} · ${esc(f.account_name || 'not signed in')}${f.account_email ? ` (${esc(f.account_email)})` : ''}${f.contact ? ` · contact: ${esc(f.contact)}` : ''}</div>
+      <div class="meta">v${esc(f.version || '?')} · ${esc(f.screen || '?')} screen · ${esc(f.browser || '')}</div>
+      ${f.recent_errors && f.recent_errors.length ? `<pre>${esc(JSON.stringify(f.recent_errors, null, 1))}</pre>` : ''}</div>
+    <div class="acts"><button class="btn" onclick="feedback(${Number(f.id)}, ${!f.resolved})">${f.resolved ? 'Reopen' : 'Resolve'}</button>
+      <button class="btn danger" onclick="deleteFeedback(${Number(f.id)})">Delete</button></div></div>`).join('') || none}</div>${more('feedback')}`;
+  if (tab === 'errors') return searchBox('errors', 'Search errors') + `<div class="card scroll"><table><tr><th>When (Jakarta)</th><th>Where</th><th>Message</th><th>Version</th><th>Phone</th></tr>
+    ${L.map(e => `<tr><td>${esc(when(e.at_jakarta))}</td><td>${esc(e.where_)}</td><td>${esc(e.message)}</td><td>${esc(e.version)}</td><td>${esc(e.phone)}</td></tr>`).join('')}</table>
+    ${L.length ? '' : none}</div>${more('errors')}`;
+  if (tab === 'log') return `<p class="muted small" style="margin:0 0 10px">Every change made here, newest first.</p><div class="card scroll"><table><tr><th>When</th><th>Admin</th><th>Action</th><th>Target</th><th>Details</th></tr>
+    ${L.map(l => `<tr><td>${esc(when(l.at))}</td><td>${esc(l.admin)}</td><td>${esc(l.action)}</td><td>${esc(String(l.target || '').slice(0, 8))}</td><td>${esc(JSON.stringify(l.detail))}</td></tr>`).join('')}</table>
+    ${L.length ? '' : none}</div>${more('log')}`;
+  return '';
+}
+function sessionDetail(s) {
+  const name = id => esc(((s.players || []).find(p => p.id === id) || {name: '?'}).name);
+  return `<div style="margin-top:10px"><div class="meta">Roster: ${(s.players || []).map(p => esc(p.name)).join(', ')}</div>
+    ${(s.rounds || []).map((rd, i) => `<div class="meta" style="margin-top:6px"><b>Round ${i + 1}</b>
+      ${(rd.matches || []).map((m, c) => `<div>Court ${c + 1}: ${(m.a || []).map(name).join(' & ')} ${Number.isInteger(m.sa) ? m.sa : '–'}–${Number.isInteger(m.sb) ? m.sb : '–'} ${(m.b || []).map(name).join(' & ')}</div>`).join('')}
+      ${(rd.sitting || []).length ? `<div>Sitting out: ${rd.sitting.map(name).join(', ')}</div>` : ''}</div>`).join('')}</div>`;
+}
+function viewTools() {
+  return `<div class="card"><b>Clear usage events</b>
+    <p class="muted small">Delete old anonymous usage events of one kind, for example the sign-in counts from before sign-ins were counted correctly. Users, sessions and matches aren't affected.</p>
+    <div class="row"><select class="in" id="pk"><option value="signin">signin</option><option value="open">open</option><option value="error">error</option>
+      <option value="round">round</option><option value="finish">finish</option><option value="import">import</option><option value="install">install</option>
+      <option value="join">join</option><option value="">all kinds</option></select>
+      <input class="in" type="date" id="pd" aria-label="Before"><button class="btn danger" onclick="purge()">Delete before date</button></div></div>
+  <div class="card"><b>Database dashboard</b><p class="muted small">For anything not here, use the Supabase dashboard directly.</p>
+    <a class="btn" href="https://supabase.com/dashboard/project/tuaomjxnhlwhddiucigb" target="_blank" rel="noopener">Open Supabase</a></div>`;
+}
+const TABS = [['overview', 'Overview'], ['users', 'Users'], ['sessions', 'Sessions'], ['players', 'Players'], ['feedback', 'Reports'], ['errors', 'Errors'], ['log', 'Change log'], ['tools', 'Tools']];
+function render() {
+  $('who').textContent = user ? user.email : '';
+  $('out').style.display = user ? '' : 'none';
+  const v = $('view');
+  if (gate === 'loading') { v.innerHTML = '<p class="muted">Loading…</p>'; return; }
+  if (gate === 'offline') { v.innerHTML = '<div class="gate card"><h1>Offline</h1><p class="muted">Can\'t reach 10nis right now.</p></div>'; return; }
+  if (gate === 'signin') {
+    v.innerHTML = `<div class="gate card center"><h1>Admin</h1><p class="sub">Sign in with the creator's Google account.</p>
+      <div id="gbtn" style="display:flex;justify-content:center;min-height:44px"></div></div>`;
+    mountGoogle(); return;
+  }
+  if (gate === 'denied') { v.innerHTML = `<div class="gate card"><h1>No access</h1><p class="muted">${esc(user.email)} isn't an admin.</p><button class="btn" onclick="signOut()">Sign out</button></div>`; return; }
+  if (gate === 'error') { v.innerHTML = `<div class="gate card"><h1>Error</h1><p class="muted">${esc(gateMsg)}</p><button class="btn" onclick="check()">Try again</button></div>`; return; }
+  if (gate === 'enroll' || gate === 'code') {
+    v.innerHTML = gate === 'enroll' && !enrolling ? `<div class="gate card"><h1>Protect admin</h1>
+        <p class="muted">Admin needs a second step: a 6-digit code from an authenticator app (Google Authenticator, 1Password, Authy…). Set it up once.</p>
+        <button class="btn primary" onclick="startEnroll()">Set up authenticator</button></div>`
+      : `<div class="gate card"><h1>${enrolling ? 'Scan this' : 'Enter code'}</h1>
+        ${enrolling ? `<p class="muted">In your authenticator app, add an account and scan this QR (or type the key below). Then enter the 6-digit code it shows.</p>
+          <div class="qrbox"><img src="${esc(enrolling.totp.qr_code)}" alt="Authenticator QR code"></div>
+          <p class="center small" style="word-break:break-all">Key: <b>${esc(enrolling.totp.secret)}</b></p>` : '<p class="muted">Open your authenticator app and enter the 6-digit code for 10nis.</p>'}
+        <input class="in code" id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" onkeydown="if (event.key === 'Enter') verify()">
+        <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" id="verify" onclick="verify()">Verify</button></div></div>`;
+    setTimeout(() => $('code') && $('code').focus(), 50); return;
+  }
+  const open = stats && stats.feedback_open;
+  v.innerHTML = `<h1>${esc(TABS.find(t => t[0] === tab)[1])}</h1>
+    <nav class="tabs">${TABS.map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="goTab('${k}')">${l}${k === 'feedback' && open ? `<span class="n">${open}</span>` : ''}</button>`).join('')}</nav>
+    ${tab === 'overview' ? viewOverview() : tab === 'tools' ? viewTools() : viewList()}`;
+}
+if (sb) sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') { user = null; gate = 'signin'; render(); } });
+check();
+</script>
+</body>
+</html>
