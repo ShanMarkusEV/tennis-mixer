@@ -7,7 +7,7 @@ self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE && k !== '10nis-follow').map(k => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', e => {
@@ -37,7 +37,7 @@ function message(g, me) {
   if (g.finished) return {title: `${title} is finished`, body: 'Final standings are in. Tap to see where you finished.'};
   const n = g.rounds.length, rd = g.rounds[n - 1];
   if (!rd) return {title, body: 'The game is about to start.'};
-  const ci = rd.matches.findIndex(m => m.a.includes(me) || m.b.includes(me));
+  const ci = (rd.matches || []).findIndex(m => (m.a || []).includes(me) || (m.b || []).includes(me));
   if (ci < 0) return {title: `Round ${n}: you sit out`, body: `${title}. Rest up, you're likely on next round.`};
   const m = rd.matches[ci], mineA = m.a.includes(me), mine = mineA ? m.a : m.b, theirs = mineA ? m.b : m.a;
   const partner = team(mine);
