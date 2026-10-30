@@ -116,6 +116,55 @@ export async function draft(env, {voice, items, wantPost, recentPosts, topic, id
 }
 
 // Each topic comes with the app screenshot attached to that day's post (files in /promo, made with demo players).
+// ---------- Tennis news (Claude with web search) ----------
+const NEWS_SYSTEM = `You write short tennis news posts for the Threads account of 10nis (10nis.win), a free web app for
+social tennis groups in Indonesia.
+
+Use web search to find real tennis news from the last 48 hours: pro results and upcoming big matches (ATP, WTA, Grand
+Slams, Davis Cup, Billie Jean King Cup), Indonesian players and events, and occasionally tennis tips or trends. Every
+fact must come from a page you found in this search; never guess scores, dates or quotes. Pick different stories
+from each other and from the recent headlines given.
+
+For each post: casual Indonesian (English names as they are), 2 to 4 short sentences, at most 420 characters, no
+hashtags, at most one emoji. End with one light, varied line inviting people to play and use 10nis.win (for example
+setting up their own mabar, rotating partners, keeping score), and never claim 10nis is connected to the news. Name
+the source in a few words, like "(via ATP Tour)".
+
+Reply with only a JSON object, no other text:
+{"posts": [{"headline": "short English headline", "text": "the post", "source_url": "https://..."}]}
+
+About 10nis and the voice to use:
+`;
+
+// Web search returns cited text, which can't be combined with a JSON schema, so the JSON is read from the text.
+export async function newsDraft(env, {voice, count, recent}) {
+  if (!env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not set');
+  const user = {role: 'user', content: JSON.stringify({posts_wanted: count, today: new Date().toISOString().slice(0, 10),
+    recent_headlines_to_avoid: recent})};
+  let messages = [user], d;
+  for (let turn = 0; turn < 4; turn++) {
+    const r = await fetch(`${env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com'}/v1/messages`, {method: 'POST',
+      headers: {'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2026-10-21',
+        'anthropic-beta': 'server-side-fallback-2026-07-01'},
+      body: JSON.stringify({model: 'claude-opus-5-5', max_tokens: 16000, fallbacks: 'default', output_config: {effort: 'medium'},
+        tools: [{type: 'web_search_20260209', name: 'web_search', max_uses: 8}],
+        system: NEWS_SYSTEM + voice, messages})});
+    d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(`Claude: ${(d.error && d.error.message) || r.status}`);
+    // A long search can pause; sending the turn back lets the server carry on.
+    if (d.stop_reason !== 'pause_turn') break;
+    messages = [user, {role: 'assistant', content: d.content}];
+  }
+  if (d.stop_reason === 'refusal') throw new Error('Claude declined');
+  if (d.stop_reason === 'max_tokens') throw new Error('Claude ran out of room');
+  const text = (d.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  const m = text.match(/\{[\s\S]*\}/);
+  let out;
+  try { out = JSON.parse(m ? m[0] : text); } catch (e) { throw new Error("Claude's answer wasn't readable, try again"); }
+  return (out.posts || []).filter(p => p && typeof p.text === 'string' && p.text.trim())
+    .map(p => ({text: p.text.trim().slice(0, 500), headline: String(p.headline || '').slice(0, 300), source_url: String(p.source_url || '')}));
+}
+
 export const TOPICS = [['fair rounds where everyone plays the same amount', 'rounds'], ['Social vs Competitive formats', 'players'],
   ['the game PIN: players see their court and get notified', 'join'], ['levels 1 to 10 that move with results', 'standings'],
   ['importing players from a Kuyy or Reclub link', 'players'], ['sharing the standings picture after a session', 'standings'],

@@ -4,13 +4,14 @@
 // today's discovery to run again.
 //   1. Publish at most one due approved item per platform per run: the agent's posts and replies within the daily
 //      caps (10+ minutes between replies, one reply per person a day); posts the admin wrote, at their set time.
+//   With ?news=1 (a morning cron job, or "Generate news now"): draft tennis news posts for the open time slots.
 //   2. Once a day (from 08:00 Jakarta time): find new matching posts, comments on our posts and mentions,
 //      and draft replies plus one original post with Claude (under its topic tag, with an app screenshot from
 //      /promo). Every draft waits for approval in /ad4min; nothing is published without it.
 // Needs Cloudflare secrets SOCIAL_CRON_SECRET and ANTHROPIC_API_KEY; the Threads and Instagram tokens come from
 // connecting the accounts in /ad4min.
 import {json} from '../_shared.js';
-import {rpc, isAdmin, threads, instagram, draft, TOPICS} from './_lib.js';
+import {rpc, isAdmin, threads, instagram, draft, newsDraft, TOPICS} from './_lib.js';
 
 const MIN_REPLY_GAP_MS = 10 * 60e3;
 const jakarta = d => new Date(new Date(d).getTime() + 7 * 3600e3);   // UTC+7, no DST
@@ -26,7 +27,9 @@ export async function onRequestPost({request, env}) {
   if (!secret) return json({error: 'The Threads agent is not set up yet (SOCIAL_CRON_SECRET)'}, 503);
   const url = new URL(request.url), dry = url.searchParams.get('dry') === '1';
   let force = url.searchParams.get('discover') === '1';
-  if (!(await sameSecret(request.headers.get('x-cron-secret'), secret)) && !(await isAdmin(request))) return json({error: 'Not allowed'}, 403);
+  const viaCron = await sameSecret(request.headers.get('x-cron-secret'), secret);
+  if (!viaCron && !(await isAdmin(request))) return json({error: 'Not allowed'}, 403);
+  if (url.searchParams.get('news') === '1') return json(await makeNews());
 
   const S = await rpc('social_cron_state', {secret});
   const save = {}, log = [];
@@ -67,7 +70,7 @@ export async function onRequestPost({request, env}) {
   async function publishOne(platform, api, S) {
     const lastReply = S.last_reply_at ? new Date(S.last_reply_at).getTime() : 0;
     const mine = S.approved.filter(q => q.platform === platform);
-    const item = mine.find(q => q.kind === 'post'
+    const item = mine.find(q => q.kind === 'news' ? true : q.kind === 'post'
       ? q.manual || S.posts_today[platform] < S.max_posts_day
       : S.replies_today < S.max_replies_day && Date.now() - lastReply >= MIN_REPLY_GAP_MS
         && !(q.target_author && S.authors_today.includes(q.target_author)));
@@ -86,8 +89,8 @@ export async function onRequestPost({request, env}) {
         if (!creation) {
           const c = await api.post(`/${S.threads_user_id}/threads`, {media_type: 'TEXT', text: item.text,
             ...(image ? {media_type: 'IMAGE', image_url: image} : {}),
-            ...(item.kind !== 'post' && item.target_id ? {reply_to_id: item.target_id} : {}),
-            ...(item.kind === 'post' && item.topic ? {topic_tag: item.topic} : {})});
+            ...((item.kind === 'reply' || item.kind === 'own_reply') && item.target_id ? {reply_to_id: item.target_id} : {}),
+            ...((item.kind === 'post' || item.kind === 'news') && item.topic ? {topic_tag: item.topic} : {})});
           creation = c.id;
         }
         const p = await api.post(`/${S.threads_user_id}/threads_publish`, {creation_id: creation});
@@ -100,6 +103,23 @@ export async function onRequestPost({request, env}) {
       if (creation && !item.creation_id) { await mark('approved', {creation, err: e.message}); return `${platform}: #${item.id} will publish next run`; }
       await mark('failed', {err: e.message});
       return `${platform}: #${item.id} failed: ${e.message}`;
+    }
+  }
+
+  // ---------- tennis news: one draft per open time slot, from what's on the web now ----------
+  async function makeNews() {
+    const N = await rpc('social_cron_news_state', {secret});
+    if (viaCron && !N.enabled) return {ok: true, log: ['tennis news is off']};
+    if (!N.connected) return {ok: false, error: 'Connect Threads first'};
+    if (!N.open_slots.length) return {ok: true, log: ['every news slot already has a post']};
+    try {
+      const posts = await newsDraft(env, {voice: N.voice, count: N.open_slots.length, recent: N.recent});
+      const items = posts.slice(0, N.open_slots.length).map((x, i) => ({...x, at: N.open_slots[i]}));
+      const added = items.length ? await rpc('social_cron_add_news', {secret, items}) : 0;
+      return {ok: true, log: [`${added} tennis news ${added === 1 ? 'post' : 'posts'} drafted for review`]};
+    } catch (e) {
+      await rpc('social_cron_save', {secret, patch: {last_error: 'Tennis news: ' + e.message}});
+      return {ok: false, error: 'Tennis news: ' + e.message};
     }
   }
 

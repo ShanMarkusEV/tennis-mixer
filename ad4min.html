@@ -309,9 +309,10 @@ let social = null, settingsOpen = false;
 let compose = {platforms: ['threads'], image: 'promo/rounds.jpg', text: '', idea: '', when: 'now', at: ''};
 async function loadSocial() {
   const st = SOCIAL_LIST[tab];
-  const [a, b] = await Promise.all([sb.rpc('admin_social_state'), st ? sb.rpc('admin_social_list', {st, lim: 100}) : {data: null}]);
+  const [a, b] = await Promise.all([sb.rpc('admin_social_state'),
+    st ? sb.rpc('admin_social_list', {st, lim: 100}) : tab === 's-news' ? sb.rpc('admin_social_news') : {data: null}]);
   if (a.error || b.error) return fail(a.error || b.error);
-  social = {state: a.data, list: b.data}; render();
+  social = {state: a.data, list: tab === 's-news' ? null : b.data, news: tab === 's-news' ? b.data : null}; render();
 }
 async function decide(id, approve) {
   const el = $('t-' + id);
@@ -383,7 +384,37 @@ async function sendCompose() {
   if (at) { toast('Scheduled for ' + when(at)); loadSocial(); }
   else runNow('', 'Posting');
 }
-const KIND = {post: 'New post', reply: 'Reply to a search result', own_reply: 'Reply to a comment on our post'};
+// Tennis news: drafted per time slot by Claude from today's news; each waits for approval, then posts at its slot.
+async function saveNews(enabled) {
+  const slots = ($('nslots').value.match(/\d{1,2}[:.]\d{2}/g) || []).map(t => t.replace('.', ':').padStart(5, '0'));
+  const {error} = await sb.rpc('admin_social_news_config', {enabled, slots});
+  if (error) return fail(error);
+  toast(enabled ? 'Tennis news on: drafts arrive every morning' : 'Saved'); loadSocial();
+}
+async function generateNews() {
+  if (busy) return; busy = true; render();
+  toast('Searching today\'s tennis news… about a minute');
+  try {
+    const [ok, d] = await agentFetch('/api/social/run?news=1');
+    toast(ok && d.ok ? (d.log || []).join(' · ') : d.error || 'Couldn\'t make the news posts');
+  } catch (e) { toast("Couldn't reach the agent"); }
+  busy = false; loadSocial();
+}
+function viewNews(item) {
+  const n = social.news;
+  if (!n) return '<p class="muted">Loading…</p>';
+  return `<div class="card"><b>Tennis news on Threads</b>
+    <p class="muted small" style="margin:6px 0 10px">Claude searches the web for today's tennis news and writes one short post per time slot, ending with a light 10nis plug.
+      Each one waits for you below and in To review; approve it and it goes out at its time. Ones not approved within 3 hours of their time are dropped.</p>
+    <label class="chk"><input type="checkbox" id="non" ${n.enabled ? 'checked' : ''} onchange="saveNews(this.checked)"> Draft news every morning (05:30)</label>
+    <p class="small muted" style="margin:12px 0 4px">Times (Jakarta)</p>
+    <div class="row" style="flex-wrap:wrap"><input class="in grow" id="nslots" value="${esc((n.slots || []).join(', '))}" style="min-width:200px">
+      <button class="btn" onclick="saveNews($('non').checked)">Save times</button>
+      <button class="btn primary" onclick="generateNews()" ${busy ? 'disabled' : ''}>${busy ? 'Searching…' : 'Generate news now'}</button></div>
+    <p class="meta" style="margin-top:6px">Generate news now fills the next open times, today or tomorrow.</p></div>
+  ${(n.items || []).length ? `<div class="list">${n.items.map(item).join('')}</div>` : '<p class="muted">No news posts yet. Tap Generate news now.</p>'}`;
+}
+const KIND = {post: 'New post', reply: 'Reply to a search result', own_reply: 'Reply to a comment on our post', news: 'Tennis news'};
 const ini = n => esc((String(n || '?').replace(/^@/, '')[0] || '?').toUpperCase());
 function countChars(el) { const c = el.closest('.bub').querySelector('.cc'); if (c) c.textContent = el.value.length + '/500'; }
 function socialStatus(st) {
@@ -405,18 +436,20 @@ function viewSocial() {
   if (tab === 's-accounts') return viewAccounts(st);
   // Each item reads like the conversation: their post (for replies), then what 10nis will say under it.
   const item = q => {
+    const isReply = q.kind === 'reply' || q.kind === 'own_reply';
     const id = Number(q.id), open = q.status === 'draft' || q.status === 'failed' || q.status === 'approved';
     const handle = q.platform === 'instagram' ? (st.ig_username || '10nis') : me;
-    const theirs = q.kind !== 'post' ? `<div class="bub them"><span class="av">${ini(q.target_author)}</span><div class="grow">
+    const theirs = isReply ? `<div class="bub them"><span class="av">${ini(q.target_author)}</span><div class="grow">
         <div class="who">@${esc(q.target_author || '?')}${q.target_url ? ` · <a href="${esc(q.target_url)}" target="_blank" rel="noopener noreferrer">open on Threads</a>` : ''}</div>
         <div class="said">${q.target_text ? esc(q.target_text) : '<span class="muted">(text removed after 30 days)</span>'}</div></div></div>` : '';
-    const ours = `<div class="bub ours ${q.kind !== 'post' ? 'reply' : ''}"><span class="av">10</span><div class="grow">
-        <div class="who">@${esc(handle)} ${open ? `<span class="muted">${q.status === 'approved' ? 'will post this' : q.kind === 'post' ? 'wants to post' : 'wants to reply'}</span>` : ''}</div>
+    const ours = `<div class="bub ours ${isReply ? 'reply' : ''}"><span class="av">10</span><div class="grow">
+        <div class="who">@${esc(handle)} ${open ? `<span class="muted">${q.status === 'approved' ? 'will post this' : isReply ? 'wants to reply' : 'wants to post'}</span>` : ''}</div>
         ${open ? `<textarea class="in" id="t-${id}" maxlength="500" rows="${Math.min(8, Math.max(3, Math.ceil(String(q.text || '').length / 30)))}" style="width:100%;margin-top:6px;resize:vertical" oninput="countChars(this)">${esc(q.text)}</textarea>
           <div class="meta cc" style="text-align:right">${String(q.text || '').length}/500</div>`
         : `<div class="said">${esc(q.text)}</div>`}
         ${q.image ? `<a href="/${esc(q.image)}" target="_blank" rel="noopener"><img src="/${esc(q.image)}" alt="Screenshot posted with it" class="shot"></a>` : ''}</div></div>`;
-    const due = q.status === 'approved' ? (q.scheduled_at && new Date(q.scheduled_at) > Date.now() ? `goes out ${esc(when(q.scheduled_at))}` : 'goes out with the next run') : '';
+    const due = q.status === 'approved' ? (q.scheduled_at && new Date(q.scheduled_at) > Date.now() ? `goes out ${esc(when(q.scheduled_at))}` : 'goes out with the next run')
+      : q.status === 'draft' && q.scheduled_at ? `for ${esc(when(q.scheduled_at))}, if approved` : '';
     return `<div class="item tw"><div class="main">
       <div class="row"><span class="tag lime" style="margin:0">${KIND[q.kind]}</span><span class="tag">${PLATFORM[q.platform] || 'Threads'}</span>
         ${q.manual ? '<span class="meta">written by you</span>' : ''}
@@ -425,13 +458,14 @@ function viewSocial() {
         ${due ? `<span class="meta"><b>${due}</b></span>` : ''}
         ${q.status !== 'draft' && q.status !== 'approved' ? `<span class="tag ${q.status === 'failed' ? 'warn' : ''}">${esc(q.status)}</span>` : ''}</div>
       ${theirs}${ours}
-      ${q.reason ? `<div class="meta" style="margin-top:6px">Why: ${esc(q.reason)}</div>` : ''}
+      ${q.reason ? `<div class="meta" style="margin-top:6px">${q.kind === 'news' ? 'Story' : 'Why'}: ${esc(q.reason)}${q.kind === 'news' && q.target_url ? ` · <a href="${esc(q.target_url)}" target="_blank" rel="noopener noreferrer">source</a>` : ''}</div>` : ''}
       ${q.error ? `<div class="meta" style="color:var(--warn)">${esc(q.error)}</div>` : ''}
       ${q.posted_url ? `<div class="meta" style="margin-top:6px"><a href="${esc(q.posted_url)}" target="_blank" rel="noopener noreferrer">See it on ${PLATFORM[q.platform] || 'Threads'}</a> · ${esc(when(q.posted_at))}</div>` : ''}
       ${open ? `<div class="acts" style="margin-top:10px">
-        <button class="btn primary" onclick="decide(${id}, true)">${q.status === 'approved' ? 'Save changes' : q.kind === 'post' ? 'Approve post' : 'Approve reply'}</button>
+        <button class="btn primary" onclick="decide(${id}, true)">${q.status === 'approved' ? 'Save changes' : isReply ? 'Approve reply' : 'Approve post'}</button>
         <button class="btn" onclick="decide(${id}, false)">${q.status === 'approved' ? 'Cancel' : 'Skip'}</button></div>` : ''}</div></div>`;
   };
+  if (tab === 's-news') return socialStatus(st) + viewNews(item);
   return socialStatus(st) + (!L ? '<p class="muted">Loading…</p>' : L.length ? `<div class="list">${L.map(item).join('')}</div>`
     : `<p class="muted">${tab === 's-review' ? 'Nothing to review. New drafts arrive each morning, or tap Draft now.' : tab === 's-scheduled' ? 'Nothing waiting to go out. Write one in Compose.' : 'Nothing here yet.'}</p>`);
 }
@@ -625,7 +659,7 @@ function viewTools() {
 // Two sections: the app's numbers and records, and the social media agent.
 const SECTIONS = {
   dash: ['Dashboard', [['overview', 'Overview'], ['users', 'Users'], ['sessions', 'Sessions'], ['players', 'Players'], ['feedback', 'Reports'], ['errors', 'Errors'], ['log', 'Change log'], ['tools', 'Tools']]],
-  social: ['Social agent', [['s-review', 'To review'], ['s-compose', 'Compose'], ['s-scheduled', 'Scheduled'], ['s-history', 'History'], ['s-accounts', 'Accounts & settings']]]};
+  social: ['Social agent', [['s-review', 'To review'], ['s-compose', 'Compose'], ['s-news', 'Tennis news'], ['s-scheduled', 'Scheduled'], ['s-history', 'History'], ['s-accounts', 'Accounts & settings']]]};
 const lastTab = {dash: 'overview', social: 's-review'};
 const sectionOf = t => t.startsWith('s-') ? 'social' : 'dash';
 function goSection(k) { if (sectionOf(tab) !== k) goTab(lastTab[k]); }
