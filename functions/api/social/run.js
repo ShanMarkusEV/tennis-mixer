@@ -91,18 +91,20 @@ export async function onRequestPost({request, env}) {
   async function discover(T, S, env) {
     const me = S.threads_username, since = Math.floor(Date.now() / 1000) - 48 * 3600;
     const fields = 'id,text,username,permalink,timestamp';
-    const found = [];
+    const found = [], problems = new Set();
+    // A failed call doesn't stop the rest, but the reason is reported (often a permission Meta hasn't granted yet).
+    const none = what => e => { problems.add(`${what}: ${e.message.replace(/^Threads [^:]*: /, '')}`); return {data: []}; };
     // Comments on our recent posts, and mentions of us.
-    const mine = await T.get(`/${S.threads_user_id}/threads`, {fields: 'id,timestamp', limit: 5}).catch(() => ({data: []}));
+    const mine = await T.get(`/${S.threads_user_id}/threads`, {fields: 'id,timestamp', limit: 5}).catch(none('our posts'));
     for (const post of (mine.data || []).filter(p => Date.now() - new Date(p.timestamp) < 7 * 864e5)) {
-      const r = await T.get(`/${post.id}/replies`, {fields}).catch(() => ({data: []}));
+      const r = await T.get(`/${post.id}/replies`, {fields}).catch(none('comments'));
       (r.data || []).forEach(x => found.push({...x, kind: 'own_reply'}));
     }
-    const ment = await T.get(`/${S.threads_user_id}/mentions`, {fields, limit: 10}).catch(() => ({data: []}));
+    const ment = await T.get(`/${S.threads_user_id}/mentions`, {fields, limit: 10}).catch(none('mentions'));
     (ment.data || []).forEach(x => found.push({...x, kind: 'own_reply'}));
     // Conversations matching the saved queries.
     for (const q of S.queries) {
-      const r = await T.get('/keyword_search', {q, search_type: 'RECENT', fields, since, limit: 25}).catch(() => ({data: []}));
+      const r = await T.get('/keyword_search', {q, search_type: 'RECENT', fields, since, limit: 25}).catch(none('search'));
       (r.data || []).forEach(x => found.push({...x, kind: 'reply', query: q}));
     }
     const usable = found.filter(x => x.id && x.text && x.username && x.username !== me);
@@ -111,7 +113,8 @@ export async function onRequestPost({request, env}) {
     const items = unique.filter(x => fresh.has(x.id))
       .sort((a, b) => (a.kind === 'own_reply' ? 0 : 1) - (b.kind === 'own_reply' ? 0 : 1)).slice(0, 20);
     const wantPost = !S.drafted_post_today && S.max_posts_day > 0;
-    if (!items.length && !wantPost) return `nothing new (${found.length} found)`;
+    const why = problems.size ? ` (couldn't read ${[...problems].join('; ')})` : '';
+    if (!items.length && !wantPost) return `nothing new (${found.length} found)${why}`;
 
     const [topic, shot] = TOPICS[Math.floor(Date.now() / 864e5) % TOPICS.length];
     const out = await draft(env, {voice: S.voice, wantPost, recentPosts: S.recent_posts, topic,
@@ -124,6 +127,6 @@ export async function onRequestPost({request, env}) {
     }).filter(Boolean);
     if (wantPost && out.post && out.post.trim()) drafts.push({kind: 'post', text: out.post.trim().slice(0, 500), image: `promo/${shot}.jpg`});
     const added = drafts.length ? await rpc('social_cron_add', {secret, items: drafts}) : 0;
-    return `${found.length} found, ${items.length} new, ${added} drafted`;
+    return `${found.length} found, ${items.length} new, ${added} drafted${why}`;
   }
 }
