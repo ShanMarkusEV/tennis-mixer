@@ -427,7 +427,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.1.2';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -772,12 +772,17 @@ const saveError = () => !navigator.onLine ? "you're offline" : syncRoster.error 
 async function finishSession() {
   if (!S.rounds.length) { toast('No rounds to finish yet'); return; }
   const name = S.title || 'this session';
+  // Matches never played (no score on both sides) are dropped, with any round left empty, so they don't count.
+  const unscored = S.rounds.reduce((n, rd) => n + rd.matches.filter(m => !hasScore(m)).length, 0);
+  const drop = unscored ? ` ${plural(unscored, 'match')} without a score ${unscored === 1 ? 'is' : 'are'} removed.` : '';
   if (!confirm(user
-    ? `Finish ${name}? It's saved to your session log, where you can still edit scores. The courts are cleared; your roster stays.`
+    ? `Finish ${name}? It's saved to your session log, where you can still edit scores.${drop} The courts are cleared; your roster stays.`
     : `Finish ${name}? You're not signed in, so its rounds and scores are cleared. Share the standings first to keep them.`)) return;
   if (user) {
+    const rounds = S.rounds;
+    S.rounds = rounds.map(rd => ({...rd, matches: rd.matches.filter(hasScore)})).filter(rd => rd.matches.length);
     S.finishedAt = S.finishedAt || new Date().toISOString();
-    if (!(await syncSession())) { S.finishedAt = null; toast(`Couldn't save (${saveError()}). Try again.`); return; }
+    if (!(await syncSession(true))) { S.rounds = rounds; S.finishedAt = null; toast(`Couldn't save (${saveError()}). Try again.`); return; }
   }
   track('finish', {rounds: S.rounds.length});
   closeSession();
