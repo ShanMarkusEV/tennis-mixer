@@ -6,7 +6,7 @@
 //      most one reply per person per day.
 //   2. Once a day (from 08:00 Jakarta time): find new matching posts, comments on our posts and mentions,
 //      and draft replies plus one original post with Claude. Drafts wait for approval in /ad4min, except replies
-//      to comments on our own posts when auto-reply is on.
+//      to comments on our own posts and the daily post (under its topic tag) when those are set to go out alone.
 // Needs Cloudflare secrets SOCIAL_CRON_SECRET and ANTHROPIC_API_KEY; the Threads token is set in /ad4min.
 import {json} from '../_shared.js';
 import {rpc, threads, draft, TOPICS} from './_lib.js';
@@ -70,7 +70,8 @@ export async function onRequestPost({request, env}) {
     try {
       if (!creation) {
         const c = await T.post(`/${S.threads_user_id}/threads`, {media_type: 'TEXT', text: item.text,
-          ...(item.kind !== 'post' && item.target_id ? {reply_to_id: item.target_id} : {})});
+          ...(item.kind !== 'post' && item.target_id ? {reply_to_id: item.target_id} : {}),
+          ...(item.kind === 'post' && item.topic ? {topic_tag: item.topic} : {})});
         creation = c.id;
       }
       const p = await T.post(`/${S.threads_user_id}/threads_publish`, {creation_id: creation});

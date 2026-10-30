@@ -296,17 +296,18 @@ async function decide(id, approve) {
 }
 async function saveSocial(patch, done) {
   const {error} = await sb.rpc('admin_social_config', {patch});
-  if (error) return fail(error);
+  if (error) { fail(error); return false; }
   toast(done || 'Saved'); loadSocial();
+  return true;
 }
 function saveSettings() {
   saveSocial({queries: $('sq').value.split('\n').map(x => x.trim()).filter(Boolean), voice: $('sv').value,
-    auto_own_replies: $('sa').checked, max_replies_day: parseInt($('sr').value, 10), max_posts_day: parseInt($('sp').value, 10)});
+    auto_own_replies: $('sa').checked, auto_post: $('sap').checked, post_topic: $('stp').value, max_replies_day: parseInt($('sr').value, 10), max_posts_day: parseInt($('sp').value, 10)});
 }
 function saveToken() {
   const t = $('stk').value.trim();
   if (t.length < 20) { toast('Paste the long-lived Threads token'); return; }
-  saveSocial({token: t}, 'Token saved: the next run connects');
+  saveSocial({token: t}, 'Token saved, checking it…').then(saved => saved && runNow('discover=1&dry=1', 'Connecting to Threads'));
 }
 async function runNow(params, label) {
   const {data: {session}} = await sb.auth.getSession();
@@ -324,7 +325,7 @@ function viewSocial() {
   const st = social.state, c = st.counts || {}, L = social.list;
   const item = q => `<div class="item"><div class="main">
       <div class="row"><span class="tag lime" style="margin:0">${KIND[q.kind]}</span>${q.score != null ? `<span class="meta">fit ${Math.round(q.score * 100)}%</span>` : ''}
-        ${q.query ? `<span class="meta">“${esc(q.query)}”</span>` : ''}${q.status !== 'draft' ? `<span class="tag">${esc(q.status)}</span>` : ''}</div>
+        ${q.query ? `<span class="meta">“${esc(q.query)}”</span>` : ''}${q.topic ? `<span class="meta">topic: ${esc(q.topic)}</span>` : ''}${q.status !== 'draft' ? `<span class="tag">${esc(q.status)}</span>` : ''}</div>
       ${q.target_text || q.target_author ? `<div class="meta" style="margin-top:6px">@${esc(q.target_author || '?')}: ${esc(q.target_text || '')}
         ${q.target_url ? ` <a href="${esc(q.target_url)}" target="_blank" rel="noopener noreferrer">open</a>` : ''}</div>` : ''}
       ${q.status === 'draft' || q.status === 'failed' || q.status === 'approved'
@@ -344,7 +345,8 @@ function viewSocial() {
       ${!st.cron_ready ? '<div class="meta" style="color:var(--warn)">Schedule not set up yet.</div>' : ''}</div>
     <div class="acts"><button class="btn" onclick="runNow('discover=1&dry=1', 'Finding posts and drafting')">Draft now</button>
       <button class="btn" onclick="runNow('', 'Running')">Run now</button></div></div>
-    <p class="muted small" style="margin:8px 0 0">Runs every 15 minutes: publishes one approved item at a time (max ${st.max_replies_day} replies and ${st.max_posts_day} post a day, 10 minutes apart), and drafts new ones each morning.</p></div>
+    <p class="muted small" style="margin:8px 0 0">Runs every 15 minutes: publishes one approved item at a time (max ${st.max_replies_day} replies and ${st.max_posts_day} post a day, 10 minutes apart), and drafts new ones each morning.
+      ${st.auto_post ? `The daily post goes out on its own${st.post_topic ? ` under the topic “${esc(st.post_topic)}”` : ''}.` : 'The daily post waits for your approval.'}</p></div>
   <nav class="tabs">${[['draft', `To review${c.draft ? ` (${c.draft})` : ''}`], ['approved', `Approved${c.approved ? ` (${c.approved})` : ''}`], ['history', 'History']]
     .map(([k, l]) => `<button class="${socialTab === k ? 'on' : ''}" onclick="setSocialTab('${k}')">${l}</button>`).join('')}</nav>
   ${!L ? '<p class="muted">Loading…</p>' : L.length ? `<div class="list">${L.map(item).join('')}</div>`
@@ -355,6 +357,9 @@ function viewSocial() {
     <p class="small muted" style="margin:10px 0 4px">About 10nis and the voice to use</p>
     <textarea class="in" id="sv" rows="6" style="width:100%">${esc(st.voice)}</textarea>
     <div class="row" style="margin-top:10px"><label class="row small"><input type="checkbox" id="sa" ${st.auto_own_replies ? 'checked' : ''}> Reply to comments on our posts without asking</label></div>
+    <div class="row" style="margin-top:6px"><label class="row small"><input type="checkbox" id="sap" ${st.auto_post ? 'checked' : ''}> Publish the daily post without asking</label></div>
+    <p class="small muted" style="margin:10px 0 4px">Topic for the daily post (Threads shows it under this topic; no . or &amp;)</p>
+    <input class="in" id="stp" maxlength="50" value="${esc(st.post_topic || '')}" placeholder="Tennis" style="width:100%">
     <div class="row" style="margin-top:8px"><label class="small">Replies a day <input class="in" id="sr" type="number" min="0" max="30" value="${Number(st.max_replies_day)}" style="width:70px"></label>
       <label class="small">Posts a day <input class="in" id="sp" type="number" min="0" max="5" value="${Number(st.max_posts_day)}" style="width:70px"></label></div>
     <div class="row" style="margin-top:12px"><button class="btn primary" onclick="saveSettings()">Save settings</button></div>
