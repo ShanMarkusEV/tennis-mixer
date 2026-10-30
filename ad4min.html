@@ -79,6 +79,15 @@ input.code{font-size:34px;font-weight:900;font-stretch:72%;letter-spacing:.3em;t
 .item b{font-weight:800;overflow-wrap:anywhere}
 .item .meta{color:var(--muted);font-size:12.5px;font-weight:600;overflow-wrap:anywhere}
 .item .acts{display:flex;gap:6px;flex-wrap:wrap}
+.tw .bub{display:flex;gap:10px;margin-top:10px;align-items:flex-start}
+.tw .bub .grow{min-width:0}
+.tw .bub.reply{margin-left:18px;padding-left:16px;border-left:2px dashed var(--edge)}
+.tw .bub.ours .av{background:var(--lime);color:#0a1633}
+.tw .who{font-weight:800;font-size:13.5px;overflow-wrap:anywhere}
+.tw .who a{font-weight:600}
+.tw .said{margin-top:3px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45}
+.tw .bub.them .said{background:var(--surface-2);border-radius:4px 12px 12px 12px;padding:8px 11px}
+.tw .shot{width:180px;max-width:100%;border-radius:12px;border:2px solid var(--edge);margin-top:8px;display:block}
 .tag{display:inline-block;font-size:10.5px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:6px;background:var(--surface-2);border:1.5px solid var(--edge);margin-left:6px;vertical-align:1px}
 .tag.lime{background:var(--lime);color:#0a1633}
 .tag.warn{color:var(--warn)}
@@ -292,7 +301,7 @@ async function decide(id, approve) {
   const {error} = await sb.rpc('admin_social_decide', {qid: id, new_text: el ? el.value : '', approve});
   busy = false;
   if (error) return fail(error);
-  toast(approve ? 'Approved: it goes out with the next run' : 'Skipped'); loadSocial();
+  toast(approve ? 'Approved: it goes out within 15 minutes' : 'Skipped'); loadSocial();
 }
 async function saveSocial(patch, done) {
   const {error} = await sb.rpc('admin_social_config', {patch});
@@ -302,7 +311,7 @@ async function saveSocial(patch, done) {
 }
 function saveSettings() {
   saveSocial({queries: $('sq').value.split('\n').map(x => x.trim()).filter(Boolean), voice: $('sv').value,
-    auto_own_replies: $('sa').checked, auto_post: $('sap').checked, post_topic: $('stp').value, max_replies_day: parseInt($('sr').value, 10), max_posts_day: parseInt($('sp').value, 10)});
+    post_topic: $('stp').value, max_replies_day: parseInt($('sr').value, 10), max_posts_day: parseInt($('sp').value, 10)});
 }
 function saveToken() {
   const t = $('stk').value.trim();
@@ -325,27 +334,39 @@ async function runNow(params, label) {
   } catch (e) { toast("Couldn't reach the agent"); }
   loadSocial();
 }
-const KIND = {post: 'Post', reply: 'Reply', own_reply: 'Comment on our post'};
+const KIND = {post: 'New post', reply: 'Reply to a search result', own_reply: 'Reply to a comment on our post'};
+const ini = n => esc((String(n || '?').replace(/^@/, '')[0] || '?').toUpperCase());
+function countChars(el) { const c = el.closest('.bub').querySelector('.cc'); if (c) c.textContent = el.value.length + '/500'; }
 function viewSocial() {
   if (!social) return '<p class="muted">Loading…</p>';
-  const st = social.state, c = st.counts || {}, L = social.list;
-  const item = q => `<div class="item"><div class="main">
-      <div class="row"><span class="tag lime" style="margin:0">${KIND[q.kind]}</span>${q.score != null ? `<span class="meta">fit ${Math.round(q.score * 100)}%</span>` : ''}
-        ${q.query ? `<span class="meta">“${esc(q.query)}”</span>` : ''}${q.topic ? `<span class="meta">topic: ${esc(q.topic)}</span>` : ''}${q.status !== 'draft' ? `<span class="tag">${esc(q.status)}</span>` : ''}</div>
-      ${q.target_text || q.target_author ? `<div class="meta" style="margin-top:6px">@${esc(q.target_author || '?')}: ${esc(q.target_text || '')}
-        ${q.target_url ? ` <a href="${esc(q.target_url)}" target="_blank" rel="noopener noreferrer">open</a>` : ''}</div>` : ''}
-      ${q.status === 'draft' || q.status === 'failed' || q.status === 'approved'
-        ? `<textarea class="in" id="t-${Number(q.id)}" maxlength="500" rows="3" style="width:100%;margin-top:8px;resize:vertical">${esc(q.text)}</textarea>`
-        : `<div style="margin-top:6px"><b>${esc(q.text)}</b></div>`}
-      ${q.image ? `<a href="/${esc(q.image)}" target="_blank" rel="noopener"><img src="/${esc(q.image)}" alt="Screenshot posted with it" style="width:120px;border-radius:10px;border:2px solid var(--edge);margin-top:8px;display:block"></a>` : ''}
-      ${q.reason ? `<div class="meta">Why: ${esc(q.reason)}</div>` : ''}
+  const st = social.state, c = st.counts || {}, L = social.list, me = st.threads_username || '10nis.win';
+  // Each item reads like the Threads conversation: their post (for replies), then what 10nis will say under it.
+  const item = q => {
+    const id = Number(q.id), open = q.status === 'draft' || q.status === 'failed' || q.status === 'approved';
+    const theirs = q.kind !== 'post' ? `<div class="bub them"><span class="av">${ini(q.target_author)}</span><div class="grow">
+        <div class="who">@${esc(q.target_author || '?')}${q.target_url ? ` · <a href="${esc(q.target_url)}" target="_blank" rel="noopener noreferrer">open on Threads</a>` : ''}</div>
+        <div class="said">${q.target_text ? esc(q.target_text) : '<span class="muted">(text removed after 30 days)</span>'}</div></div></div>` : '';
+    const ours = `<div class="bub ours ${q.kind !== 'post' ? 'reply' : ''}"><span class="av">10</span><div class="grow">
+        <div class="who">@${esc(me)} ${open ? `<span class="muted">${q.status === 'approved' ? 'will post this' : q.kind === 'post' ? 'wants to post' : 'wants to reply'}</span>` : ''}</div>
+        ${open ? `<textarea class="in" id="t-${id}" maxlength="500" rows="${Math.min(8, Math.max(3, Math.ceil(String(q.text || '').length / 30)))}" style="width:100%;margin-top:6px;resize:vertical" oninput="countChars(this)">${esc(q.text)}</textarea>
+          <div class="meta cc" style="text-align:right">${String(q.text || '').length}/500</div>`
+        : `<div class="said">${esc(q.text)}</div>`}
+        ${q.image ? `<a href="/${esc(q.image)}" target="_blank" rel="noopener"><img src="/${esc(q.image)}" alt="Screenshot posted with it" class="shot"></a>` : ''}</div></div>`;
+    return `<div class="item tw"><div class="main">
+      <div class="row"><span class="tag lime" style="margin:0">${KIND[q.kind]}</span>
+        ${q.query ? `<span class="meta">found by “${esc(q.query)}”</span>` : ''}${q.topic ? `<span class="meta">topic: ${esc(q.topic)}</span>` : ''}
+        ${q.score != null ? `<span class="meta">fit ${Math.round(q.score * 100)}%</span>` : ''}<span class="meta">${esc(when(q.created_at))}</span>
+        ${q.status !== 'draft' ? `<span class="tag ${q.status === 'failed' ? 'warn' : ''}">${esc(q.status)}</span>` : ''}</div>
+      ${theirs}${ours}
+      ${q.reason ? `<div class="meta" style="margin-top:6px">Why: ${esc(q.reason)}</div>` : ''}
       ${q.error ? `<div class="meta" style="color:var(--warn)">${esc(q.error)}</div>` : ''}
-      ${q.posted_url ? `<div class="meta"><a href="${esc(q.posted_url)}" target="_blank" rel="noopener noreferrer">See it on Threads</a> · ${esc(when(q.posted_at))}</div>` : ''}</div>
-    ${q.status === 'draft' || q.status === 'failed' || q.status === 'approved' ? `<div class="acts">
-      <button class="btn primary" onclick="decide(${Number(q.id)}, true)">${q.status === 'approved' ? 'Save' : 'Approve'}</button>
-      <button class="btn" onclick="decide(${Number(q.id)}, false)">Skip</button></div>` : ''}</div>`;
+      ${q.posted_url ? `<div class="meta" style="margin-top:6px"><a href="${esc(q.posted_url)}" target="_blank" rel="noopener noreferrer">See it on Threads</a> · ${esc(when(q.posted_at))}</div>` : ''}
+      ${open ? `<div class="acts" style="margin-top:10px">
+        <button class="btn primary" onclick="decide(${id}, true)">${q.status === 'approved' ? 'Save changes' : q.kind === 'post' ? 'Approve post' : 'Approve reply'}</button>
+        <button class="btn" onclick="decide(${id}, false)">Skip</button></div>` : ''}</div></div>`;
+  };
   return `
-  <div class="card"><div class="row"><div class="grow">
+  <div class="card"><div class="row" style="flex-wrap:wrap"><div class="grow" style="min-width:240px">
       <b>${st.connected ? `Connected${st.threads_username ? ` as @${esc(st.threads_username)}` : ' (checks on the next run)'}` : 'Not connected'}</b>
       <div class="meta">${st.connected ? `Token ${st.token_age_days ?? 0} days old, renewed automatically · ` : ''}Last run ${esc(when(st.last_run))} · last search ${esc(when(st.last_discovery))}</div>
       ${st.last_error ? `<div class="meta" style="color:var(--warn)">${esc(st.last_error)}</div>` : ''}
@@ -353,19 +374,17 @@ function viewSocial() {
     <div class="acts"><button class="btn ${st.connected ? '' : 'primary'}" onclick="connectThreads()">${st.connected ? 'Reconnect' : 'Connect Threads'}</button>
       ${st.connected ? `<button class="btn" onclick="runNow('discover=1&dry=1', 'Finding posts and drafting')">Draft now</button>
       <button class="btn" onclick="runNow('', 'Running')">Run now</button>` : ''}</div></div>
-    <p class="muted small" style="margin:8px 0 0">Runs every 15 minutes: publishes one approved item at a time (max ${st.max_replies_day} replies and ${st.max_posts_day} post a day, 10 minutes apart), and drafts new ones each morning.
-      ${st.auto_post ? `The daily post goes out on its own${st.post_topic ? ` under the topic “${esc(st.post_topic)}”` : ''}.` : 'The daily post waits for your approval.'}</p></div>
+    <p class="muted small" style="margin:8px 0 0">Each morning the agent searches Threads, reads comments on our posts and drafts replies plus one post${st.post_topic ? ` (topic “${esc(st.post_topic)}”)` : ''}.
+      <b>Nothing goes out until you approve it here.</b> Approved items post every 15 minutes, one at a time (max ${st.max_replies_day} replies and ${st.max_posts_day} post a day, replies 10 minutes apart).</p></div>
   <nav class="tabs">${[['draft', `To review${c.draft ? ` (${c.draft})` : ''}`], ['approved', `Approved${c.approved ? ` (${c.approved})` : ''}`], ['history', 'History']]
     .map(([k, l]) => `<button class="${socialTab === k ? 'on' : ''}" onclick="setSocialTab('${k}')">${l}</button>`).join('')}</nav>
   ${!L ? '<p class="muted">Loading…</p>' : L.length ? `<div class="list">${L.map(item).join('')}</div>`
-    : `<p class="muted">${socialTab === 'draft' ? 'Nothing to review. New drafts arrive each morning, or tap Draft now.' : 'Nothing here yet.'}</p>`}
+    : `<p class="muted">${socialTab === 'draft' ? 'Nothing to review. New drafts arrive each morning, or tap Draft now.' : socialTab === 'approved' ? 'Nothing waiting to go out.' : 'Nothing here yet.'}</p>`}
   <details class="card" style="margin-top:14px" ${settingsOpen ? 'open' : ''} ontoggle="settingsOpen = this.open"><summary>Settings</summary>
     <p class="small muted" style="margin:10px 0 4px">Search queries (one per line, up to 10)</p>
     <textarea class="in" id="sq" rows="5" style="width:100%">${esc((st.queries || []).join('\n'))}</textarea>
     <p class="small muted" style="margin:10px 0 4px">About 10nis and the voice to use</p>
     <textarea class="in" id="sv" rows="6" style="width:100%">${esc(st.voice)}</textarea>
-    <div class="row" style="margin-top:10px"><label class="row small"><input type="checkbox" id="sa" ${st.auto_own_replies ? 'checked' : ''}> Reply to comments on our posts without asking</label></div>
-    <div class="row" style="margin-top:6px"><label class="row small"><input type="checkbox" id="sap" ${st.auto_post ? 'checked' : ''}> Publish the daily post without asking</label></div>
     <p class="small muted" style="margin:10px 0 4px">Topic for the daily post (Threads shows it under this topic; no . or &amp;)</p>
     <input class="in" id="stp" maxlength="50" value="${esc(st.post_topic || '')}" placeholder="Tennis" style="width:100%">
     <div class="row" style="margin-top:8px"><label class="small">Replies a day <input class="in" id="sr" type="number" min="0" max="30" value="${Number(st.max_replies_day)}" style="width:70px"></label>

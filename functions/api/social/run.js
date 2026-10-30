@@ -5,9 +5,8 @@
 //   1. Publish at most one approved item per run, within the daily caps, 10+ minutes between replies, and at
 //      most one reply per person per day.
 //   2. Once a day (from 08:00 Jakarta time): find new matching posts, comments on our posts and mentions,
-//      and draft replies plus one original post with Claude. Drafts wait for approval in /ad4min, except replies
-//      to comments on our own posts and the daily post (under its topic tag, with an app screenshot from /promo)
-//      when those are set to go out alone.
+//      and draft replies plus one original post with Claude (under its topic tag, with an app screenshot from
+//      /promo). Every draft waits for approval in /ad4min; nothing is published without it.
 // Needs Cloudflare secrets SOCIAL_CRON_SECRET and ANTHROPIC_API_KEY; the Threads token is set in /ad4min.
 import {json} from '../_shared.js';
 import {rpc, threads, draft, TOPICS} from './_lib.js';
@@ -121,8 +120,7 @@ export async function onRequestPost({request, env}) {
       const x = items[d.i];
       if (!x || !d.reply || d.relevant < (x.kind === 'own_reply' ? 0.3 : 0.6)) return null;
       return {kind: x.kind, text: d.reply.slice(0, 500), target_id: x.id, target_author: x.username, target_text: x.text,
-        target_url: x.permalink, query: x.query || null, score: d.relevant, reason: d.reason,
-        status: x.kind === 'own_reply' && S.auto_own_replies ? 'approved' : 'draft'};
+        target_url: x.permalink, query: x.query || null, score: d.relevant, reason: d.reason};
     }).filter(Boolean);
     if (wantPost && out.post && out.post.trim()) drafts.push({kind: 'post', text: out.post.trim().slice(0, 500), image: `promo/${shot}.jpg`});
     const added = drafts.length ? await rpc('social_cron_add', {secret, items: drafts}) : 0;
