@@ -427,14 +427,25 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '1.1.2';
+const APP_VERSION = '1.1.3';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+// Starter names for a new roster: tennis legends with a twist, a different 4 each time. Hosts rename them.
+const FUN_PLAYERS = ['Rafa Nadull', 'Roger Federup', 'Novak Djokesovic', 'Serena Spinliams', 'Andy Hurray', 'Venus Volleyams',
+  'Carlos Alcarazzle', 'Coco Goof', 'Daniil Medvedeuce', 'Jannik Spinner', 'Iga Smashtek', 'Stan Wawrinkle', 'Nick Kyrgossip',
+  'Pete Slampras', 'Andre Ace-assi', 'John McEnrage', 'Bjorn Lob', 'Boris Backhander', 'Steffi Gaffe', 'Martina Netratilova',
+  'Billie Jean Kingpin', 'Ash Party', 'Gael Monfun', 'Holger Ruin', 'Sascha Swervev', 'Arthur Smash', 'Rod Lobber', 'Taylor Glitz'];
+function funPlayer(taken = []) {
+  const free = FUN_PLAYERS.filter(n => !taken.includes(n));
+  return free.length ? free[Math.floor(Math.random() * free.length)] : 'Player ' + (taken.length + 1);
+}
 function defaultState() {
+  const names = [];
+  for (let i = 0; i < 4; i++) names.push(funPlayer(names));
   return {
-    players: Array.from({length: 4}, (_, i) => ({id: uid(), name: 'Player ' + (i + 1), active: true})),
+    players: names.map(name => ({id: uid(), name, active: true})),
     courts: 1, mode: 'americano', format: 'doubles', total: 0, rounds: [], tab: 'players', sort: 'pts'
   };
 }
@@ -752,7 +763,7 @@ async function importLink() {
 function toggleActive(id) { const p = byId(id); p.active = !p.active; save(); render(); }
 function rename(id, el) { const p = byId(id); p.name = el.value.trim() || p.name; el.value = p.name; save(); render(); }
 function addPlayer() {
-  S.players.push({id: uid(), name: 'Player ' + (S.players.length + 1), active: true});
+  S.players.push({id: uid(), name: funPlayer(S.players.map(p => p.name)), active: true});
   save(); render();
   const inputs = document.querySelectorAll('.player input');
   const last = inputs[inputs.length - 1];
