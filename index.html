@@ -67,6 +67,10 @@ button{font-family:inherit;color:inherit}
 main{max-width:640px;margin:0 auto;padding:24px 18px 210px}
 .title{margin:0 0 6px;font-size:46px;font-style:italic;text-transform:uppercase;letter-spacing:-.01em;line-height:.9;display:flex;align-items:center;gap:10px;flex-wrap:wrap;overflow-wrap:anywhere}
 .sub{margin:0 0 20px;color:var(--muted);font-size:14px;font-weight:600}
+.player-mode .tabbar{display:none}
+.player-mode main{padding-bottom:60px}
+.pbar{display:flex;align-items:center;gap:10px;margin:0 0 14px}
+.pbar .kicker{margin:0;flex:1;min-width:0}
 .kicker{margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .card{background:var(--surface);border:2px solid var(--edge);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:3px 3px 0 var(--hard)}
 .label{font-size:11.5px;font-weight:800;font-stretch:90%;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
@@ -439,7 +443,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.5.4';
+const APP_VERSION = '0.6.0';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2240,7 +2244,7 @@ async function loadGame(quiet) {
   // Someone who claimed their name in this game is picked automatically.
   if (!follow.me && game.players.some(p => p.mine)) { follow.me = game.players.find(p => p.mine).id; saveFollow(); }
   if (before !== null && spotSig(game) !== before) alertSpot();
-  if (changed && S.tab === 'join' && !claimView) render();
+  if (changed && (S.tab === 'join' || playerMode()) && !claimView) render();
 }
 // Live while the app is open; push notifications cover the rest.
 setInterval(() => { if (follow.pin && gameErr !== 'expired' && !document.hidden) loadGame(true); }, 8000);
@@ -2290,10 +2294,13 @@ async function pickMe(id) {
     if (error) { follow.push = null; saveFollow(); render(); toast("Notifications are off, turn them on again"); }
   }
 }
-async function leaveGame() {
-  if (!confirm('Leave this game? You can join again with the PIN.')) return;
+// Player mode: someone following another host's game sees only that game, with a way out.
+const playerMode = () => !claimView && !!follow.pin && gameErr !== 'expired' && follow.pin !== S.pin;
+const exitBtn = () => `<button class="btn sm soft" onclick="leaveGame()">${ic('x')}Exit</button>`;
+async function leaveGame(done) {
+  if (!done && !confirm("Leave this game? You'll stop getting notifications. You can join again with the PIN.")) return;
   if (follow.push && sb) await sb.rpc('unfollow_push', {ep: follow.push});
-  follow = {}; game = null; gameErr = null; saveFollow(); render();
+  follow = {}; game = null; gameErr = null; saveFollow(); S.tab = 'join'; save(); render(); window.scrollTo(0, 0);
 }
 const pushable = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 const b64uBytes = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
@@ -2338,13 +2345,14 @@ function viewJoin() {
     </div>
     <p class="muted" style="text-align:center;margin-top:12px">No account needed. Hosting today? Get a PIN on the Players tab.</p>`;
   if (!game) {
-    if (!gameErr) { loadGame(); return '<p class="muted" style="padding:20px 4px">Loading game…</p>'; }
-    return `<div class="empty"><h3>${esc(gameErr)}</h3><button class="btn" onclick="gameErr = null; loadGame()">Try again</button></div>`;
+    if (!gameErr) { loadGame(); return `<div class="pbar"><p class="kicker">PIN ${esc(pinText(follow.pin))}</p>${exitBtn()}</div><p class="muted" style="padding:20px 4px">Loading game…</p>`; }
+    return `<div class="pbar"><p class="kicker">PIN ${esc(pinText(follow.pin))}</p>${exitBtn()}</div>
+      <div class="empty"><h3>${esc(gameErr)}</h3><button class="btn" onclick="gameErr = null; loadGame()">Try again</button></div>`;
   }
   const when = game.starts_at
     ? new Date(game.starts_at).toLocaleString('en', {weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit'})
     : new Date(game.played_on + 'T00:00').toLocaleDateString('en', {weekday: 'short', day: 'numeric', month: 'short'});
-  const head = `<p class="kicker">PIN ${esc(pinText(game.pin))}${game.host ? ` · Hosted by ${esc(game.host)}` : ''}</p>
+  const head = `<div class="pbar"><p class="kicker">PIN ${esc(pinText(game.pin))}${game.host ? ` · Hosted by ${esc(game.host)}` : ''}</p>${exitBtn()}</div>
     <h1 class="title">${esc(game.title || 'Tennis game')}</h1>
     <div class="meta"><span>${ic('clock')}${esc(when)}</span>${game.venue ? `<span>${ic('pin')}${esc(game.venue)}</span>` : ''}<span>${esc(modeName(game.mode))}</span></div>`;
   const meP = game.players.find(p => p.id === follow.me);
@@ -2353,7 +2361,7 @@ function viewJoin() {
     <div class="card plist">${game.players.map(p => `<div class="player">${avatar(p.name, '', p.photo)}
       <span class="grow" style="font-weight:700;overflow-wrap:anywhere">${esc(p.name)}</span>
       <button class="btn sm soft" data-id="${esc(p.id)}" onclick="pickMe(this.dataset.id)">That's me</button></div>`).join('')}</div>
-    <div class="row" style="justify-content:center;margin-top:16px"><button class="btn text" onclick="leaveGame()">Leave game</button></div>`;
+    <div class="row" style="justify-content:center;margin-top:16px"><button class="btn text" onclick="leaveGame()">Exit game</button></div>`;
 
   const s = spot();
   const side = (ids, sc) => `<div class="side"><div class="duo">${ids.map(id => `<span class="pn">${avatar(gName(id), 'sm', gPhoto(id))}<span class="nm">${id === follow.me ? 'You' : esc(gName(id))}</span></span>`).join('')}</div>
@@ -2388,16 +2396,18 @@ function viewJoin() {
       <button class="sw ${follow.push ? 'on' : ''}" role="switch" aria-checked="${!!follow.push}" aria-label="Notifications" onclick="${follow.push ? 'disablePush()' : 'enablePush()'}"></button></div>` : ''}
     ${meP.mine ? `<p class="hint">${ic('ball')}These games count towards your 10nis level.</p>`
       : meP.claimable ? (user ? `<button class="pinbar ghost" onclick="claimFromGame()">${ic('trophy')}<span class="grow"><b>Count these games for my level</b><small>Link ${esc(meP.name)} to your 10nis account</small></span>${ic('arrow')}</button>`
-        : `<p class="hint">${ic('trophy')}Sign in under Account to count these games towards your level.</p>`) : ''}
+        : `<button class="pinbar ghost" onclick="googleSignIn()">${GOOGLE}<span class="grow"><b>Sign in to count these games</b><small>Your results add to your 10nis level</small></span>${ic('arrow')}</button>`) : ''}
     ${played.length ? `<div class="sec-head"><p class="label">Your games</p></div><div class="card mm">${played.join('')}</div>` : ''}
     ${game.rounds.some(rd => rd.matches.some(hasScore)) ? `<div class="sec-head"><p class="label">Standings</p></div>
     <div class="card" style="padding:0;overflow:hidden"><ol class="lb">${rows.map((r, i) => `<li class="${r.id === follow.me ? 'me-row' : ''}">
       <span class="rank">${i + 1}</span>${avatar(r.name, '', r.photo || null)}
       <span class="who"><b>${r.id === follow.me ? 'You' : esc(r.name)}</b><small>${plural(r.scored, 'match')} · ${r.w}W ${r.l}L</small></span>
       <span class="score"><b class="num">${r.pts}</b><small>games</small></span></li>`).join('')}</ol></div>` : ''}
+    ${s.kind === 'finished' ? `<button class="btn primary big" style="width:100%;margin-top:18px" onclick="leaveGame(true)">${ic('arrow')}Done</button>` : ''}
     <div class="row" style="justify-content:center;gap:16px;margin-top:18px">
       <button class="btn text" onclick="follow.me = null; saveFollow(); render()">Not ${esc(meP.name)}?</button>
-      <button class="btn text danger" onclick="leaveGame()">Leave game</button></div>`;
+      ${s.kind === 'finished' ? '' : '<button class="btn text danger" onclick="leaveGame()">Exit game</button>'}
+      <button class="btn text" onclick="openReport()">Report a problem</button></div>`;
 }
 
 if (sb) sb.auth.onAuthStateChange((event, session) => {
@@ -2412,6 +2422,7 @@ if (sb) sb.auth.onAuthStateChange((event, session) => {
 
 function render() {
   if (claimView) {
+    document.body.classList.remove('player-mode');
     document.querySelectorAll('.tabbar button').forEach(b => b.classList.remove('on'));
     document.getElementById('status').innerHTML = '';
     document.getElementById('view').innerHTML = shareToken ? viewClaim() : viewAddCode();
@@ -2419,11 +2430,13 @@ function render() {
     mountGoogleButton();
     return;
   }
+  const pm = playerMode();
+  document.body.classList.toggle('player-mode', pm);
   document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === (S.tab === 'results' ? 'standings' : S.tab)));
   const avail = S.players.filter(p => p.active).length, n = S.rounds.length;
-  document.getElementById('status').innerHTML = S.tab === 'join' ? (game && follow.pin ? `<i></i>PIN ${pinText(follow.pin)}` : '')
+  document.getElementById('status').innerHTML = pm || S.tab === 'join' ? (game && follow.pin ? `<i></i>PIN ${pinText(follow.pin)}` : '')
     : `<i></i>${n ? `Round ${n} · ` : ''}${avail} playing`;
-  document.getElementById('view').innerHTML =
+  document.getElementById('view').innerHTML = pm ? viewJoin() :
     S.tab === 'rounds' ? viewRounds() : S.tab === 'standings' || S.tab === 'results' ? viewStandings() : S.tab === 'account' ? viewAccount()
     : S.tab === 'join' ? viewJoin() : viewPlayers();
   if (S.pin && pinOpen && document.getElementById('pinqr')) drawQR('pinqr', `${APP_URL}/j/${S.pin}`);
@@ -2431,7 +2444,7 @@ function render() {
   mountGoogleButton();
   if (S.tab === 'account' && me && me.code && document.getElementById('mycode')) drawQR('mycode', location.origin + '/p/' + me.code);
   // Main action floats above the tab bar, within thumb reach.
-  document.getElementById('dock').innerHTML =
+  document.getElementById('dock').innerHTML = pm ? '' :
     S.tab === 'rounds' && manual ? `<div class="dock"><div class="in">
         <button class="btn primary grow" onclick="startManualRound()">${ic('ball')}Start round ${n + 1}</button>
         <button class="btn" onclick="cancelManual()">Cancel</button></div></div>`
