@@ -439,7 +439,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.5.3';
+const APP_VERSION = '0.5.4';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -682,7 +682,8 @@ function viewManual() {
   const {st} = computeStats(), placed = manual.slots.flat(), half = perCourt() / 2, n = S.rounds.length;
   const free = S.players.filter(p => p.active && !placed.includes(p.id))
     .sort((x, y) => st[x.id].played - st[y.id].played || st[y.id].sat - st[x.id].sat || x.name.localeCompare(y.name));
-  const least = free.length ? st[free[0].id].played : 0;
+  // Tag the players who have played least, but only when playtime actually differs.
+  const least = free.length && st[free[free.length - 1].id].played > st[free[0].id].played ? st[free[0].id].played : -1;
   const slot = (c, i) => {
     const id = manual.slots[c][i];
     return id ? `<button class="pn" onclick="manualClear(${c},${i})" title="Tap to remove">${avatar(nm(id))}<span class="nm">${esc(nm(id))}</span></button>`
@@ -700,7 +701,7 @@ function viewManual() {
     ${free.length && placed.includes(null) ? `<button class="btn sm soft" onclick="manualFill()">${ic('shuffle')}Fill the rest</button>` : ''}</div>
   ${free.length ? `<div class="card plist">${free.map(p => `<button class="player mpick" onclick="manualPick('${p.id}')">${avatar(p.name)}
       <span class="grow"><b>${esc(p.name)}</b><small>${plural(st[p.id].played, 'game')} played${st[p.id].sat ? ` · sat out ${st[p.id].sat}` : ''}</small></span>
-      ${st[p.id].played === least && free.length > 1 ? '<span class="tag">Least played</span>' : ''}</button>`).join('')}</div>`
+      ${st[p.id].played === least ? '<span class="tag">Least played</span>' : ''}</button>`).join('')}</div>`
     : '<p class="muted" style="padding:0 4px">Everyone available is on a court.</p>'}
   <p class="muted" style="margin:10px 4px 0;font-size:12.5px">Players switched off on the Players tab aren't listed. Anyone not on a court sits out this round.</p>`;
 }
