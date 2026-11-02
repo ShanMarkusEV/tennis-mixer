@@ -437,7 +437,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.5.0';
+const APP_VERSION = '0.5.1';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1388,10 +1388,24 @@ function track(event, props = {}) {
   try { if (/^(localhost|127\.)/.test(location.hostname) && localStorage.getItem('10nis-track-local') !== '1') return; } catch (e) { return; }
   sb.rpc('track', {device: DEVICE, event, props: {...props, v: APP_VERSION}, signed_in: !!user}).then(() => {}, () => {});
 }
+// Coarse, anonymous browser type for usage counts (e.g. "iPhone Safari", "in-app Instagram", "bot"), to tell real
+// visitors from link-preview bots. Only the family is kept, never the full user agent.
+function browserKind() {
+  const ua = navigator.userAgent || '';
+  if (navigator.webdriver || /bot|crawl|spider|preview|facebookexternalhit|meta-external|headless|lighthouse/i.test(ua)) return 'bot';
+  const os = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'iPhone' : /Android/.test(ua) ? 'Android'
+    : /Windows/.test(ua) ? 'Windows' : /Macintosh/.test(ua) ? 'Mac' : /Linux|CrOS/.test(ua) ? 'Linux' : 'Other';
+  const app = /Instagram/.test(ua) ? 'in-app Instagram' : /Barcelona|Threads/.test(ua) ? 'in-app Threads' : /FBAN|FBAV|FB_IAB/.test(ua) ? 'in-app Facebook'
+    : /WhatsApp/.test(ua) ? 'in-app WhatsApp' : /Line\//.test(ua) ? 'in-app LINE' : /TikTok|musical_ly|BytedanceWebview/.test(ua) ? 'in-app TikTok' : null;
+  if (app) return `${os} ${app}`;
+  const br = /SamsungBrowser/.test(ua) ? 'Samsung' : /Edg\//.test(ua) ? 'Edge' : /OPR\/|Opera/.test(ua) ? 'Opera' : /Firefox|FxiOS/.test(ua) ? 'Firefox'
+    : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'other';
+  return `${os} ${br}`;
+}
 // "open" counts once per day per phone, after the sign-in state is known.
 setTimeout(() => {
   try { const t = today(); if (localStorage.getItem('10nis-opened') === t) return; localStorage.setItem('10nis-opened', t); } catch (e) {}
-  track('open', {standalone: standalone()});
+  track('open', {standalone: standalone(), br: browserKind()});
 }, 2500);
 let me = null; // the signed-in user's own player row and rating, once loaded
 
