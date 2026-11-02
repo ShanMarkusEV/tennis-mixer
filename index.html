@@ -437,7 +437,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.5.1';
+const APP_VERSION = '0.5.2';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -466,6 +466,7 @@ function load() {
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} queueSync(); }
 let S = Object.assign(defaultState(), load() || {});
 S.total = 0; // "Games / match" (score autofill) is hidden for now, so it is off for everyone
+setTimeout(() => { if (dedupeRoster()) { save(); render(); } });
 
 const byId = id => S.players.find(p => p.id === id);
 const nm = id => (byId(id) || {name: '?'}).name;
@@ -829,6 +830,7 @@ function applyNames(names) {
       keep.push({id: uid(), name: n.name, active: true, ...(n.photo ? {photo: n.photo} : {}), ...(n.ext ? {ext: n.ext} : {})});
   });
   S.players = keep;
+  dedupeRoster();
   save(); render();
 }
 
@@ -872,7 +874,33 @@ async function importLink() {
 }
 
 function toggleActive(id) { const p = byId(id); p.active = !p.active; save(); render(); }
-function rename(id, el) { const p = byId(id); p.name = el.value.trim() || p.name; el.value = p.name; save(); render(); }
+// Names are unique on a roster (the server keys players by name), so a rename can't copy another player's name.
+const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
+const nameTaken = (name, except) => S.players.find(p => p.id !== except && [p.name, ...(p.aka || [])].some(n => sameName(n, name)));
+function rename(id, el) {
+  const p = byId(id), name = el.value.trim().replace(/\s+/g, ' ');
+  const other = name && nameTaken(name, id);
+  if (other) { toast(`${other.name} is already on the roster. Switch them on instead, or add a last initial.`); el.value = p.name; return; }
+  p.name = name || p.name; el.value = p.name; save(); render();
+}
+// Clean up rosters saved before names were unique: the same name twice is one person. Copies that never played
+// are dropped (the one kept is playing if any copy was); copies that did play stay, renamed "Name (2)", to keep scores.
+function dedupeRoster() {
+  const used = new Set(S.rounds.flatMap(r => r.matches.flatMap(m => [...m.a, ...m.b]))), groups = [];
+  S.players.forEach(p => { const g = groups.find(g => sameName(g[0].name, p.name)); g ? g.push(p) : groups.push([p]); });
+  if (groups.every(g => g.length === 1)) return false;
+  S.players = groups.flatMap(g => {
+    if (g.length === 1) return g;
+    const keep = g.filter(p => used.has(p.id));
+    if (!keep.length) keep.push(g[0]);
+    keep[0].active = g.some(p => p.active);
+    keep.slice(1).forEach((p, i) => { p.name = `${p.name} (${i + 2})`; });
+    return keep;
+  });
+  const ids = new Set(S.players.map(p => p.id));
+  S.rounds.forEach(r => { r.sitting = r.sitting.filter(id => ids.has(id)); });
+  return true;
+}
 function addPlayer() {
   S.players.push({id: uid(), name: funPlayer(S.players.map(p => p.name)), active: true});
   save(); render();
@@ -1879,6 +1907,7 @@ async function openSession(id) {
     finishedAt: row.finished_at || null, players: row.players, rounds: row.rounds, format: last ? roundFormat(last) : S.format,
     pin: row.pin || null, venue: row.venue || null, startsAt: row.starts_at || null, notified: null});
   S.notified = notifySig();
+  dedupeRoster();
   goTab(row.rounds.length ? 'rounds' : 'players');
   toast('Session opened');
 }
