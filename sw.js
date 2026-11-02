@@ -13,8 +13,11 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request, url = new URL(req.url);
   // Only this site's pages and files; the API, Supabase and CDNs go straight to the network.
-  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/ad4min')) return;
-  e.respondWith(fetch(req).then(res => {
+  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/ad4min')
+    || url.searchParams.has('check')) return; // the app's "is there a new version" check is never cached
+  // Pages skip the browser's HTTP cache, so a new release shows on the next open.
+  const net = req.mode === 'navigate' ? fetch(req.url, {cache: 'no-cache', credentials: 'same-origin'}) : fetch(req);
+  e.respondWith(net.then(res => {
     if (res.ok && res.type === 'basic') { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
     return res;
   }).catch(() => caches.match(req).then(hit => hit || (req.mode === 'navigate' ? caches.match('/') : Response.error()))));
