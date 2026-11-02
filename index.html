@@ -251,6 +251,18 @@ button.pn:active{opacity:.7}
 .net span{font-size:11px;font-weight:900;letter-spacing:.16em;color:#fff}
 .bench{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 2px 0}
 .bench .label{margin:0 6px 0 0}
+.swaplist{max-height:52vh;overflow-y:auto;margin:10px 0 0;padding:0}
+.swaplist .player{width:100%;background:none;border:0;border-bottom:1.5px dashed var(--line);text-align:left;cursor:pointer;color:inherit;font:inherit}
+.swaplist .player small,.mpick small{display:block;color:var(--muted);font-size:12px;font-weight:600}
+.mpick{width:100%;background:none;border:0;border-bottom:1.5px dashed var(--line);text-align:left;cursor:pointer;color:inherit;font:inherit}
+.mpick:last-child{border-bottom:0}
+.empty-slot{color:rgba(255,255,255,.55);font-weight:700;font-style:italic;border:2px dashed rgba(255,255,255,.35);border-radius:10px;padding:8px 12px}
+.winner{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.winner .who{flex:1;min-width:0}
+.winner .label{margin:0 0 2px}
+.winner b{display:block;font-size:22px;font-weight:900;font-stretch:72%;font-style:italic;text-transform:uppercase;overflow-wrap:anywhere}
+.winner small{color:var(--muted);font-weight:600;font-size:12.5px}
+.cant{gap:8px;margin-top:12px;font-size:13.5px;font-weight:600}
 .chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:3px 10px 3px 3px;border-radius:999px;background:var(--surface);border:2px solid var(--edge)}
 details.past{background:var(--surface);border:2px solid var(--edge);border-radius:16px;margin-bottom:10px;box-shadow:3px 3px 0 var(--hard)}
 details.past summary{list-style:none;display:flex;align-items:center;gap:10px;padding:13px 15px;cursor:pointer}
@@ -427,7 +439,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '1.1.3';
+const APP_VERSION = '1.2.0';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -621,11 +633,75 @@ function nextRound() {
     : S.mode === 'mexicano'
       ? mexicanoPairs(playing, courts, st, partners, opps)
       : americanoPairs(playing, courts, partners, opps);
+  pushRound(pairs, sitting);
+}
+// Adds a round (generated or picked by hand) and shows it.
+function pushRound(pairs, sitting, manual) {
   if (!S.rounds.length && !S.title) S.title = funName();
-  S.rounds.push({mode: S.mode, matches: pairs.map(p => ({a: p.a, b: p.b, sa: null, sb: null})), sitting});
-  track('round', {n: S.rounds.length, format: S.format, mode: S.mode, courts});
+  S.rounds.push({mode: S.mode, ...(manual ? {manual: true} : {}), matches: pairs.map(p => ({a: p.a, b: p.b, sa: null, sb: null})), sitting});
+  track('round', {n: S.rounds.length, format: S.format, mode: S.mode, courts: pairs.length, ...(manual ? {manual: true} : {})});
   save(); render();
   window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// ---------- pick matches by hand ----------
+// The organizer fills each court; the bench shows how much everyone has played so far.
+let manual = null; // {slots: [[id or null, ...] per court]} while building a round
+function startManual() {
+  const per = perCourt(), courts = Math.min(S.courts, Math.floor(S.players.filter(p => p.active).length / per));
+  if (courts < 1) { alert(`Need at least ${per} available players.`); return; }
+  manual = {slots: Array.from({length: courts}, () => Array(per).fill(null))};
+  render(); window.scrollTo(0, 0);
+}
+function cancelManual() { manual = null; render(); }
+function manualPick(id) {
+  for (const c of manual.slots) { const i = c.indexOf(null); if (i >= 0) { c[i] = id; render(); return; } }
+  toast('All courts are full. Tap a name on a court to free a spot.');
+}
+function manualClear(c, i) { manual.slots[c][i] = null; render(); }
+// Fill the empty spots like Generate would: fewest games first, then whoever has waited longest.
+function manualFill() {
+  const {st} = computeStats(), placed = manual.slots.flat();
+  const order = shuffle(S.players.filter(p => p.active && !placed.includes(p.id)).map(p => p.id))
+    .sort((x, y) => st[x].played - st[y].played || st[x].last - st[y].last);
+  manual.slots.forEach(c => c.forEach((id, i) => { if (!id && order.length) c[i] = order.shift(); }));
+  render();
+}
+function startManualRound() {
+  const used = manual.slots.filter(c => c.some(Boolean));
+  if (!used.length) { toast('Put players on a court first'); return; }
+  if (used.some(c => c.includes(null))) { toast('Fill every spot on the courts you use, or clear that court'); return; }
+  const half = perCourt() / 2, placed = used.flat();
+  const pairs = used.map(c => ({a: c.slice(0, half), b: c.slice(half)}));
+  const sitting = S.players.filter(p => p.active && !placed.includes(p.id)).map(p => p.id);
+  manual = null;
+  pushRound(pairs, sitting, true);
+}
+function viewManual() {
+  const {st} = computeStats(), placed = manual.slots.flat(), half = perCourt() / 2, n = S.rounds.length;
+  const free = S.players.filter(p => p.active && !placed.includes(p.id))
+    .sort((x, y) => st[x.id].played - st[y.id].played || st[y.id].sat - st[x.id].sat || x.name.localeCompare(y.name));
+  const least = free.length ? st[free[0].id].played : 0;
+  const slot = (c, i) => {
+    const id = manual.slots[c][i];
+    return id ? `<button class="pn" onclick="manualClear(${c},${i})" title="Tap to remove">${avatar(nm(id))}<span class="nm">${esc(nm(id))}</span></button>`
+      : `<span class="pn empty-slot">Empty spot</span>`;
+  };
+  const court = (c) => `<div class="match">
+    <div class="mhead"><span>Court ${c + 1}</span></div>
+    ${[0, 1].map(t => `<div class="team"><div class="duo">${Array.from({length: half}, (_, k) => slot(c, t * half + k)).join('')}</div></div>`).join('<div class="net"><span>VS</span></div>')}
+  </div>`;
+  return `
+  <h1 class="title">Round ${n + 1} <span class="tag">Pick matches</span></h1>
+  <p class="sub">Tap players to put them on court, top to bottom. Tap a name on a court to take them off.</p>
+  ${manual.slots.map((_, c) => court(c)).join('')}
+  <div class="sec-head"><p class="label">Available · ${free.length}</p>
+    ${free.length && placed.includes(null) ? `<button class="btn sm soft" onclick="manualFill()">${ic('shuffle')}Fill the rest</button>` : ''}</div>
+  ${free.length ? `<div class="card plist">${free.map(p => `<button class="player mpick" onclick="manualPick('${p.id}')">${avatar(p.name)}
+      <span class="grow"><b>${esc(p.name)}</b><small>${plural(st[p.id].played, 'game')} played${st[p.id].sat ? ` · sat out ${st[p.id].sat}` : ''}</small></span>
+      ${st[p.id].played === least && free.length > 1 ? '<span class="tag">Least played</span>' : ''}</button>`).join('')}</div>`
+    : '<p class="muted" style="padding:0 4px">Everyone available is on a court.</p>'}
+  <p class="muted" style="margin:10px 4px 0;font-size:12.5px">Players switched off on the Players tab aren't listed. Anyone not on a court sits out this round.</p>`;
 }
 
 function undoRound() {
@@ -637,17 +713,52 @@ function undoRound() {
 
 function reshuffle() { S.rounds.pop(); nextRound(); }
 
-// Replace an unavailable player with the next person in line from the sitting-out list.
+// Swap a player in the latest round for anyone else: someone on the bench or switched off takes their place
+// (they sit this round), or a player on another court trades places with them. Fewest games played are listed first.
 function swapOut(r, m, side, idx) {
+  const rd = S.rounds[r], out = rd.matches[m][side][idx], {st} = computeStats();
+  const where = id => {
+    const c = rd.matches.findIndex(x => x.a.includes(id) || x.b.includes(id));
+    return c >= 0 ? `Court ${c + 1}` : rd.sitting.includes(id) ? 'Sitting out' : byId(id).active ? 'Not in this round' : 'Off';
+  };
+  const others = S.players.filter(p => p.id !== out).sort((x, y) => (st[x.id] || {}).played - (st[y.id] || {}).played
+    || (st[y.id] || {}).sat - (st[x.id] || {}).sat || x.name.localeCompare(y.name));
+  const box = document.createElement('div');
+  box.className = 'sheet';
+  box.innerHTML = `<div class="card sheetin" role="dialog" aria-label="Swap player">
+    <h3>Swap ${esc(nm(out))}</h3>
+    <p class="muted">Pick who plays instead. Fewest games played first.</p>
+    <div class="plist swaplist">${others.map(p => {
+      const s = st[p.id] || {played: 0, sat: 0};
+      return `<button class="player" data-id="${p.id}">${avatar(p.name)}<span class="grow"><b>${esc(p.name)}</b>
+        <small>${where(p.id)} · ${plural(s.played, 'game')}${s.sat ? ` · sat ${s.sat}` : ''}</small></span></button>`;
+    }).join('')}</div>
+    <label class="row cant"><input type="checkbox" id="sw-off"> ${esc(nm(out))} can't play any more today</label>
+    <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn sm soft" data-a="cancel">Cancel</button></div>
+  </div>`;
+  document.body.appendChild(box);
+  const close = () => box.remove();
+  box.addEventListener('click', e => { if (e.target === box) close(); });
+  box.querySelector('[data-a=cancel]').onclick = close;
+  box.querySelectorAll('.swaplist .player').forEach(b => b.onclick = () => {
+    const off = box.querySelector('#sw-off').checked;
+    close(); swapPlayers(r, m, side, idx, b.dataset.id, off);
+  });
+}
+function swapPlayers(r, m, side, idx, sub, off) {
   const rd = S.rounds[r], team = rd.matches[m][side], out = team[idx];
-  const sub = rd.sitting.find(id => byId(id) && byId(id).active);
-  if (!sub) { toast('No one sitting out to swap in'); return; }
-  if (!confirm(`${nm(out)} can't play? ${nm(sub)} takes their place.`)) return;
-  team[idx] = sub;
-  rd.sitting = rd.sitting.filter(id => id !== sub).concat(out);
-  byId(out).active = false;
+  const other = rd.matches.find(x => x.a.includes(sub) || x.b.includes(sub));
+  if (other) {
+    const t = other.a.includes(sub) ? other.a : other.b;
+    t[t.indexOf(sub)] = out; team[idx] = sub;
+  } else {
+    team[idx] = sub;
+    rd.sitting = rd.sitting.filter(id => id !== sub).concat(out);
+    byId(sub).active = true;
+  }
+  if (off) byId(out).active = false;
   save(); render();
-  toast(`${nm(out)} skipped, switch them back on in Players`);
+  toast(other ? `${nm(out)} and ${nm(sub)} swapped` : `${nm(sub)} in, ${nm(out)} ${off ? 'off for today' : 'sits this round'}`);
 }
 
 function setScore(r, m, side, el) {
@@ -667,6 +778,8 @@ function setScore(r, m, side, el) {
     const [ta, tb] = box.querySelectorAll('.team');
     ta.classList.toggle('win', hasScore(match) && match.sa > match.sb);
     tb.classList.toggle('win', hasScore(match) && match.sb > match.sa);
+    const sum = box.closest('details') && box.closest('details').querySelector('summary .scores');
+    if (sum) sum.innerHTML = roundScores(S.rounds[r]);
   }
 }
 
@@ -788,15 +901,17 @@ async function finishSession() {
   const drop = unscored ? ` ${plural(unscored, 'match')} without a score ${unscored === 1 ? 'is' : 'are'} removed.` : '';
   if (!confirm(user
     ? `Finish ${name}? It's saved to your session log, where you can still edit scores.${drop} The courts are cleared; your roster stays.`
-    : `Finish ${name}? You're not signed in, so its rounds and scores are cleared. Share the standings first to keep them.`)) return;
+    : `Finish ${name}?${drop} You're not signed in, so the results are kept only on this phone until the next session. Share the standings to keep them.`)) return;
+  const rounds = S.rounds;
+  S.rounds = rounds.map(rd => ({...rd, matches: rd.matches.filter(hasScore)})).filter(rd => rd.matches.length);
   if (user) {
-    const rounds = S.rounds;
-    S.rounds = rounds.map(rd => ({...rd, matches: rd.matches.filter(hasScore)})).filter(rd => rd.matches.length);
     S.finishedAt = S.finishedAt || new Date().toISOString();
     if (!(await syncSession(true))) { S.rounds = rounds; S.finishedAt = null; toast(`Couldn't save (${saveError()}). Try again.`); return; }
   }
   track('finish', {rounds: S.rounds.length});
-  closeSession();
+  // Keep the results on this phone, so the winner and standings are still there after the courts clear.
+  S.last = {id: user ? S.sessionId : null, title: S.title || null, playedOn: S.playedOn || today(), players: S.players, rounds: S.rounds};
+  closeSession('results');
   toast(user ? `${name} finished · saved to your log` : 'Session finished');
 }
 async function doneEditing() {
@@ -805,11 +920,12 @@ async function doneEditing() {
   goTab('account');
   toast('Scores saved');
 }
-function closeSession() {
+function closeSession(tab = 'players') {
   Object.assign(S, {rounds: [], sessionId: null, activity: null, title: null, finishedAt: null, pin: null, venue: null, startsAt: null, notified: null});
   S.players.forEach(p => p.active = true);
   shareLink = null; sessionLog = null; myMatches = null; pinOpen = false;
-  save(); S.tab = 'players'; render();
+  manual = null;
+  S.tab = tab; save(); render(); window.scrollTo(0, 0);
 }
 const newSession = finishSession;
 function resetAll() {
@@ -875,10 +991,13 @@ function copyRound(r) {
   if (rd.sitting.length) lines.push(`Sitting out: ${rd.sitting.map(nm).join(', ')}`);
   copyText(lines.join('\n'));
 }
+// Standings screens show the open session, or the last finished one once the courts are cleared.
+const showingResults = () => !!S.last && (S.tab === 'results' || S.tab === 'standings' && !S.rounds.length);
+const shown = () => showingResults() ? S.last : S;
 function copyStandings() {
-  const rows = standingsRows();
-  const lines = [`🏆 ${S.title ? S.title + ' · ' : ''}Standings after ${S.rounds.length} round${S.rounds.length === 1 ? '' : 's'}`];
-  rows.forEach((r, i) => lines.push(`${i + 1}. ${r.name}: ${r.pts} games (${r.w}W ${r.l}L, ${r.scored} played)`));
+  const {title, players, rounds} = shown(), rows = standingsRows(players, rounds);
+  const lines = [`🏆 ${title ? title + ' · ' : ''}${showingResults() ? 'Final standings' : 'Standings'} after ${plural(rounds.length, 'round')}`];
+  rows.forEach((r, i) => lines.push(`${i + 1}. ${r.name}: ${r.pts} games, avg ${r.avg.toFixed(1)} (${r.w}W ${r.l}L, ${r.scored} played)`));
   copyText(lines.join('\n'));
 }
 
@@ -915,11 +1034,11 @@ const RALLY = `<svg class="rally" viewBox="0 0 320 72" aria-hidden="true" fill="
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : (w.endsWith('ch') ? 'es' : 's')}`;
 // Stored as 'americano' / 'mexicano' (the classic names); shown as what they mean.
 const modeName = m => m === 'mexicano' ? 'Competitive' : 'Social';
-const roundLabel = rd => modeName(rd.mode) + (roundFormat(rd) === 'singles' ? ' singles' : '');
+const roundLabel = rd => modeName(rd.mode) + (roundFormat(rd) === 'singles' ? ' singles' : '') + (rd.manual ? ' · picked' : '');
 
 // Draw the standings onto a canvas and share it as a PNG (WhatsApp etc.), or download as fallback.
 async function shareStandingsImage() {
-  const rows = standingsRows(), avg = S.sort === 'avg', n = S.rounds.length;
+  const src = shown(), rows = standingsRows(src.players, src.rounds), avg = S.sort === 'avg', n = src.rounds.length;
   const W = 1080, rowH = 104, cardY = 250, cardH = rows.length * rowH + 60, H = cardY + cardH + 120;
   const F = (w, s) => `${w} ${s}px "Archivo", system-ui, sans-serif`;
   try { await Promise.all([document.fonts.load(F(800, 40)), document.fonts.load(F(600, 30)), document.fonts.load(F(700, 30))]); } catch (e) {}
@@ -940,9 +1059,9 @@ async function shareStandingsImage() {
   x.beginPath(); x.arc(126 + 78, 128, 62, Math.PI - 1, Math.PI + 1); x.stroke(); x.restore();
   x.textBaseline = 'middle'; x.fillStyle = '#fff';
   x.font = 'italic ' + F(900, 72); x.fillText('STANDINGS', 204, 108);
-  const date = new Date().toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+  const date = (src.playedOn ? new Date(src.playedOn + 'T00:00') : new Date()).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
   x.font = F(600, 28); x.fillStyle = 'rgba(255,255,255,.8)';
-  x.fillText(fit(`${S.title ? S.title + ' · ' : ''}After ${plural(n, 'round')} · ${date}${avg ? ' · avg per match' : ''}`, W - 204 - 50), 204, 160);
+  x.fillText(fit(`${src.title ? src.title + ' · ' : ''}After ${plural(n, 'round')} · ${date}${avg ? ' · avg per match' : ''}`, W - 204 - 50), 204, 160);
 
   x.shadowColor = 'rgba(16,22,18,.14)'; x.shadowBlur = 40; x.shadowOffsetY = 12;
   rr(40, cardY, W - 80, cardH, 36); x.fillStyle = '#fff'; x.fill();
@@ -1079,12 +1198,15 @@ function matchCard(r, i, latest) {
   </div>`;
 }
 
+const roundScores = rd => rd.matches.map(m => `<span>${hasScore(m) ? `${m.sa}–${m.sb}` : '–'}</span>`).join('');
 const bench = rd => rd.sitting.length
   ? `<div class="bench"><p class="label">Sitting out</p>${rd.sitting.map(id => `<span class="chip">${avatar(nm(id), 'sm')}${esc(nm(id))}</span>`).join('')}</div>` : '';
 
 function viewRounds() {
+  if (manual) return viewManual();
   const n = S.rounds.length;
-  if (!n) return `<div class="empty">${RALLY}<h3>No rounds yet</h3>Choose who's playing, then generate round 1.</div>`;
+  if (!n) return `<div class="empty">${RALLY}<h3>No rounds yet</h3>Choose who's playing, then generate round 1.
+    <div style="margin-top:14px"><button class="btn sm soft" onclick="startManual()">${ic('users')}Pick matches yourself</button></div></div>`;
   const r = n - 1, rd = S.rounds[r];
   const scored = rd.matches.some(m => m.sa != null || m.sb != null);
   const playing = rd.matches.length * perCourt(roundFormat(rd));
@@ -1096,6 +1218,7 @@ function viewRounds() {
   <p class="sub">${plural(rd.matches.length, 'court')} · ${playing} playing${rd.sitting.length ? ` · ${rd.sitting.length} sitting out` : ''}</p>
   <div class="actions">
     ${!scored && !S.finishedAt ? `<button class="btn sm soft" onclick="reshuffle()">${ic('shuffle')}Reshuffle</button>` : ''}
+    ${!S.finishedAt ? `<button class="btn sm soft" onclick="startManual()">${ic('users')}Pick next round</button>` : ''}
     <button class="btn sm soft" onclick="copyRound(${r})">${ic('copy')}Copy for WhatsApp</button>
     ${!(S.pin && user) && !S.finishedAt ? `<button class="btn sm soft" onclick="openPin()">${ic('ticket')}Game PIN</button>` : ''}
     ${user ? `<button class="btn sm soft" onclick="shareSession()">${ic('share')}Players</button>` : ''}
@@ -1103,7 +1226,7 @@ function viewRounds() {
   </div>
   ${S.pin && user ? viewPin() : ''}
   ${shareLink ? viewShare() : ''}
-  ${rd.sitting.length ? `<p class="hint">${ic('shuffle')}Someone can't play? Tap their name to swap in the next person waiting.</p>` : ''}
+  ${!S.finishedAt ? `<p class="hint">${ic('shuffle')}Someone can't play, or want to change a match? Tap a name to swap players.</p>` : ''}
   ${rd.matches.map((_, i) => matchCard(r, i, true)).join('')}
   ${bench(rd)}`;
   if (n > 1) {
@@ -1112,7 +1235,7 @@ function viewRounds() {
       const pr = S.rounds[p];
       html += `<details class="past">
         <summary><b>Round ${p + 1}</b><span class="tag">${roundLabel(pr)}</span>
-          <span class="scores num">${pr.matches.map(m => `<span>${hasScore(m) ? `${m.sa}–${m.sb}` : '–'}</span>`).join('')}</span>${ic('chev')}</summary>
+          <span class="scores num">${roundScores(pr)}</span>${ic('chev')}</summary>
         <div class="body">
           ${pr.matches.map((_, i) => matchCard(p, i, false)).join('')}
           <div class="row" style="justify-content:space-between;align-items:flex-start">${bench(pr) || '<span></span>'}
@@ -1132,18 +1255,23 @@ function standingsRows(players = S.players, rounds = S.rounds, sort = S.sort) {
 }
 
 function viewStandings() {
+  if (showingResults()) return viewResults();
   if (!S.rounds.length) return `<div class="empty"><div class="orb" style="color:var(--muted)">${ic('trophy')}</div><h3>No results yet</h3>Standings appear after the first round.</div>`;
-  const rows = standingsRows(), avg = S.sort === 'avg';
+  return `<h1 class="title">Standings</h1>
+  <p class="sub">After ${plural(S.rounds.length, 'round')}</p>
+  ${standingsBlock(S.players, S.rounds)}`;
+}
+// Podium, table and sharing for a set of rounds: the open session, or a finished one.
+function standingsBlock(players, rounds) {
+  const rows = standingsRows(players, rounds), avg = S.sort === 'avg';
   const val = r => avg ? r.avg.toFixed(1) : r.pts;
   const podium = rows.length >= 3 && rows[0].scored;
   const pod = (r, k) => `<div class="pod p${k}">
-      ${k === 1 ? '<span class="crown">👑</span>' : ''}${avatar(r.name, k === 1 ? 'xl' : 'lg')}
+      ${k === 1 ? '<span class="crown">👑</span>' : ''}${avatar(r.name, k === 1 ? 'xl' : 'lg', r.photo)}
       <span class="nm">${esc(r.name)}</span><span class="pts num">${val(r)} ${avg ? 'avg' : 'games'}</span>
       <div class="block">${k}</div></div>`;
   const rest = podium ? rows.slice(3) : rows;
   return `
-  <h1 class="title">Standings</h1>
-  <p class="sub">After ${plural(S.rounds.length, 'round')}</p>
   <div class="actions">
     <button class="btn sm primary" onclick="shareStandingsImage()">${ic('share')}Share picture</button>
     <button class="btn sm soft" onclick="copyStandings()">${ic('copy')}Copy text</button>
@@ -1154,7 +1282,7 @@ function viewStandings() {
   </div>
   ${podium ? `<div class="podium">${pod(rows[1], 2)}${pod(rows[0], 1)}${pod(rows[2], 3)}</div>` : ''}
   ${rest.length ? `<div class="card" style="padding:0"><ol class="lb">${rest.map((r, i) => `<li>
-      <span class="rank">${(podium ? 4 : 1) + i}</span>${avatar(r.name)}
+      <span class="rank">${(podium ? 4 : 1) + i}</span>${avatar(r.name, '', r.photo)}
       <span class="who"><b>${esc(r.name)}</b><small>${plural(r.scored, 'match')} · ${r.w}W ${r.l}L${r.d ? ` ${r.d}D` : ''} · ${r.diff > 0 ? '+' : ''}${r.diff}</small></span>
       <span class="score"><b class="num">${val(r)}</b><small>${avg ? 'avg' : 'games'}</small></span></li>`).join('')}</ol></div>` : ''}
   <p class="muted" style="margin:4px 4px 14px;font-size:12.5px">If some people sat out or skipped more, "Avg per match" is the fairer ranking.</p>
@@ -1163,6 +1291,29 @@ function viewStandings() {
     <p><b>Competitive</b> (also called Mexicano): after round 1, players are re-matched by standings (1st &amp; 4th vs 2nd &amp; 3rd on court 1, and so on), so later games are closer.</p>
     <p><b>Singles:</b> one against one. Social rotates opponents; Competitive plays 1st vs 2nd, 3rd vs 4th, and so on.</p>
   </details>`;
+}
+// A finished session: who won, the final standings, the players link and a way back to fix scores.
+function showResults(id) {
+  const h = (sessionLog || []).find(x => x.id === id);
+  if (!h) return;
+  S.last = {id: h.id, title: h.title || null, playedOn: h.played_on, players: h.players, rounds: h.rounds};
+  shareLink = null; goTab('results');
+}
+function viewResults() {
+  const L = S.last, rows = standingsRows(L.players, L.rounds);
+  const byAvg = rows.slice().sort((a, b) => b.avg - a.avg || b.diff - a.diff || b.w - a.w);
+  const top = S.sort === 'avg' ? byAvg[0] : rows[0];
+  const day = new Date((L.playedOn || today()) + 'T00:00').toLocaleDateString('en', {weekday: 'short', day: 'numeric', month: 'short'});
+  return `
+  <h1 class="title">Results</h1>
+  <p class="sub">${L.title ? `<b>${esc(L.title)}</b> · ` : ''}${day} · ${plural(L.rounds.length, 'round')}</p>
+  ${top && top.scored ? `<div class="card winner">${avatar(top.name, 'lg', top.photo)}<span class="who"><span class="label">🏆 Winner</span>
+      <b>${esc(top.name)}</b><small>${top.pts} games · ${top.avg.toFixed(1)} avg per match · ${top.w}W ${top.l}L</small></span></div>` : ''}
+  ${user && L.id ? `<div class="actions">
+    <button class="btn sm soft" onclick="shareSession('${L.id}')">${ic('users')}Players link</button>
+    <button class="btn sm soft" onclick="openSession('${L.id}')">${ic('pen')}Edit scores</button></div>
+    ${shareLink ? viewShare() : `<p class="hint">${ic('users')}Players link: players tap their name so these results count towards their 10nis level.</p>`}` : ''}
+  ${standingsBlock(L.players, L.rounds)}`;
 }
 
 // ---------- account + session log (Supabase) ----------
@@ -1681,7 +1832,9 @@ async function googleSignIn() {
 
 async function openSession(id) {
   if (id === S.sessionId) { goTab('rounds'); return; }
-  const row = (sessionLog || []).find(h => h.id === id);
+  const row = (sessionLog || []).find(h => h.id === id)
+    || (S.last && S.last.id === id && {id, played_on: S.last.playedOn, mode: (S.last.rounds[0] || {}).mode || S.mode, title: S.last.title,
+      finished_at: new Date().toISOString(), players: S.last.players, rounds: S.last.rounds});
   if (!row) return;
   await syncSession();
   const last = row.rounds[row.rounds.length - 1];
@@ -1742,7 +1895,7 @@ function viewAccount() {
     : !list.length ? '<p class="muted" style="padding:0 4px">No sessions yet. Generate a round and it will show up here.</p>'
     : `<div class="card" style="padding:0"><ol class="lb hist">${list.map(h => {
         const d = new Date(h.played_on + 'T00:00');
-        return `<li onclick="openSession('${h.id}')">
+        return `<li onclick="${h.finished_at && h.id !== S.sessionId ? `showResults('${h.id}')` : `openSession('${h.id}')`}">
           <span class="day"><b class="num">${d.getDate()}</b><small>${d.toLocaleString('en', {month: 'short'})}</small></span>
           <span class="who"><b>${esc(h.title || (h.rounds.length ? roundLabel(h.rounds[h.rounds.length - 1]) : modeName(h.mode)))}${h.id === S.sessionId ? ' <span class="tag">Current</span>' : h.finished_at ? ' <span class="tag">Finished</span>' : ''}</b>
             <small>${h.title && h.rounds.length ? roundLabel(h.rounds[h.rounds.length - 1]) + ' · ' : ''}${plural(h.rounds.length, 'round')} · ${plural(h.players.length, 'player')}</small></span>
@@ -1761,10 +1914,10 @@ const shareToken = (location.pathname.match(/^\/s\/([0-9a-f]{16})\/?$/) || [])[1
 const addCode = ((location.pathname.match(/^\/p\/([A-Za-z2-9]{6})\/?$/) || [])[1] || '').toUpperCase() || null;
 let claimView = !!(shareToken || addCode), claimData = null, shareLink = null, codeData;
 
-async function shareSession() {
-  await syncSession();
-  if (!S.sessionId) { toast('Generate a round first'); return; }
-  const {data, error} = await sb.rpc('create_share', {sid: S.sessionId});
+async function shareSession(sid) {
+  if (!sid) { await syncSession(); sid = S.sessionId; }
+  if (!sid) { toast('Generate a round first'); return; }
+  const {data, error} = await sb.rpc('create_share', {sid});
   if (error) { toast(error.message); return; }
   shareLink = location.origin + '/s/' + data;
   render();
@@ -2179,19 +2332,23 @@ function render() {
     mountGoogleButton();
     return;
   }
-  document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === S.tab));
+  document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === (S.tab === 'results' ? 'standings' : S.tab)));
   const avail = S.players.filter(p => p.active).length, n = S.rounds.length;
   document.getElementById('status').innerHTML = S.tab === 'join' ? (game && follow.pin ? `<i></i>PIN ${pinText(follow.pin)}` : '')
     : `<i></i>${n ? `Round ${n} · ` : ''}${avail} playing`;
   document.getElementById('view').innerHTML =
-    S.tab === 'rounds' ? viewRounds() : S.tab === 'standings' ? viewStandings() : S.tab === 'account' ? viewAccount()
+    S.tab === 'rounds' ? viewRounds() : S.tab === 'standings' || S.tab === 'results' ? viewStandings() : S.tab === 'account' ? viewAccount()
     : S.tab === 'join' ? viewJoin() : viewPlayers();
   if (S.pin && pinOpen && document.getElementById('pinqr')) drawQR('pinqr', `${APP_URL}/j/${S.pin}`);
+  if (shareLink && document.getElementById('qr')) drawQR('qr', shareLink);
   mountGoogleButton();
   if (S.tab === 'account' && me && me.code && document.getElementById('mycode')) drawQR('mycode', location.origin + '/p/' + me.code);
   // Main action floats above the tab bar, within thumb reach.
   document.getElementById('dock').innerHTML =
-    S.tab === 'rounds' && S.finishedAt ? `<div class="dock"><div class="in">
+    S.tab === 'rounds' && manual ? `<div class="dock"><div class="in">
+        <button class="btn primary grow" onclick="startManualRound()">${ic('ball')}Start round ${n + 1}</button>
+        <button class="btn" onclick="cancelManual()">Cancel</button></div></div>`
+    : S.tab === 'rounds' && S.finishedAt ? `<div class="dock"><div class="in">
         <button class="btn primary grow" onclick="doneEditing()">${ic('arrow')}Done</button></div></div>`
     : S.tab === 'rounds' ? `<div class="dock"><div class="in">
         <button class="btn primary grow" onclick="nextRound()">${ic('ball')}Generate round ${n + 1}</button>
