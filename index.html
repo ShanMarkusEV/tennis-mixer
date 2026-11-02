@@ -307,7 +307,8 @@ details.past .match{box-shadow:none}
 .me .who{flex:1;min-width:0}
 .me .who b{display:block;font-size:18px;font-weight:800;overflow-wrap:anywhere}
 .me .who small{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
-.hist li{cursor:pointer}
+.mmacts{margin-top:10px;padding-top:10px;border-top:1.5px dashed var(--line);gap:8px}
+.mmacts .x{margin-left:auto}
 .mm{padding:14px 16px}
 .mmhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
 .mmhead b{display:block;font-weight:800}
@@ -391,9 +392,6 @@ details.past .match{box-shadow:none}
 @keyframes ry{0%{transform:translateY(0);animation-timing-function:ease-out}50%{transform:translateY(-30px);animation-timing-function:ease-in}100%{transform:translateY(0)}}
 @keyframes sw{0%{transform:rotate(-45deg)}6%{transform:rotate(30deg)}22%{transform:rotate(0)}80%,100%{transform:rotate(-45deg)}}
 @media (prefers-reduced-motion:reduce){.rally *,.hero,.live i,.status i{animation:none!important}}
-.hist .day{width:46px;flex:none;text-align:center;line-height:1;background:var(--board);color:#fff;border-radius:11px;padding:7px 0}
-.hist .day b{display:block;font-size:22px;font-weight:900;font-stretch:72%;color:var(--lime)}
-.hist .day small{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.7}
 
 /* empty */
 .empty{text-align:center;padding:56px 20px;color:var(--muted)}
@@ -439,7 +437,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.2.1';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1674,24 +1672,44 @@ async function loadMatches() {
   myMatches = error ? [] : data || [];
   if (S.tab === 'account') render();
 }
-function viewMatches() {
-  if (!myMatches) { loadMatches(); return '<p class="muted" style="padding:0 4px">Loading…</p>'; }
-  if (!myMatches.length) return `<p class="muted" style="padding:0 4px">No matches yet. When an organizer links you to their game, or you add yourself with Add me, your matches show up here.</p>`;
-  const shown = allMatches ? myMatches : myMatches.slice(0, 5);
+// One list of sessions: the ones you hosted (you can open, edit and delete them) and the ones others hosted that
+// you played in (view only). Your own matches and level change show on each session you played in.
+function viewSessions() {
+  if (!sessionLog) loadLog();
+  if (!myMatches) loadMatches();
+  if (!sessionLog || !myMatches) return '<p class="muted" style="padding:0 4px">Loading…</p>';
+  const played = Object.fromEntries(myMatches.map(m => [m.session_id, m]));
+  const list = sessionLog.map(h => ({own: h, mm: played[h.id], played_on: h.played_on}))
+    .concat(myMatches.filter(m => m.host && !sessionLog.some(h => h.id === m.session_id)).map(m => ({mm: m, played_on: m.played_on})))
+    .sort((x, y) => y.played_on.localeCompare(x.played_on));
+  if (!list.length) return `<p class="muted" style="padding:0 4px">No sessions yet. Generate a round and it shows up here. Games you play in other organizers' sessions show up here too, once they link you.</p>`;
   const names = l => l.map(esc).join(' & ');
-  return shown.map(se => {
-    const day = new Date(se.played_on + 'T00:00').toLocaleDateString('en', {weekday: 'short', day: 'numeric', month: 'short'});
-    const d = se.after != null && se.before != null ? Math.round((se.after - se.before) * 10) / 10 : null;
+  const card = ({own: h, mm}) => {
+    const src = h || mm, day = new Date(src.played_on + 'T00:00').toLocaleDateString('en', {weekday: 'short', day: 'numeric', month: 'short'});
+    const label = h ? (h.rounds.length ? roundLabel(h.rounds[h.rounds.length - 1]) : modeName(h.mode))
+      : modeName(mm.mode) + (mm.matches.every(m => !m.partners.length) ? ' singles' : '');
+    const d = mm && mm.after != null && mm.before != null ? Math.round((mm.after - mm.before) * 10) / 10 : null;
+    const tag = h ? (h.id === S.sessionId ? ' <span class="tag">Current</span>' : h.finished_at ? ' <span class="tag">Finished</span>' : '') : '';
+    const info = h ? `You hosted · ${label} · ${plural(h.rounds.length, 'round')} · ${plural(h.players.length, 'player')}`
+      : `Hosted by ${esc(mm.host || 'another organizer')} · ${label} · view only`;
     return `<div class="card mm">
-      <div class="mmhead"><span><b>${esc(se.title || day)}</b><small>${se.title ? day + ' · ' : ''}${se.host ? `Hosted by ${esc(se.host)}` : 'Your session'} · ${modeName(se.mode)}${se.matches.every(m => !m.partners.length) ? ' singles' : ''}</small></span>
-        ${d != null ? `<span class="mmlv"><small>${Number(se.before).toFixed(1)} → ${Number(se.after).toFixed(1)}</small><b class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d > 0 ? '+' : ''}${d.toFixed(1)}</b></span>` : ''}</div>
-      ${se.matches.map(m => {
+      <div class="mmhead"><span><b>${esc(src.title || day)}${tag}</b><small>${src.title ? day + ' · ' : ''}${info}</small></span>
+        ${d != null ? `<span class="mmlv"><small>${Number(mm.before).toFixed(1)} → ${Number(mm.after).toFixed(1)}</small><b class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d > 0 ? '+' : ''}${d.toFixed(1)}</b></span>` : ''}</div>
+      ${mm ? mm.matches.map(m => {
         const res = m.mine > m.theirs ? 'W' : m.mine < m.theirs ? 'L' : 'D';
         return `<div class="mmrow"><span class="res ${res}">${res}</span><span class="num sc">${m.mine}–${m.theirs}</span>
           <span class="grow">${m.partners.length ? `with ${names(m.partners)} ` : ''}vs ${names(m.opponents)}</span></div>`;
-      }).join('')}
+      }).join('') : ''}
+      ${h ? `<div class="row mmacts">${h.id === S.sessionId ? `<button class="btn sm primary" onclick="openSession('${h.id}')">${ic('arrow')}Continue</button>`
+          : h.finished_at ? `<button class="btn sm primary" onclick="showResults('${h.id}')">${ic('trophy')}Results</button>
+            <button class="btn sm soft" onclick="openSession('${h.id}')">${ic('pen')}Edit scores</button>`
+          : `<button class="btn sm primary" onclick="openSession('${h.id}')">${ic('arrow')}Open</button>`}
+        <button class="x" onclick="deleteSession('${h.id}', event)" aria-label="Delete session">${ic('x')}</button></div>` : ''}
     </div>`;
-  }).join('') + (myMatches.length > 5 && !allMatches ? `<div class="row" style="justify-content:center"><button class="btn sm soft" onclick="allMatches = true; render()">Show all ${myMatches.length} sessions</button></div>` : '');
+  };
+  const shown = allMatches ? list : list.slice(0, 8);
+  return shown.map(card).join('') + (list.length > shown.length
+    ? `<div class="row" style="justify-content:center"><button class="btn sm soft" onclick="allMatches = true; render()">Show all ${list.length} sessions</button></div>` : '');
 }
 async function loadMe() {
   if (!sb || !user || loadMe.busy) return;
@@ -1772,8 +1790,6 @@ function viewMe() {
     ${g && own != null && Math.abs(sc - own) >= 1.5 ? `<p class="muted" style="margin-top:8px">Your games put you ${sc > own ? 'above' : 'below'} your own level. Update it if that feels right.</p>` : ''}
     <div class="row" style="margin-top:14px"><button class="btn sm soft" onclick="pickLevel = ${own || (sc ? Math.round(sc) : 4)}; render()">${own ? 'Change self rating' : 'Set self rating'}</button></div>
   </div>`}
-  <div class="sec-head"><p class="label">My matches</p></div>
-  ${viewMatches()}
   ${me.code ? `<div class="sec-head"><p class="label">Your player code</p></div>
   <div class="card code"><div id="mycode" class="qr" aria-label="QR code of your player code"></div>
     <div><b>${esc(me.code)}</b><p class="muted">Show this to the organizer. They scan it or type the code to add you to their game, so your results count.</p>
@@ -1870,9 +1886,7 @@ function viewAccount() {
       </div>
       <p class="muted" style="text-align:center;margin-top:12px;font-size:12.5px">We only use your name, email and photo to keep your session log.</p>
     </div>${shareCard()}${LEGAL}`;
-  if (!sessionLog) loadLog();
   if (!me) loadMe();
-  const list = sessionLog || [];
   return `
   <h1 class="title">Account</h1>
   <p class="sub">Sessions are logged automatically once round 1 starts.</p>
@@ -1890,17 +1904,8 @@ function viewAccount() {
     : `<p class="muted" style="margin:-6px 4px 14px;font-size:12.5px">Tap your photo to change it</p>`}
   <div class="sec-head"><p class="label">Your rating</p></div>
   ${viewMe()}
-  <div class="sec-head"><p class="label">Session log${sessionLog ? ` · ${list.length}` : ''}</p></div>
-  ${!sessionLog ? '<p class="muted" style="padding:0 4px">Loading…</p>'
-    : !list.length ? '<p class="muted" style="padding:0 4px">No sessions yet. Generate a round and it will show up here.</p>'
-    : `<div class="card" style="padding:0"><ol class="lb hist">${list.map(h => {
-        const d = new Date(h.played_on + 'T00:00');
-        return `<li onclick="${h.finished_at && h.id !== S.sessionId ? `showResults('${h.id}')` : `openSession('${h.id}')`}">
-          <span class="day"><b class="num">${d.getDate()}</b><small>${d.toLocaleString('en', {month: 'short'})}</small></span>
-          <span class="who"><b>${esc(h.title || (h.rounds.length ? roundLabel(h.rounds[h.rounds.length - 1]) : modeName(h.mode)))}${h.id === S.sessionId ? ' <span class="tag">Current</span>' : h.finished_at ? ' <span class="tag">Finished</span>' : ''}</b>
-            <small>${h.title && h.rounds.length ? roundLabel(h.rounds[h.rounds.length - 1]) + ' · ' : ''}${plural(h.rounds.length, 'round')} · ${plural(h.players.length, 'player')}</small></span>
-          <button class="x" onclick="deleteSession('${h.id}', event)" aria-label="Delete session">${ic('x')}</button></li>`;
-      }).join('')}</ol></div>`}
+  <div class="sec-head"><p class="label">Sessions</p></div>
+  ${viewSessions()}
   ${shareCard()}
   <div class="row" style="justify-content:center;margin-top:20px"><button class="btn text danger" onclick="deleteAccount()">Delete account</button></div>
   ${LEGAL}`;
