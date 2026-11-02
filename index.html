@@ -437,7 +437,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.2.2';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1291,10 +1291,15 @@ function standingsBlock(players, rounds) {
   </details>`;
 }
 // A finished session: who won, the final standings, the players link and a way back to fix scores.
-function showResults(id) {
-  const h = (sessionLog || []).find(x => x.id === id);
-  if (!h) return;
-  S.last = {id: h.id, title: h.title || null, playedOn: h.played_on, players: h.players, rounds: h.rounds};
+// Sessions someone else hosted come from the server, read only (you can't edit their scores).
+async function showResults(id) {
+  let h = (sessionLog || []).find(x => x.id === id), readonly = false;
+  if (!h) {
+    const {data, error} = await sb.rpc('session_results', {sid: id});
+    if (error || !data) { toast(error ? error.message : "Couldn't load that session"); return; }
+    h = data; readonly = true;
+  }
+  S.last = {id: h.id, title: h.title || null, playedOn: h.played_on, players: h.players, rounds: h.rounds, ...(readonly ? {readonly} : {})};
   shareLink = null; goTab('results');
 }
 function viewResults() {
@@ -1307,7 +1312,8 @@ function viewResults() {
   <p class="sub">${L.title ? `<b>${esc(L.title)}</b> · ` : ''}${day} · ${plural(L.rounds.length, 'round')}</p>
   ${top && top.scored ? `<div class="card winner">${avatar(top.name, 'lg', top.photo)}<span class="who"><span class="label">🏆 Winner</span>
       <b>${esc(top.name)}</b><small>${top.pts} games · ${top.avg.toFixed(1)} avg per match · ${top.w}W ${top.l}L</small></span></div>` : ''}
-  ${user && L.id ? `<div class="actions">
+  ${L.readonly ? `<p class="hint">${ic('users')}Hosted by another organizer · view only</p>` : ''}
+  ${user && L.id && !L.readonly ? `<div class="actions">
     <button class="btn sm soft" onclick="shareSession('${L.id}')">${ic('users')}Players link</button>
     <button class="btn sm soft" onclick="openSession('${L.id}')">${ic('pen')}Edit scores</button></div>
     ${shareLink ? viewShare() : `<p class="hint">${ic('users')}Players link: players tap their name so these results count towards their 10nis level.</p>`}` : ''}
@@ -1700,6 +1706,7 @@ function viewSessions() {
         return `<div class="mmrow"><span class="res ${res}">${res}</span><span class="num sc">${m.mine}–${m.theirs}</span>
           <span class="grow">${m.partners.length ? `with ${names(m.partners)} ` : ''}vs ${names(m.opponents)}</span></div>`;
       }).join('') : ''}
+      ${!h ? `<div class="row mmacts"><button class="btn sm soft" onclick="showResults('${mm.session_id}')">${ic('trophy')}Results</button></div>` : ''}
       ${h ? `<div class="row mmacts">${h.id === S.sessionId ? `<button class="btn sm primary" onclick="openSession('${h.id}')">${ic('arrow')}Continue</button>`
           : h.finished_at ? `<button class="btn sm primary" onclick="showResults('${h.id}')">${ic('trophy')}Results</button>
             <button class="btn sm soft" onclick="openSession('${h.id}')">${ic('pen')}Edit scores</button>`
@@ -1849,7 +1856,7 @@ async function googleSignIn() {
 async function openSession(id) {
   if (id === S.sessionId) { goTab('rounds'); return; }
   const row = (sessionLog || []).find(h => h.id === id)
-    || (S.last && S.last.id === id && {id, played_on: S.last.playedOn, mode: (S.last.rounds[0] || {}).mode || S.mode, title: S.last.title,
+    || (S.last && S.last.id === id && !S.last.readonly && {id, played_on: S.last.playedOn, mode: (S.last.rounds[0] || {}).mode || S.mode, title: S.last.title,
       finished_at: new Date().toISOString(), players: S.last.players, rounds: S.last.rounds});
   if (!row) return;
   await syncSession();
