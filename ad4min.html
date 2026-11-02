@@ -189,9 +189,9 @@ async function signOut() { await sb.auth.signOut({scope: 'local'}); user = null;
 // ---------- data ----------
 async function load() {
   if (tab === 'overview') {
-    const {data, error} = await sb.rpc('admin_stats');
+    const [{data, error}, br] = await Promise.all([sb.rpc('admin_stats'), sb.rpc('admin_browsers', {days: 30})]);
     if (error) return fail(error);
-    stats = data; render();
+    stats = {...data, browsers: br.error ? null : br.data}; render();
   } else if (tab !== 'tools') await loadList(tab, true);
 }
 async function loadList(kind, fresh) {
@@ -344,6 +344,12 @@ function viewOverview() {
     <tr><th>Day</th><th>Phones</th><th>Matches</th><th>Sessions</th><th>Sign-ups</th></tr>
     ${s.daily.slice().reverse().map(d => `<tr><td>${esc(day(d.day))}</td><td>${d.phones}</td><td>${d.matches}</td><td>${d.sessions}</td><td>${d.signups}</td></tr>`).join('')}
   </table></div></details>
+  <h2>Browsers, last 30 days</h2>
+  ${s.browsers ? `<div class="card scroll"><table><tr><th>Browser</th><th>Phones</th><th>Did something</th><th>Last 7 days</th><th>Last seen</th></tr>
+    ${s.browsers.map(b => `<tr><td>${esc(b.browser)}</td><td>${fmt(b.phones)}</td><td>${fmt(b.active)}</td><td>${fmt(b.phones_7d)}</td><td>${esc(when(b.last_seen))}</td></tr>`).join('')}
+  </table></div>
+  <p class="muted small" style="margin:6px 2px 0">Each phone counts once, under the browser it last opened 10nis with. "Did something" means it generated a round, finished a session, imported players or signed in; phones that only opened the page are often link-preview bots. Browser types are recorded since 0.5.1.</p>`
+    : '<p class="muted">Browser numbers are unavailable right now.</p>'}
   <h2>App versions in use</h2>
   <div class="card scroll"><table><tr><th>Version</th><th>Phones</th><th>Last 7 days</th><th>Last seen</th></tr>
     ${s.versions.map(v => `<tr><td>${esc(v.version)}</td><td>${fmt(v.phones)}</td><td>${fmt(v.phones_last_7_days)}</td><td>${esc(when(v.last_seen))}</td></tr>`).join('')}
