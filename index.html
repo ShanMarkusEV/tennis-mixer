@@ -1476,6 +1476,13 @@ function openGameSheet(i) {
   const g = old ? {...old, good: [...(old.good || [])], bad: [...(old.bad || [])], note: old.note || ''}
     : {res: null, me: null, opp: null, good: [], bad: [], note: ''};
   let stepNo = 0, done = null;
+  // The score has to agree with the result picked: no draws, and the winner has more games. 0-0 = no score.
+  const scoreCheck = () => {
+    const me = g.me || 0, opp = g.opp || 0;
+    if (!me && !opp) return null;
+    if (me === opp) return 'tie';
+    return (me > opp) === (g.res === 'W') ? 'ok' : 'mismatch';
+  };
   const STEPS = 5;
   const box = document.createElement('div');
   box.className = 'sheet';
@@ -1489,10 +1496,17 @@ function openGameSheet(i) {
     if (stepNo === 0) return `<h3>Game ${num}: hasilnya?</h3>
       <div class="resrow big"><button class="resbtn W ${g.res === 'W' ? 'on' : ''}" data-r="W"><span>✅</span>Menang</button>
         <button class="resbtn L ${g.res === 'L' ? 'on' : ''}" data-r="L"><span>❌</span>Kalah</button></div>`;
-    if (stepNo === 1) return `<h3>Skornya berapa?</h3><p class="muted">Opsional. Lewati kalau nggak ingat.</p>
+    if (stepNo === 1) {
+      const chk = scoreCheck(), lbl = g.res === 'W' ? 'Menang' : 'Kalah';
+      return `<h3>Skornya berapa?</h3><p class="muted">Kamu pilih <b>${lbl}</b>. Skor opsional, lewati kalau nggak ingat.</p>
       <div class="scorerow">${['me', 'opp'].map(k => `<div class="sstep"><small>${k === 'me' ? 'Kamu' : 'Lawan'}</small>
         <div><button data-s="${k}" data-d="-1" aria-label="Kurangi">−</button><b class="num">${g[k] ?? 0}</b><button data-s="${k}" data-d="1" aria-label="Tambah">+</button></div></div>`).join('')}</div>
-      <div class="gnav">${next('Lanjut')}<button class="btn text" data-a="noscore">Lewati</button></div>`;
+      ${chk === 'tie' ? `<p class="hint warn" style="margin-top:12px">${ic('x')}Skornya seri. Di tenis harus ada yang menang, cek lagi skornya.</p>`
+        : chk === 'mismatch' ? `<p class="hint warn" style="margin-top:12px">${ic('x')}Kamu pilih ${lbl}, tapi skornya ${g.me}-${g.opp}.</p>
+          <button class="btn sm soft" data-a="flip">Ganti jadi ${g.res === 'W' ? 'Kalah' : 'Menang'}</button>`
+        : chk === 'ok' ? `<p class="hint" style="margin-top:12px;color:var(--green)">✓ ${lbl} ${g.me}-${g.opp}</p>` : ''}
+      <div class="gnav"><button class="btn primary big" data-a="next" ${chk === 'tie' || chk === 'mismatch' ? 'disabled' : ''}>Lanjut</button><button class="btn text" data-a="noscore">Lewati</button></div>`;
+    }
     if (stepNo === 2) return `<h3>👍 Apa yang jalan bagus?</h3><p class="muted">Pilih sampai 3.</p>${chips('good')}
       <div class="gnav">${next(g.good.length ? 'Lanjut' : 'Lewati')}</div>`;
     if (stepNo === 3) return `<h3>👎 Apa yang kurang?</h3><p class="muted">Pilih sampai 3. Ini bahan tips kamu nanti.</p>${chips('bad')}
@@ -1535,13 +1549,14 @@ function openGameSheet(i) {
     else if (b.dataset.s) {
       g[b.dataset.s] = Math.max(0, Math.min(99, (g[b.dataset.s] || 0) + +b.dataset.d));
       g.me = g.me ?? 0; g.opp = g.opp ?? 0;
-      if (g.me !== g.opp) g.res = g.me > g.opp ? 'W' : 'L';   // the score decides who won
     } else if (b.dataset.k) {
       const l = g[b.dataset.k], j = l.indexOf(b.dataset.t);
       if (j >= 0) l.splice(j, 1); else { l.push(b.dataset.t); if (l.length > 3) l.shift(); }
     } else if (a === 'next') {
+      if (stepNo === 1 && ['tie', 'mismatch'].includes(scoreCheck())) return;
       if (stepNo === 1 && !g.me && !g.opp) { g.me = null; g.opp = null; }   // 0-0 means no score
       stepNo++;
+    } else if (a === 'flip') { g.res = g.res === 'W' ? 'L' : 'W';
     } else if (a === 'noscore') { g.me = null; g.opp = null; stepNo = 2; }
     else if (a === 'back') stepNo--;
     else if (a === 'save') { save(); return; }
