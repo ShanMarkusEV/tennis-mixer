@@ -1378,8 +1378,7 @@ function startPlay() {
   if (openPlay()) { goPage('catat'); return; }
   const place = (document.getElementById('place') || {}).value || '';
   diary.unshift({id: crypto.randomUUID(), started_at: new Date().toISOString(), ended_at: null, place: place.trim().slice(0, 120) || null, games: [], lesson: null, dirty: true});
-  saveDiary(); track('play_start'); render();
-  setTimeout(() => openGameSheet(), 150);
+  saveDiary(); track('play_start'); render(); window.scrollTo(0, 0);
 }
 // While playing the page works like a lesson path: one step per game (✓ won, ✕ lost) with a card holding the
 // result and notes, the next game waiting at the end, a running line of encouragement, and rotating tips like a
