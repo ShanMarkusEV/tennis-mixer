@@ -244,10 +244,10 @@ textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
 .resbtn{flex:1;min-height:64px;border-radius:16px;border:2px solid var(--edge);background:var(--surface);color:var(--text);font-size:19px;font-weight:900;cursor:pointer;box-shadow:3px 3px 0 var(--hard)}
 .resbtn.W.on{background:var(--green);color:#fff}.resbtn.L.on{background:var(--warn);color:#fff}
 .scorerow{display:flex;gap:10px;margin:4px 0}
-.stepper{flex:1;min-width:0;display:flex;flex-direction:column;text-align:center}.stepper small{display:block;font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
-.stepper > div{display:flex;align-items:center;justify-content:space-between;border:2px solid var(--edge);border-radius:14px;background:var(--surface)}
-.stepper button{width:52px;height:52px;border:0;background:none;color:var(--text);font-size:26px;font-weight:900;cursor:pointer}
-.stepper b{font-size:30px}
+.sstep{flex:1;min-width:0;display:flex;flex-direction:column;text-align:center}.sstep small{display:block;font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.sstep > div{display:flex;align-items:center;justify-content:space-between;border:2px solid var(--edge);border-radius:14px;background:var(--surface)}
+.sstep button{width:52px;height:52px;border:0;background:none;color:var(--text);font-size:26px;font-weight:900;cursor:pointer}
+.sstep b{font-size:30px}
 .gsheet{max-height:calc(100dvh - 40px);overflow-y:auto}
 .gsheet textarea{min-height:70px;font-size:16px}
 .gsheet .acts{position:sticky;bottom:-18px;margin:14px -18px -18px;padding:12px 18px 16px;background:var(--surface);border-top:1px solid var(--line);justify-content:space-between}
@@ -266,6 +266,7 @@ textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
 .checklist .ok{color:var(--muted);text-decoration:line-through}.checklist .ok i{background:var(--lime);color:#0a1633;text-decoration:none}
 .dots{display:flex;gap:6px;margin:0 0 18px}.dots i{width:28px;height:6px;border-radius:3px;background:var(--line)}.dots i.on{background:var(--lime)}
 .mseg{margin:-6px 0 18px}
+.sharecard img{display:block;width:100%;height:auto;aspect-ratio:4/5;border-radius:14px;border:2px solid var(--edge);background:#0a1633}
 .hint.warn .ic{color:var(--warn)}
 /* a match is a little hard court: blue, white lines, scoreboard tiles for the score */
 .match{position:relative;border-radius:20px;padding:10px 20px 14px;margin-bottom:14px;color:#fff;overflow:hidden;
@@ -1123,7 +1124,9 @@ const COACH = {
 const WIN_TOAST = ['Mantap! 🔥', 'Game kamu! 💪', 'Keren, lanjut! 🎾', 'Gas terus! 🚀'];
 const LOSS_TOAST = ['Gapapa, game berikutnya! 💪', 'Tarik napas, reset. 🙌', 'Belajar dari yang ini, lanjut! 🎾'];
 // The summary headline, by how the session went.
-function praise(w, l) {
+// Same session, same headline: the choice comes from the session id, so the page and the shared picture match.
+function praise(w, l, id) {
+  const pick = a => a[id ? parseInt(id.slice(0, 4), 16) % a.length : Math.floor(Math.random() * a.length)];
   if (!w && !l) return {h: 'Sesi tercatat', p: 'Belum ada game di sesi ini. Lain kali tap + Catat game tiap habis main.'};
   if (!l) return {h: pick(['Sempurna! 🏆', 'Nggak terkalahkan hari ini! 🔥']), p: `${`${w} game`}, semua kamu menangkan. Ingat rasanya, dan lihat apa yang bikin kamu jalan.`};
   if (!w) return {h: pick(['Tetap semangat! 🙌', 'Good game, jangan menyerah! 💪']), p: 'Semua orang pernah di hari kayak gini. Kamu tetap main dan mencatat, dan ini bahan buat naik level.'};
@@ -1402,7 +1405,7 @@ function openGameSheet(i) {
     box.innerHTML = `<div class="card sheetin gsheet" role="dialog" aria-label="Catat game">
       <h3>Game ${i != null ? i + 1 : op.games.length + 1}</h3>
       <div class="resrow"><button class="resbtn W ${g.res === 'W' ? 'on' : ''}" data-r="W">✅ Menang</button><button class="resbtn L ${g.res === 'L' ? 'on' : ''}" data-r="L">❌ Kalah</button></div>
-      ${showScore ? `<div class="scorerow">${['me', 'opp'].map(k => `<div class="stepper"><small>${k === 'me' ? 'Kamu' : 'Lawan'}</small>
+      ${showScore ? `<div class="scorerow">${['me', 'opp'].map(k => `<div class="sstep"><small>${k === 'me' ? 'Kamu' : 'Lawan'}</small>
           <div><button data-s="${k}" data-d="-1" aria-label="Kurangi">−</button><b class="num">${g[k] ?? 0}</b><button data-s="${k}" data-d="1" aria-label="Tambah">+</button></div></div>`).join('')}</div>`
         : `<button class="btn text" data-a="score" style="padding-left:0">${ic('plus')}Tambah skor (opsional)</button>`}
       <p class="label" style="margin:14px 0 8px">👍 Apa yang jalan bagus?</p><div class="chips">${chips('good')}</div>
@@ -1471,7 +1474,7 @@ function viewRingkasan() {
     return view404();
   }
   document.title = `Ringkasan ${idDay(p.started_at)} · 10nis`;
-  const r = wl(p.games), pr = praise(r.w, r.l), good = topTags(p.games, 'good', 3), bad = topTags(p.games, 'bad', 2);
+  const r = wl(p.games), pr = praise(r.w, r.l, p.id), good = topTags(p.games, 'good', 3), bad = topTags(p.games, 'bad', 2);
   const firstDone = diary.filter(x => x.ended_at).length === 1;
   return `
   <p class="kicker">${esc(idDay(p.started_at))}${p.place ? ` · ${esc(p.place)}` : ''} · ${esc(lasted(p.started_at, p.ended_at))}</p>
@@ -1486,7 +1489,13 @@ function viewRingkasan() {
     : p.games.length ? `<p class="hint">${ic('ball')}Nggak ada yang dicatat kurang. Lain kali coba tandai satu hal yang mau diperbaiki.</p>` : ''}
   <div class="sec-head"><p class="label">Satu hal yang kamu pelajari hari ini?</p></div>
   <div class="card"><textarea id="lesson" maxlength="280" placeholder="Contoh: kalau ragu, crosscourt aja" onchange="saveLesson('${p.id}', this.value)">${esc(p.lesson || '')}</textarea></div>
-  <button class="btn primary big" style="background:#25d366;color:#0a1633" onclick="sharePlay('${p.id}')">${ic('share')}Bagikan ke WhatsApp</button>
+  <div class="sec-head"><p class="label">Bagikan</p></div>
+  <div class="card sharecard"><img id="cardprev" alt="Kartu hasil main" width="1080" height="1350">
+    <div class="row" style="flex-wrap:wrap;margin-top:12px">
+      <label class="btn sm soft">${ic('plus')}${playPhoto[p.id] ? 'Ganti foto' : 'Pakai foto kamu'}<input type="file" accept="image/*" hidden onchange="pickPlayPhoto('${p.id}', this)"></label>
+      ${playPhoto[p.id] ? `<button class="btn sm text" onclick="delete playPhoto['${p.id}']; render()">Hapus foto</button>` : ''}</div>
+    <p class="muted" style="font-size:12px;margin:8px 0 0">Foto cuma dipakai untuk gambar ini, nggak di-upload.</p></div>
+  <button class="btn primary big" style="background:#25d366;color:#0a1633" onclick="sharePlayImage('${p.id}', this)">${ic('share')}Bagikan ke WhatsApp</button>
   <div class="row" style="justify-content:center;gap:8px;margin-top:12px;flex-wrap:wrap">
     <button class="btn sm soft" onclick="copyText(playShareText('${p.id}'), 'Ringkasan disalin')">${ic('copy')}Salin teks</button>
     <button class="btn sm soft" onclick="goPage('catat')">${ic('plus')}Mulai main lagi</button>
@@ -1523,9 +1532,104 @@ function playShareText(id) {
     `Catat main kamu juga 👉 ${APP_URL}`,
   ].filter(Boolean).join('\n');
 }
-function sharePlay(id) {
-  track('play_share');
-  window.open(`https://wa.me/?text=${encodeURIComponent(playShareText(id))}`, '_blank');
+// ---------- share picture of a played session ----------
+// A 1080×1350 card for WhatsApp (chat or status): the games won, big, over the player's own photo if they
+// picked one (kept on this phone only, never uploaded), else a night-court design.
+const playPhoto = {};   // play id -> Image
+function pickPlayPhoto(id, input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const img = new Image();
+  img.onload = () => { playPhoto[id] = img; render(); };
+  img.onerror = () => toast('Foto nggak bisa dibuka');
+  img.src = URL.createObjectURL(f);
+}
+async function playCard(id) {
+  const p = playById(id), r = wl(p.games), photo = playPhoto[id];
+  const W = 1080, H = 1350, F = (w, sz, it) => `${it ? 'italic ' : ''}${w} ${sz}px "Archivo", system-ui, sans-serif`;
+  try { await Promise.all([document.fonts.load(F(900, 80, 1)), document.fonts.load(F(700, 30))]); } catch (e) {}
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  const rr = (X, Y, w, h, rad) => { x.beginPath(); x.moveTo(X + rad, Y); x.arcTo(X + w, Y, X + w, Y + h, rad); x.arcTo(X + w, Y + h, X, Y + h, rad); x.arcTo(X, Y + h, X, Y, rad); x.arcTo(X, Y, X + w, Y, rad); x.closePath(); };
+  const ball = (cx, cy, rad) => {
+    x.save(); x.beginPath(); x.arc(cx, cy, rad, 0, Math.PI * 2); x.fillStyle = '#c6ef3a'; x.fill(); x.clip();
+    x.strokeStyle = '#fff'; x.lineWidth = rad * .14;
+    x.beginPath(); x.arc(cx - rad * 1.56, cy, rad * 1.24, -1, 1); x.stroke();
+    x.beginPath(); x.arc(cx + rad * 1.56, cy, rad * 1.24, Math.PI - 1, Math.PI + 1); x.stroke(); x.restore();
+  };
+  if (photo) {
+    // cover the card with the photo, then darken top and bottom so the text reads on any picture
+    const sc = Math.max(W / photo.naturalWidth, H / photo.naturalHeight), pw = photo.naturalWidth * sc, ph = photo.naturalHeight * sc;
+    x.drawImage(photo, (W - pw) / 2, (H - ph) / 2, pw, ph);
+    let g = x.createLinearGradient(0, 0, 0, 300); g.addColorStop(0, 'rgba(6,11,25,.7)'); g.addColorStop(1, 'rgba(6,11,25,0)');
+    x.fillStyle = g; x.fillRect(0, 0, W, 300);
+    g = x.createLinearGradient(0, H * .4, 0, H); g.addColorStop(0, 'rgba(6,11,25,0)'); g.addColorStop(.45, 'rgba(6,11,25,.75)'); g.addColorStop(1, 'rgba(6,11,25,.95)');
+    x.fillStyle = g; x.fillRect(0, H * .4, W, H * .6);
+  } else {
+    x.fillStyle = '#0a1633'; x.fillRect(0, 0, W, H);
+    x.strokeStyle = 'rgba(198,239,58,.16)'; x.lineWidth = 6;
+    x.strokeRect(90, 200, W - 180, 440); x.beginPath(); x.moveTo(90, 420); x.lineTo(W - 90, 420); x.moveTo(W / 2, 280); x.lineTo(W / 2, 560);
+    x.moveTo(90, 280); x.lineTo(W - 90, 280); x.moveTo(90, 560); x.lineTo(W - 90, 560); x.stroke();
+    ball(W - 250, 400, 110);
+  }
+  x.textBaseline = 'alphabetic'; x.textAlign = 'left';
+  x.font = F(900, 46, 1); x.fillStyle = '#c6ef3a'; x.fillText('10nis.win', 64, 104);
+  x.font = F(700, 30); x.fillStyle = 'rgba(255,255,255,.9)';
+  x.fillText(`${idDay(p.started_at)}${p.place ? ' · ' + p.place : ''}`.slice(0, 48), 64, 150);
+  // From the bottom up: footer, the scores of the games won, the big number, the headline.
+  const won = p.games.filter(g => g.res === 'W');
+  x.font = F(700, 30); x.fillStyle = 'rgba(255,255,255,.75)'; x.fillText('Catat main kamu di 10nis.win', 64, H - 64);
+  if (won.length) {
+    const chips = won.slice(0, 8).map(g => scoreText(g) || '✓'), more = won.length - chips.length;
+    let cx = 64;
+    x.font = F(800, 40);
+    chips.concat(more > 0 ? [`+${more}`] : []).forEach(t => {
+      const w = x.measureText(t).width + 48;
+      if (cx + w > W - 64) return;
+      rr(cx, H - 232, w, 72, 20); x.fillStyle = '#c6ef3a'; x.fill();
+      x.fillStyle = '#0a1633'; x.fillText(t, cx + 24, H - 182); cx += w + 14;
+    });
+  }
+  const base = won.length ? H - 290 : H - 200;
+  const big = won.length ? String(won.length) : 'GG';
+  x.font = F(900, 300, 1); x.fillStyle = '#c6ef3a'; x.fillText(big, 54, base);
+  const bw = x.measureText(big).width;
+  x.fillStyle = '#fff'; x.font = F(900, 78, 1);
+  x.fillText(won.length ? 'GAME' : 'GOOD', 54 + bw + 30, base - 110);
+  x.fillText(won.length ? 'MENANG' : 'GAME', 54 + bw + 30, base - 22);
+  x.font = F(900, 60, 1); x.fillStyle = '#fff';
+  const words = praise(r.w, r.l, p.id).h.replace(/[^\p{L}\p{N}\s,.!?'-]/gu, '').trim().split(/\s+/), lines = [''];
+  words.forEach(w => { const t = (lines[lines.length - 1] + ' ' + w).trim(); if (x.measureText(t).width > W - 128 && lines[lines.length - 1]) lines.push(w); else lines[lines.length - 1] = t; });
+  lines.slice(0, 2).reverse().forEach((l, i) => x.fillText(l, 64, base - 290 - i * 72));
+  return c;
+}
+// Preview on the summary page; redrawn when the photo changes.
+async function drawPlayPreview() {
+  const img = document.getElementById('cardprev');
+  if (!img || !page || page.kind !== 'ringkasan') return;
+  const id = page.slug, key = id + (playPhoto[id] ? playPhoto[id].src : '');
+  if (drawPlayPreview.key === key && drawPlayPreview.url) { img.src = drawPlayPreview.url; return; }
+  const c = await playCard(id);
+  drawPlayPreview.key = key; drawPlayPreview.url = c.toDataURL('image/jpeg', .8);
+  if (document.getElementById('cardprev')) document.getElementById('cardprev').src = drawPlayPreview.url;
+}
+async function sharePlayImage(id, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const c = await playCard(id);
+    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', .9));
+    const file = new File([blob], `10nis-${playById(id).started_at.slice(0, 10)}.jpg`, {type: 'image/jpeg'});
+    track('play_share', {photo: !!playPhoto[id]});
+    if (navigator.canShare && navigator.canShare({files: [file]})) {
+      try { await navigator.share({files: [file]}); } catch (e) {}
+      return;
+    }
+    // No file sharing (desktop): save the picture, to send from WhatsApp.
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast('Gambar disimpan. Kirim lewat WhatsApp');
+  } finally { if (btn) btn.disabled = false; }
 }
 
 // ---------- routes ----------
@@ -3223,6 +3327,7 @@ function render() {
     const op = openPlay();
     document.getElementById('status').innerHTML = op && page.kind !== 'catat' ? `<i></i>Lagi main · ${(r => `${r.w}M ${r.l}K`)(wl(op.games))}` : '';
     document.getElementById('view').innerHTML = {beranda: viewBeranda, mulai: viewMulai, catat: viewCatat, ringkasan: viewRingkasan, latihan: viewLatihan}[page.kind]?.() ?? view404();
+    if (page.kind === 'ringkasan') drawPlayPreview();
     document.getElementById('dock').innerHTML = page.kind === 'catat' && op ? `<div class="dock"><div class="in">
         <button class="btn primary grow" onclick="openGameSheet()">${ic('plus')}Catat game</button></div></div>` : '';
     return;
