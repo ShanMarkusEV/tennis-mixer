@@ -1298,13 +1298,14 @@ const userFirstName = () => {
   return ((me && me.player && me.player.name) || m.full_name || m.name || '').split(' ')[0];
 };
 
-// ---------- onboarding (/mulai): level + what usually costs points → this week's focus ----------
-let ob = null;   // {step, level, weak}
-function startOnboard() { ob = {step: 0, level: onboard && onboard.level || null, weak: (onboard && onboard.weak || []).slice()}; goPage('mulai'); }
+// ---------- onboarding (/mulai): what 10nis is, then your level, then straight to playing ----------
+// This week's focus comes later, from what the player marks as "kurang" while playing.
+let ob = null;   // {step, level}
+function startOnboard() { ob = {step: 0, level: onboard && onboard.level || null}; goPage('mulai'); }
 function viewMulai() {
-  if (!ob) ob = {step: 0, level: null, weak: []};
+  if (!ob) ob = {step: 0, level: null};
   document.title = 'Mulai · 10nis';
-  const dots = `<div class="dots">${[0, 1, 2].map(i => `<i class="${i <= ob.step ? 'on' : ''}"></i>`).join('')}</div>`;
+  const dots = `<div class="dots">${[0, 1].map(i => `<i class="${i <= ob.step ? 'on' : ''}"></i>`).join('')}</div>`;
   if (ob.step === 0) return `${dots}
     <p class="kicker">Selamat datang</p>
     <h1 class="title">Diary tenis kamu</h1>
@@ -1316,39 +1317,23 @@ function viewMulai() {
     </ol></div>
     <button class="btn primary big" onclick="ob.step = 1; render(); scrollTo(0, 0)">Lanjut${ic('arrow')}</button>
     <div class="row" style="justify-content:center;margin-top:10px"><button class="btn text" onclick="finishOnboard(true)">Lewati</button></div>`;
-  if (ob.step === 1) return `${dots}
-    <p class="kicker">1 dari 2</p>
+  return `${dots}
+    <p class="kicker">Satu langkah lagi</p>
     <h1 class="title">Level kamu?</h1>
     <p class="sub">Kira-kira aja. Bisa diubah kapan pun di menu Saya.</p>
     <div class="lvgrid">${Object.keys(LEVELS_ID).map(n => `<button class="lv${band(+n)} ${ob.level === +n ? 'on' : ''}" style="--c:var(--lv${band(+n)})"
       onclick="ob.level = ${n}; render()">${n}</button>`).join('')}</div>
     ${ob.level ? `<div class="card lvl" style="margin-top:12px"><strong>${ob.level} · ${esc(LEVELS_ID[ob.level][0])}</strong><p style="margin:6px 0 0">${esc(LEVELS_ID[ob.level][1])}</p></div>` : ''}
-    <button class="btn primary big" style="margin-top:14px" ${ob.level ? '' : 'disabled'} onclick="ob.step = 2; render(); scrollTo(0, 0)">Lanjut${ic('arrow')}</button>
-    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn text" onclick="ob.level = null; ob.step = 2; render()">Nggak yakin, lewati</button></div>`;
-  if (ob.step === 2) return `${dots}
-    <p class="kicker">2 dari 2</p>
-    <h1 class="title">Poin paling sering hilang karena?</h1>
-    <p class="sub">Pilih 1 atau 2.</p>
-    <div class="chips">${Object.keys(TAGS).map(t => `<button class="tagchip ${ob.weak.includes(t) ? 'on' : ''}" onclick="toggleWeak('${t}')">${esc(TAGS[t].bad)}</button>`).join('')}</div>
-    <button class="btn primary big" style="margin-top:16px" ${ob.weak.length ? '' : 'disabled'} onclick="ob.step = 3; render(); scrollTo(0, 0)">Lihat fokus kamu${ic('arrow')}</button>
-    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn text" onclick="finishOnboard(true)">Lewati</button></div>`;
-  return `
-    <p class="kicker">Fokus minggu ini</p>
-    <h1 class="title">${esc(TAGS[ob.weak[0]].bad)}</h1>
-    <p class="sub">${ob.level ? `Level ${ob.level} · ${esc(LEVELS_ID[ob.level][0])}. ` : ''}Mulai dari satu hal dulu. Ini yang paling sering bikin naik level.</p>
-    ${coachCard(ob.weak[0])}
-    <button class="btn primary big" onclick="finishOnboard(); goPage('catat')">${ic('plus')}Mulai main</button>
-    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn text" onclick="finishOnboard(); goPage('beranda')">Nanti aja</button></div>`;
-}
-function toggleWeak(t) {
-  const i = ob.weak.indexOf(t);
-  if (i >= 0) ob.weak.splice(i, 1); else { ob.weak.push(t); if (ob.weak.length > 2) ob.weak.shift(); }
-  render();
+    <button class="btn primary big" style="margin-top:14px" ${ob.level ? '' : 'disabled'} onclick="finishOnboard(); goPage('catat')">${ic('plus')}Mulai main</button>
+    <div class="row" style="justify-content:center;gap:16px;margin-top:10px">
+      <button class="btn text" onclick="ob.level = null; finishOnboard(); goPage('catat')">Nggak yakin, lewati</button>
+      <button class="btn text" onclick="finishOnboard(); goPage('beranda')">Nanti aja</button></div>`;
 }
 function finishOnboard(skip) {
-  onboard = {level: skip ? onboard && onboard.level || null : ob && ob.level, weak: skip ? onboard && onboard.weak || [] : ob && ob.weak || [], done: true, synced: false};
-  saveOnboard(); track('onboard', {skip: !!skip, level: onboard.level, weak: onboard.weak});
-  if (onboard.level || onboard.weak.length) queuePlaySync();
+  const level = skip ? onboard && onboard.level || null : ob && ob.level || null;
+  onboard = {level, weak: onboard && onboard.weak || [], done: true, synced: false};
+  saveOnboard(); track('onboard', {skip: !!skip, level});
+  if (level) queuePlaySync();
   if (skip) goPage('beranda');
 }
 
@@ -2845,7 +2830,7 @@ const signInCard = msg => `<div class="card" style="padding:22px 18px">${msg ? `
 const ADVANCED = () => `<details class="past" style="margin-top:20px"><summary><span class="grow muted" style="font-weight:600">Advanced</span>${ic('arrow')}</summary>
   <div style="padding:0 15px 15px"><p class="muted" style="margin-bottom:10px;font-size:13px">Clear the roster and courts on this phone and start over with 4 default players. Your session log is kept.</p>
     <button class="btn sm text danger" onclick="resetAll()">Reset the mixer</button>
-    <p class="muted" style="margin:14px 0 10px;font-size:13px">Pilih ulang level dan hal yang paling sering bikin kamu kehilangan poin. Diary kamu tetap.</p>
+    <p class="muted" style="margin:14px 0 10px;font-size:13px">Pilih ulang level kamu. Diary kamu tetap.</p>
     <button class="btn sm soft" onclick="startOnboard()">Ulangi cek level</button>
     ${isAnon() ? `<p class="muted" style="margin:14px 0 10px;font-size:13px">Delete the guest account on this browser and every session in its log.</p>
     <button class="btn sm text danger" onclick="deleteAccount()">Delete my guest data</button>` : ''}</div></details>`;
