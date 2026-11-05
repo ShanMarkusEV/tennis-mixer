@@ -2845,6 +2845,8 @@ const signInCard = msg => `<div class="card" style="padding:22px 18px">${msg ? `
 const ADVANCED = () => `<details class="past" style="margin-top:20px"><summary><span class="grow muted" style="font-weight:600">Advanced</span>${ic('arrow')}</summary>
   <div style="padding:0 15px 15px"><p class="muted" style="margin-bottom:10px;font-size:13px">Clear the roster and courts on this phone and start over with 4 default players. Your session log is kept.</p>
     <button class="btn sm text danger" onclick="resetAll()">Reset the mixer</button>
+    <p class="muted" style="margin:14px 0 10px;font-size:13px">Pilih ulang level dan hal yang paling sering bikin kamu kehilangan poin. Diary kamu tetap.</p>
+    <button class="btn sm soft" onclick="startOnboard()">Ulangi cek level</button>
     ${isAnon() ? `<p class="muted" style="margin:14px 0 10px;font-size:13px">Delete the guest account on this browser and every session in its log.</p>
     <button class="btn sm text danger" onclick="deleteAccount()">Delete my guest data</button>` : ''}</div></details>`;
 function viewAccount() {
