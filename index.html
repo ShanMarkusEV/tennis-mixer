@@ -266,6 +266,39 @@ textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
 .checklist .ok{color:var(--muted);text-decoration:line-through}.checklist .ok i{background:var(--lime);color:#0a1633;text-decoration:none}
 .dots{display:flex;gap:6px;margin:0 0 18px}.dots i{width:28px;height:6px;border-radius:3px;background:var(--line)}.dots i.on{background:var(--lime)}
 .mseg{margin:-6px 0 18px}
+.phead{display:flex;align-items:center;gap:12px;margin:0 0 12px}
+.streak{font-size:20px;font-weight:900;padding:4px 12px;border-radius:999px;background:var(--surface);border:2px solid var(--edge)}
+.ticker{overflow:hidden;white-space:nowrap;margin:0 -18px 22px;padding:9px 0;background:var(--lime);color:#0a1633;font-weight:800;font-size:14px;border-block:2px solid var(--edge)}
+.ticker .tk{display:inline-flex;animation:tk 40s linear infinite}.ticker span{padding-right:48px}
+@keyframes tk{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.path{display:flex;flex-direction:column;gap:18px;margin:6px 0 22px}
+.pstep{display:flex;align-items:center;gap:14px}
+.pnode{flex:none;width:68px;height:68px;margin-left:calc(40px + var(--x));border-radius:50%;border:0;font-size:30px;font-weight:900;color:#fff;cursor:pointer;
+  background:var(--warn);box-shadow:0 6px 0 #9a3010}
+.pnode.W{background:var(--green);box-shadow:0 6px 0 #075a2f}
+.pnode.now{background:var(--lime);color:#0a1633;box-shadow:0 6px 0 #7f9a1f;animation:pulse 1.6s ease-in-out infinite}
+.pnode.now .ic{width:30px;height:30px}
+.pnode:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.4)}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@media (prefers-reduced-motion: reduce){.ticker .tk,.pnode.now{animation:none}}
+.pcard{flex:1;min-width:0;text-align:left;background:var(--surface);border:2px solid var(--edge);border-left:6px solid var(--warn);border-radius:16px;padding:10px 12px;
+  color:var(--text);font:inherit;cursor:pointer;box-shadow:3px 3px 0 var(--hard)}
+.pcard.W{border-left-color:var(--green)}.pcard.now{border-left-color:var(--lime);border-style:dashed;border-left-style:solid}
+.pcard .ptop{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.pcard .ptop b{font-size:16px;font-weight:900}
+.pcard small{display:block;color:var(--muted);font-size:12.5px;line-height:1.35;margin-top:3px;overflow-wrap:anywhere}.pcard small.note{font-style:italic}
+.tipcard #tiptext{margin:0;font-weight:700;font-size:15px;line-height:1.4;transition:opacity .25s}.tipcard #tiptext.fade{opacity:0}
+.gflow{min-height:min(560px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);overflow-y:auto;display:flex;flex-direction:column}
+.gflow h3{margin:14px 0 6px;font-size:32px}
+.gflow textarea{min-height:110px;font-size:16px}
+.gbar{display:flex;align-items:center;gap:12px}
+.gbar .x{flex:none;width:40px;height:40px;border-radius:12px;border:2px solid var(--edge);background:var(--surface);color:var(--text);font-size:18px;font-weight:900;display:grid;place-items:center;cursor:pointer}
+.prog{flex:1;height:14px;border-radius:999px;background:var(--surface-2);overflow:hidden;border:2px solid var(--edge)}
+.prog i{display:block;height:100%;background:var(--lime);border-radius:999px;transition:width .3s}
+.gnav{margin-top:auto;padding-top:18px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.resrow.big{flex-direction:column;margin-top:18px}.resrow.big .resbtn{min-height:96px;font-size:26px}.resrow.big .resbtn span{font-size:30px}
+.cele{text-align:center;margin:auto 0;padding:10px 0}
+.cele-emoji{font-size:84px;line-height:1;animation:pop .5s ease-out}
+@keyframes pop{0%{transform:scale(.3)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
 .sharecard img{display:block;width:100%;height:auto;aspect-ratio:4/5;border-radius:14px;border:2px solid var(--edge);background:#0a1633}
 .hint.warn .ic{color:var(--warn)}
 /* a match is a little hard court: blue, white lines, scoreboard tiles for the score */
@@ -1345,6 +1378,23 @@ function startPlay() {
   saveDiary(); track('play_start'); render();
   setTimeout(() => openGameSheet(), 150);
 }
+// While playing the page works like a lesson path: one step per game (✓ won, ✕ lost) with a card holding the
+// result and notes, the next game waiting at the end, a running line of encouragement, and rotating tips like a
+// game's loading screen.
+const HYPE = ['Setiap pukulan adalah latihan 🎾', 'Juara juga pernah double fault 😄', 'Fokus satu poin, bukan satu set',
+  'Tarik napas, senyum, servis lagi', 'Kalah hari ini = data buat menang besok', 'Kaki gerak, pikiran tenang',
+  'Nikmati rally-nya!', 'Bola terakhir belum tentu bola terakhir 💪', 'Main tenang, pukul tegas'];
+const TIPS = ['Split step tiap lawan mukul, biar kaki siap ke mana pun.', 'Ragu mau ke mana? Crosscourt, ±1 m di atas net.',
+  'Lihat bola sampai kena senar.', 'Minum tiap ganti sisi, jangan tunggu haus.', 'Habis mukul, side step balik ke tengah.',
+  'Antar poin: putar badan, lihat senar, tarik napas.', 'Servis kedua: tambah spin, bukan tambah pelan.',
+  'Return servis cepat? Ayunan pendek kayak blok.', 'Volley itu ditahan, bukan diayun.', 'Lemparan servis jelek? Tangkap dan ulang, itu legal.'];
+const streakOf = games => {
+  let n = 0;
+  for (let i = games.length - 1; i >= 0 && games[i].res === (games[games.length - 1] || {}).res; i--) n++;
+  return {n, res: games.length ? games[games.length - 1].res : null};
+};
+// Tips for this session first: the cue for anything marked "kurang", then the general ones.
+const tipsFor = op => [...new Set(topTags(op.games, 'bad', 3).map(x => `${TAGS[x.t].bad}: ${COACH[x.t].cue}`).concat(TIPS))];
 function viewCatat() {
   document.title = 'Main · 10nis';
   const op = openPlay();
@@ -1360,77 +1410,132 @@ function viewCatat() {
       <input id="place" class="linkin" maxlength="120" placeholder="Contoh: Senayan, lapangan komplek" value="${esc(last)}"></div>
     <button class="btn primary big" onclick="startPlay()">${ic('ball')}Mulai main</button>
     ${ft ? `<div class="sec-head"><p class="label">Ingat fokus kamu</p></div><div class="card"><b>${esc(TAGS[ft].bad)}:</b> “${esc(COACH[ft].cue)}”</div>` : ''}
+    <div class="card tipcard"><p class="label">💡 Tips</p><p id="tiptext">${esc(TIPS[0])}</p></div>
     ${LEGAL}`;
   }
-  const r = wl(op.games);
+  const r = wl(op.games), st = streakOf(op.games), n = op.games.length;
+  const hype = [`${lasted(op.started_at)} di lapangan`, ...(st.n >= 2 && st.res === 'W' ? [`🔥 ${st.n} menang beruntun!`] : []),
+    ...(st.n >= 2 && st.res === 'L' ? ['Satu game bagus bisa mengubah semuanya'] : []), ...HYPE].join('   •   ');
+  const offs = [0, 24, 40, 24, 0, -24, -40, -24];   // the zig-zag of the path
+  const step = (g, i) => `<div class="pstep">
+      <button class="pnode ${g.res}" style="--x:${offs[i % offs.length]}px" onclick="openGameSheet(${i})" aria-label="Game ${i + 1}">${g.res === 'W' ? '✓' : '✕'}</button>
+      <button class="pcard ${g.res}" onclick="openGameSheet(${i})">
+        <span class="ptop"><b>${g.res === 'W' ? 'Menang' : 'Kalah'}${scoreText(g) ? ` ${scoreText(g)}` : ''}</b><small>Game ${i + 1}</small></span>
+        ${(g.good || []).length ? `<small>👍 ${esc(g.good.map(t => TAGS[t].good).join(', '))}</small>` : ''}
+        ${(g.bad || []).length ? `<small>👎 ${esc(g.bad.map(t => TAGS[t].bad).join(', '))}</small>` : ''}
+        ${g.note ? `<small class="note">“${esc(g.note)}”</small>` : ''}
+        ${!(g.good || []).length && !(g.bad || []).length && !g.note ? '<small>Tap untuk tambah catatan</small>' : ''}</button></div>`;
   return `
-  <p class="kicker">Lagi main · ${esc(lasted(op.started_at))}</p>
-  <h1 class="title">${r.w}M · ${r.l}K</h1>
-  <p class="sub">Mulai ${esc(idTime(op.started_at))}${op.place ? ` · ${esc(op.place)}` : ''}. Tap + Catat game tiap habis satu game.</p>
-  ${op.games.length ? `<div class="card glist">${op.games.map((g, i) => `<button class="grow-row" onclick="openGameSheet(${i})">
-      <span class="res-pill ${g.res}">${g.res === 'W' ? 'M' : 'K'}</span>
-      <span class="grow"><b>Game ${i + 1}${scoreText(g) ? ` · ${scoreText(g)}` : ''}</b>
-        <small>${[(g.good || []).length ? '👍 ' + g.good.map(t => TAGS[t].good).join(', ') : '', (g.bad || []).length ? '👎 ' + g.bad.map(t => TAGS[t].bad).join(', ') : ''].filter(Boolean).map(esc).join(' · ') || 'Tanpa catatan'}</small>
-        ${g.note ? `<small class="note">“${esc(g.note)}”</small>` : ''}</span>${ic('pen')}</button>`).join('')}</div>`
-    : `<div class="empty" style="padding:30px 20px"><div class="orb">${ic('ball')}</div><h3>Belum ada game</h3>Habis satu game, tap <b>+ Catat game</b>. Cuma 10 detik.</div>`}
-  <div class="row" style="justify-content:center;margin-top:18px"><button class="btn ${op.games.length ? 'primary' : 'soft'}" onclick="endPlay()">${ic('trophy')}Selesai main</button></div>
+  <p class="kicker">Lagi main · ${esc(lasted(op.started_at))}${op.place ? ` · ${esc(op.place)}` : ''}</p>
+  <div class="phead"><h1 class="title" style="margin:0">${r.w}M · ${r.l}K</h1>
+    ${st.n >= 2 && st.res === 'W' ? `<span class="streak">🔥 ${st.n}</span>` : ''}</div>
+  <div class="ticker" aria-hidden="true"><div class="tk"><span>${esc(hype)}</span><span>${esc(hype)}</span></div></div>
+  <div class="path">
+    ${op.games.map(step).join('')}
+    <div class="pstep next"><button class="pnode now" style="--x:${offs[n % offs.length]}px" onclick="openGameSheet()" aria-label="Catat game ${n + 1}">${ic('plus')}</button>
+      <button class="pcard now" onclick="openGameSheet()"><span class="ptop"><b>Game ${n + 1}</b><small>berikutnya</small></span>
+        <small>${n ? 'Habis main, tap di sini. 10 detik.' : 'Habis game pertama, tap di sini. Cuma 10 detik.'}</small></button></div>
+  </div>
+  <div class="card tipcard"><p class="label">💡 Tips</p><p id="tiptext">${esc(tipsFor(op)[0])}</p></div>
+  <div class="row" style="justify-content:center;margin-top:18px"><button class="btn ${n ? 'primary' : 'soft'}" onclick="endPlay()">${ic('trophy')}Selesai main</button></div>
   <p class="muted" style="text-align:center;font-size:12px;margin-top:12px">Tersimpan di HP ini${user ? ' dan di akunmu' : ''}.</p>`;
 }
-// Log (or edit) one game: win/lose, optional score, what went well, what didn't, a note.
+// Rotate the tip every few seconds, without redrawing the page.
+setInterval(() => {
+  const el = document.getElementById('tiptext');
+  if (!el || document.hidden) return;
+  const op = openPlay(), list = op ? tipsFor(op) : TIPS;
+  rotateTip.i = (rotateTip.i + 1) % list.length;
+  el.classList.add('fade');
+  setTimeout(() => { el.textContent = list[rotateTip.i]; el.classList.remove('fade'); }, 250);
+}, 7000);
+function rotateTip() {}
+rotateTip.i = 0;
+
+// Log (or edit) one game, one question per screen: result, score, what went well, what didn't, a note.
+// Then a short celebration, like finishing a lesson.
 function openGameSheet(i) {
-  const op = openPlay() || (page && page.kind === 'ringkasan' && playById(page.slug));
+  const op = openPlay();
   if (!op) return;
-  const old = i != null ? op.games[i] : null;
-  const g = old ? {...old, good: [...(old.good || [])], bad: [...(old.bad || [])]} : {res: null, me: null, opp: null, good: [], bad: [], note: ''};
-  let showScore = g.me != null;
+  const old = i != null ? op.games[i] : null, num = i != null ? i + 1 : op.games.length + 1;
+  const g = old ? {...old, good: [...(old.good || [])], bad: [...(old.bad || [])], note: old.note || ''}
+    : {res: null, me: null, opp: null, good: [], bad: [], note: ''};
+  let stepNo = 0, done = null;
+  const STEPS = 5;
   const box = document.createElement('div');
   box.className = 'sheet';
-  const chips = kind => Object.keys(TAGS).map(t => `<button class="tagchip ${g[kind].includes(t) ? 'on' : ''}" data-k="${kind}" data-t="${t}">${esc(TAGS[t][kind])}</button>`).join('');
+  const chips = kind => `<div class="chips">${Object.keys(TAGS).map(t => `<button class="tagchip ${g[kind].includes(t) ? 'on' : ''}" data-k="${kind}" data-t="${t}">${esc(TAGS[t][kind])}</button>`).join('')}</div>`;
+  const next = (label, a = 'next') => `<button class="btn primary big" data-a="${a}">${label}</button>`;
+  const body = () => {
+    if (done) return `<div class="cele"><div class="cele-emoji">${done.res === 'W' ? '🔥' : '💪'}</div>
+      <h3>${esc(done.head)}</h3><p class="muted" style="font-size:15px">${esc(done.sub)}</p>
+      ${done.tip ? `<div class="card tipcard" style="text-align:left;margin:16px 0 0"><p class="label">💡 Buat game berikutnya</p><p>${esc(done.tip)}</p></div>` : ''}
+      <div style="margin-top:20px">${next('Lanjut main', 'close')}</div></div>`;
+    if (stepNo === 0) return `<h3>Game ${num}: hasilnya?</h3>
+      <div class="resrow big"><button class="resbtn W ${g.res === 'W' ? 'on' : ''}" data-r="W"><span>✅</span>Menang</button>
+        <button class="resbtn L ${g.res === 'L' ? 'on' : ''}" data-r="L"><span>❌</span>Kalah</button></div>`;
+    if (stepNo === 1) return `<h3>Skornya berapa?</h3><p class="muted">Opsional. Lewati kalau nggak ingat.</p>
+      <div class="scorerow">${['me', 'opp'].map(k => `<div class="sstep"><small>${k === 'me' ? 'Kamu' : 'Lawan'}</small>
+        <div><button data-s="${k}" data-d="-1" aria-label="Kurangi">−</button><b class="num">${g[k] ?? 0}</b><button data-s="${k}" data-d="1" aria-label="Tambah">+</button></div></div>`).join('')}</div>
+      <div class="gnav">${next('Lanjut')}<button class="btn text" data-a="noscore">Lewati</button></div>`;
+    if (stepNo === 2) return `<h3>👍 Apa yang jalan bagus?</h3><p class="muted">Pilih sampai 3.</p>${chips('good')}
+      <div class="gnav">${next(g.good.length ? 'Lanjut' : 'Lewati')}</div>`;
+    if (stepNo === 3) return `<h3>👎 Apa yang kurang?</h3><p class="muted">Pilih sampai 3. Ini bahan tips kamu nanti.</p>${chips('bad')}
+      <div class="gnav">${next(g.bad.length ? 'Lanjut' : 'Lewati')}</div>`;
+    return `<h3>Ceritain apa yang terjadi</h3><p class="muted">Opsional. Satu kalimat cukup.</p>
+      <textarea id="g-note" maxlength="280" placeholder="Contoh: servis kedua masuk terus, tapi backhand nyangkut">${esc(g.note || '')}</textarea>
+      <div class="gnav">${next('Simpan', 'save')}</div>`;
+  };
   const draw = () => {
-    box.innerHTML = `<div class="card sheetin gsheet" role="dialog" aria-label="Catat game">
-      <h3>Game ${i != null ? i + 1 : op.games.length + 1}</h3>
-      <div class="resrow"><button class="resbtn W ${g.res === 'W' ? 'on' : ''}" data-r="W">✅ Menang</button><button class="resbtn L ${g.res === 'L' ? 'on' : ''}" data-r="L">❌ Kalah</button></div>
-      ${showScore ? `<div class="scorerow">${['me', 'opp'].map(k => `<div class="sstep"><small>${k === 'me' ? 'Kamu' : 'Lawan'}</small>
-          <div><button data-s="${k}" data-d="-1" aria-label="Kurangi">−</button><b class="num">${g[k] ?? 0}</b><button data-s="${k}" data-d="1" aria-label="Tambah">+</button></div></div>`).join('')}</div>`
-        : `<button class="btn text" data-a="score" style="padding-left:0">${ic('plus')}Tambah skor (opsional)</button>`}
-      <p class="label" style="margin:14px 0 8px">👍 Apa yang jalan bagus?</p><div class="chips">${chips('good')}</div>
-      <p class="label" style="margin:14px 0 8px">👎 Apa yang kurang?</p><div class="chips">${chips('bad')}</div>
-      <textarea id="g-note" maxlength="280" placeholder="Ceritain apa yang terjadi (opsional)">${esc(g.note || '')}</textarea>
-      <div class="row acts">
-        ${old ? '<button class="btn sm text danger" data-a="del">Hapus</button>' : '<button class="btn sm soft" data-a="cancel">Batal</button>'}
-        <button class="btn primary" data-a="save" ${g.res ? '' : 'disabled'}>Simpan</button></div></div>`;
+    box.innerHTML = `<div class="card sheetin gflow" role="dialog" aria-label="Catat game">
+      ${done ? '' : `<div class="gbar"><button class="x" data-a="${stepNo ? 'back' : 'cancel'}" aria-label="${stepNo ? 'Kembali' : 'Tutup'}">${stepNo ? '←' : ic('x')}</button>
+        <div class="prog"><i style="width:${(stepNo + 1) / STEPS * 100}%"></i></div>
+        ${old ? '<button class="btn sm text danger" data-a="del">Hapus</button>' : ''}</div>`}
+      ${body()}</div>`;
+    const t = box.querySelector('#g-note'); if (t) setTimeout(() => t.focus(), 50);
   };
   draw();
   document.body.appendChild(box);
   const close = () => box.remove();
+  const save = () => {
+    const game = {at: old ? old.at : new Date().toISOString(), res: g.res, me: g.me, opp: g.opp,
+      good: g.good, bad: g.bad, note: (g.note || '').trim().slice(0, 280) || null};
+    if (old) op.games[i] = game; else op.games.push(game);
+    op.dirty = true; saveDiary(); render();
+    if (old) { close(); toast('Tersimpan'); return; }
+    track('play_game', {res: game.res});
+    const st = streakOf(op.games), r = wl(op.games), bad = game.bad[0];
+    done = {res: game.res, head: pick(game.res === 'W' ? WIN_TOAST : LOSS_TOAST),
+      sub: `Game ${num} tercatat · ${r.w} menang, ${r.l} kalah${st.n >= 2 ? ` · ${st.n} ${st.res === 'W' ? 'menang' : 'kalah'} beruntun` : ''}`,
+      tip: bad ? `${TAGS[bad].bad}: ${COACH[bad].cue}` : game.res === 'L' ? pick(TIPS) : ''};
+    draw();
+  };
   box.addEventListener('click', e => {
     if (e.target === box) { close(); return; }
     const b = e.target.closest('button');
-    g.note = (box.querySelector('#g-note') || {}).value || '';
+    const t = box.querySelector('#g-note'); if (t) g.note = t.value;
     if (!b) return;
-    if (b.dataset.r) g.res = b.dataset.r;
+    const a = b.dataset.a;
+    if (b.dataset.r) { g.res = b.dataset.r; stepNo = 1; }
     else if (b.dataset.s) {
       g[b.dataset.s] = Math.max(0, Math.min(99, (g[b.dataset.s] || 0) + +b.dataset.d));
+      g.me = g.me ?? 0; g.opp = g.opp ?? 0;
       if (g.me !== g.opp) g.res = g.me > g.opp ? 'W' : 'L';   // the score decides who won
     } else if (b.dataset.k) {
       const l = g[b.dataset.k], j = l.indexOf(b.dataset.t);
       if (j >= 0) l.splice(j, 1); else { l.push(b.dataset.t); if (l.length > 3) l.shift(); }
-    } else if (b.dataset.a === 'score') { showScore = true; g.me = g.me ?? 0; g.opp = g.opp ?? 0; }
-    else if (b.dataset.a === 'cancel') { close(); return; }
-    else if (b.dataset.a === 'del') {
-      if (!confirm(`Hapus game ${i + 1}?`)) return;
+    } else if (a === 'next') {
+      if (stepNo === 1 && !g.me && !g.opp) { g.me = null; g.opp = null; }   // 0-0 means no score
+      stepNo++;
+    } else if (a === 'noscore') { g.me = null; g.opp = null; stepNo = 2; }
+    else if (a === 'back') stepNo--;
+    else if (a === 'save') { save(); return; }
+    else if (a === 'cancel' || a === 'close') { close(); return; }
+    else if (a === 'del') {
+      if (!confirm(`Hapus game ${num}?`)) return;
       op.games.splice(i, 1); op.dirty = true; saveDiary(); close(); render(); return;
-    } else if (b.dataset.a === 'save') {
-      if (!g.res) return;
-      const game = {at: old ? old.at : new Date().toISOString(), res: g.res, me: showScore ? g.me : null, opp: showScore ? g.opp : null,
-        good: g.good, bad: g.bad, note: g.note.trim().slice(0, 280) || null};
-      if (old) op.games[i] = game; else op.games.push(game);
-      op.dirty = true; saveDiary(); close(); render();
-      if (!old) { track('play_game', {res: game.res}); toast(pick(game.res === 'W' ? WIN_TOAST : LOSS_TOAST)); }
-      return;
-    }
-    const y = box.querySelector('.gsheet').scrollTop;
-    draw(); box.querySelector('.gsheet').scrollTop = y;
+    } else return;
+    draw();
   });
 }
 function endPlay() {
