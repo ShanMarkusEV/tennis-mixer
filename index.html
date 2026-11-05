@@ -943,7 +943,7 @@ async function finishSession() {
   if (!user) await ensureUser(true);
   if (!confirm(user
     ? `Finish ${name}? It's saved to your session log, where you can still edit scores.${drop} The courts are cleared; your roster stays.`
-    : `Finish ${name}?${drop} You're offline, so the results stay on this phone and are saved to your log once you're back online.`)) return;
+    : `Finish ${name}?${drop} ${navigator.onLine ? "10nis can't be reached right now" : "You're offline"}, so the results stay on this phone and are saved to your log later.`)) return;
   const rounds = S.rounds;
   S.rounds = rounds.map(rd => ({...rd, matches: rd.matches.filter(hasScore)})).filter(rd => rd.matches.length);
   if (user) {
@@ -1525,7 +1525,6 @@ async function ensureUser(now) {
   if (!sb || !navigator.onLine || browserKind() === 'bot') return false;
   await Promise.race([authKnown, new Promise(r => setTimeout(r, 4000))]);
   if (user) return true;
-  try { if (sessionStorage.getItem('10nis-signing-in')) return false; } catch (e) {}
   if (!now && Date.now() < (ensureUser.retry || 0)) return false;   // after a failure, wait a minute before asking again
   if (!ensureUser.p) ensureUser.p = sb.auth.signInAnonymously().then(({data, error}) => {
     if (error) { ensureUser.retry = Date.now() + 6e4; report('anon', error.message); return false; }
