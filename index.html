@@ -443,7 +443,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.6.0';
+const APP_VERSION = '0.7.0';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -932,9 +932,10 @@ async function finishSession() {
   // Matches never played (no score on both sides) are dropped, with any round left empty, so they don't count.
   const unscored = S.rounds.reduce((n, rd) => n + rd.matches.filter(m => !hasScore(m)).length, 0);
   const drop = unscored ? ` ${plural(unscored, 'match')} without a score ${unscored === 1 ? 'is' : 'are'} removed.` : '';
+  if (!user) await ensureUser(true);
   if (!confirm(user
     ? `Finish ${name}? It's saved to your session log, where you can still edit scores.${drop} The courts are cleared; your roster stays.`
-    : `Finish ${name}?${drop} You're not signed in, so the results are kept only on this phone until the next session. Share the standings to keep them.`)) return;
+    : `Finish ${name}?${drop} You're offline, so the results stay on this phone and are saved to your log once you're back online.`)) return;
   const rounds = S.rounds;
   S.rounds = rounds.map(rd => ({...rd, matches: rd.matches.filter(hasScore)})).filter(rd => rd.matches.length);
   if (user) {
@@ -961,10 +962,16 @@ function closeSession(tab = 'players') {
   S.tab = tab; save(); render(); window.scrollTo(0, 0);
 }
 const newSession = finishSession;
-function resetAll() {
-  if (!confirm('Reset everything back to 4 default players?')) return;
+async function resetAll() {
+  if (!confirm('Reset the mixer on this phone back to 4 default players? The current roster and courts are cleared here. Sessions already in your log stay.')) return;
+  // Log the open session (and any unsaved results) first, so a reset never loses scores.
+  if (user && (S.rounds.length || S.pin) && !(await syncSession())) {
+    if (!confirm(`Couldn't save the open session (${saveError()}). Reset anyway and lose it?`)) return;
+  }
+  if (user && lastPending()) await uploadLast();
   if (S.pin && S.sessionId && user) sb.rpc('drop_pin', {sid: S.sessionId}).then(() => {}, () => {});
   S = defaultState(); pinOpen = false; save(); render();
+  toast('Mixer reset');
 }
 function goTab(t) { if (claimView) leaveClaim(); S.tab = t; save(); render(); window.scrollTo(0, 0); if (t === 'join' && follow.pin) loadGame(true); }
 
@@ -1035,13 +1042,13 @@ const shareCard = () => `<div class="sec-head"><p class="label">10nis on your ph
     ${iosHelp && !standalone() ? `<div class="lvpick" style="margin-top:12px"><strong>On iPhone</strong>
       <p>1. In Safari, tap the Share button ${ic('share')} at the bottom of the screen.<br>2. Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.</p></div>` : ''}
   </div>`;
-async function copyText(text) {
+async function copyText(text, msg = 'Copied, paste it in WhatsApp') {
   try { await navigator.clipboard.writeText(text); }
   catch (e) {
     const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t);
     t.select(); document.execCommand('copy'); t.remove();
   }
-  toast('Copied, paste it in WhatsApp');
+  toast(msg);
 }
 function copyRound(r) {
   const rd = S.rounds[r];
@@ -1171,7 +1178,7 @@ function viewPlayers() {
   const per = perCourt(), single = S.format === 'singles';
   const courtsUsed = Math.min(S.courts, Math.floor(avail / per));
   const sit = avail - courtsUsed * per;
-  return `
+  return `${inAppBanner()}
   <h1 class="title">Players</h1>
   <p class="sub">${avail} playing · ${plural(courtsUsed, 'court')}${sit ? ` · ${sit} sit${sit === 1 ? 's' : ''} out each round` : ''}</p>
   ${S.pin && user ? viewPin() : `<button class="pinbar ghost" onclick="openPin()">${ic('ticket')}<span class="grow"><b>Get a game PIN</b><small>Players follow their court live and get pinged each round</small></span>${ic('arrow')}</button>`}
@@ -1229,11 +1236,11 @@ function viewPlayers() {
     <div class="row" style="margin-top:12px"><button class="btn primary" onclick="applyList()">Apply list</button></div>`}
   </div>
 
-  <div class="row" style="justify-content:center;gap:20px;margin-top:20px">
-    ${S.rounds.length ? `<button class="btn text" onclick="finishSession()">Finish session</button>` : ''}
-    <button class="btn text danger" onclick="resetAll()">Reset everything</button>
-  </div>
-  <p class="muted" style="text-align:center;font-size:12px">${user ? 'Saved on this phone and logged to your account.' : 'Saved on this phone automatically. Sign in under Account to keep a log.'}</p>
+  ${S.rounds.length ? `<div class="row" style="justify-content:center;gap:20px;margin-top:20px">
+    <button class="btn text" onclick="finishSession()">Finish session</button></div>` : ''}
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:${S.rounds.length ? 0 : 20}px">${user && !isAnon() ? 'Saved on this phone and logged to your account.'
+    : user ? 'Saved to your log once round 1 starts. Save to Google under Account to open it on another phone.'
+    : 'Saved on this phone, and to your log once round 1 starts.'}</p>
   <div class="row" style="justify-content:center;margin-top:6px;gap:4px"><button class="btn text" onclick="shareApp()">${ic('share')}Share 10nis</button>
     <button class="btn text" onclick="openReport()">Report a problem</button></div>`;
 }
@@ -1377,6 +1384,11 @@ function viewResults() {
   ${top && top.scored ? `<div class="card winner">${avatar(top.name, 'lg', top.photo)}<span class="who"><span class="label">🏆 Winner</span>
       <b>${esc(top.name)}</b><small>${top.pts} games · ${top.avg.toFixed(1)} avg per match · ${top.w}W ${top.l}L</small></span></div>` : ''}
   ${L.readonly ? `<p class="hint">${ic('users')}Hosted by another organizer · view only</p>` : ''}
+  ${!L.readonly && L.id && isAnon() && !snoozed('10nis-save-nudge') ? `<div class="card" style="padding:16px 16px 14px">
+    <p style="margin:0 0 4px"><b>Session saved ✅</b></p>
+    <p class="muted" style="margin:0 0 12px;font-size:13.5px">Save it to your Google account so you can open it from another phone.</p>
+    <div class="row" style="flex-wrap:wrap"><button class="btn sm primary" onclick="goTab('account')">${GOOGLE}Save to Google</button>
+      <button class="btn sm text" onclick="snooze('10nis-save-nudge', 3); render()">Not now</button></div></div>` : ''}
   ${user && L.id && !L.readonly ? `<div class="actions">
     <button class="btn sm soft" onclick="shareSession('${L.id}')">${ic('users')}Players link</button>
     <button class="btn sm soft" onclick="openSession('${L.id}')">${ic('pen')}Edit scores</button></div>
@@ -1391,6 +1403,26 @@ const SUPABASE_ANON_KEY = 'sb_publishable_iYVtpH-Yb_ysG9liQ-NINw_h2DRDdNq';
 const GOOGLE_CLIENT_ID = '557073910029-b2eg9mfhq2ttugnpdlqebp6jlpequ0qp.apps.googleusercontent.com';
 const sb = window.supabase && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 let user = null, sessionLog = null, logLoading = false, ratingsByPid = {};
+// Guests get a Supabase anonymous account the first time they have something to keep (a round, a PIN, a claim),
+// so their sessions are saved on the server like everyone's. "Save to Google" links Google to that same account.
+const isAnon = () => !!(user && user.is_anonymous);
+let authReady = null;
+const authKnown = new Promise(r => { authReady = r; });
+async function ensureUser(now) {
+  if (user) return true;
+  if (!sb || !navigator.onLine || browserKind() === 'bot') return false;
+  await Promise.race([authKnown, new Promise(r => setTimeout(r, 4000))]);
+  if (user) return true;
+  try { if (sessionStorage.getItem('10nis-signing-in')) return false; } catch (e) {}
+  if (!now && Date.now() < (ensureUser.retry || 0)) return false;   // after a failure, wait a minute before asking again
+  if (!ensureUser.p) ensureUser.p = sb.auth.signInAnonymously().then(({data, error}) => {
+    if (error) { ensureUser.retry = Date.now() + 6e4; report('anon', error.message); return false; }
+    if (!user) { user = data.user; setTimeout(() => { render(); queueSync(); }); }
+    track('guest');
+    return true;
+  }, e => { report('anon', e.message); return false; }).finally(() => { ensureUser.p = null; });
+  return ensureUser.p;
+}
 
 // ---------- anonymous usage counts ----------
 // A random id for this phone (not tied to a name, account or IP) plus a few events, so we can count how many
@@ -1478,7 +1510,7 @@ const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOff
 const userName = () => {
   if (me && me.player && me.player.name) return me.player.name;
   const m = user.user_metadata || {};
-  return m.display_name || m.full_name || m.name || user.email.split('@')[0];
+  return m.display_name || m.full_name || m.name || (user.email ? user.email.split('@')[0] : 'You');
 };
 let editName = false;
 async function saveName() {
@@ -1492,8 +1524,29 @@ async function saveName() {
 
 // Log the current session once it has a round; writes are debounced while scores are typed.
 function queueSync() {
-  if (!sb || !user || (!S.rounds.length && !S.pin)) return;
+  if (!sb) return;
+  if (user) uploadLast();
+  if (!S.rounds.length && !S.pin) { if (!user && lastPending()) ensureUser(); return; }
+  if (!user) { ensureUser(); return; }   // signing in calls queueSync again
   clearTimeout(queueSync.t); queueSync.t = setTimeout(syncSession, 800);
+}
+// Results finished before this phone had an account (S.last without an id) are logged once it has one.
+const lastPending = () => !!(S.last && !S.last.id && !S.last.readonly && (S.last.rounds || []).length);
+async function uploadLast() {
+  if (!lastPending() || uploadLast.busy) return;
+  uploadLast.busy = true;
+  try {
+    const L = S.last;
+    await syncRoster();   // gives today's roster its server ids, which the old results share
+    const pid = id => (S.players.find(p => p.id === id) || {}).pid;
+    const id = crypto.randomUUID();
+    const {error} = await sb.from('sessions').insert({id, mode: (L.rounds[0] || {}).mode || S.mode, courts: S.courts, total: S.total,
+      title: L.title || null, finished_at: new Date().toISOString(), played_on: L.playedOn || today(), rounds: L.rounds,
+      players: L.players.map(p => p.pid || !pid(p.id) ? p : {...p, pid: pid(p.id)})});
+    if (error) { report('last', error.message); return; }
+    if (S.last === L) { L.id = id; save(); }
+    sessionLog = null;
+  } finally { uploadLast.busy = false; }
 }
 // Register today's roster with the shared player directory; each player gets a server id (pid)
 // and we learn who already has a 10nis account. Skipped when nothing about the roster changed.
@@ -1801,7 +1854,7 @@ async function loadMe() {
   loadMe.busy = true;
   const [{data: p}, {data: code}] = await Promise.all([
     sb.from('players').select('id, name, self_level, photo').eq('user_id', user.id).is('merged_into', null).maybeSingle(),
-    sb.rpc('my_player_code')]);
+    isAnon() ? {data: null} : sb.rpc('my_player_code')]);
   let rating = null;
   if (p) ({data: rating} = await sb.from('ratings').select('score, label, confidence, matches, wins').eq('player_id', p.id).maybeSingle());
   me = {player: p || null, rating: rating || null, code: code || null};
@@ -1913,7 +1966,8 @@ async function mountGoogleButton() {
       client_id: GOOGLE_CLIENT_ID, nonce: nonce.hashed, use_fedcm_for_button: true,
       callback: async ({credential}) => {
         try { sessionStorage.setItem('10nis-signing-in', '1'); } catch (e) {}
-        const {error} = await sb.auth.signInWithIdToken({provider: 'google', token: credential, nonce: nonce.raw});
+        const {error} = isAnon() ? await linkGoogle(credential, nonce.raw)
+          : await sb.auth.signInWithIdToken({provider: 'google', token: credential, nonce: nonce.raw});
         if (error) { try { sessionStorage.removeItem('10nis-signing-in'); } catch (e) {} toast(error.message); }
       }
     });
@@ -1925,10 +1979,116 @@ async function mountGoogleButton() {
     text: 'continue_with', locale: 'en', width: Math.min(400, el.offsetWidth)});
 }
 // Fallback when Google's script is blocked or offline: the redirect flow through Supabase.
+// A guest links Google to their own account; if that Google account already has 10nis, the next tap signs in
+// to it instead, and the merge token saved first brings this guest's log along.
 async function googleSignIn() {
   try { sessionStorage.setItem('10nis-signing-in', '1'); } catch (e) {}
-  const {error} = await sb.auth.signInWithOAuth({provider: 'google', options: {redirectTo: location.origin + location.pathname}});
+  const options = {redirectTo: location.origin + location.pathname};
+  if (isAnon()) {
+    if (!(await keepGuestToken())) { toast("Couldn't reach 10nis. Try again."); return; }
+    let taken = false;
+    try { taken = localStorage.getItem('10nis-link-taken') === user.id; } catch (e) {}
+    if (!taken) { const {error} = await sb.auth.linkIdentity({provider: 'google', options}); if (error) toast(error.message); return; }
+  }
+  const {error} = await sb.auth.signInWithOAuth({provider: 'google', options});
   if (error) toast(error.message);
+}
+// Link Google (from Google's own button) to the guest account: same user id, so every session stays.
+// supabase-js 2.45 only links by redirect, so this calls the auth API's id_token grant with link_identity itself.
+async function linkGoogle(token, nonce) {
+  const {data: {session}} = await sb.auth.getSession();
+  if (!session) return sb.auth.signInWithIdToken({provider: 'google', token, nonce});
+  let body = {};
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=id_token`, {method: 'POST',
+      headers: {apikey: SUPABASE_ANON_KEY, authorization: `Bearer ${session.access_token}`, 'content-type': 'application/json'},
+      body: JSON.stringify({provider: 'google', id_token: token, nonce, link_identity: true})});
+    body = await r.json().catch(() => ({}));
+    if (r.ok && body.access_token) {
+      const {error} = await sb.auth.setSession({access_token: body.access_token, refresh_token: body.refresh_token});
+      if (!error) { track('linked'); toast('Saved to your Google account'); }
+      return {error};
+    }
+  } catch (e) { return {error: {message: navigator.onLine ? "Couldn't reach 10nis. Try again." : "You're offline"}}; }
+  if (body.error_code === 'identity_already_exists' || /already/i.test(body.msg || '')) {
+    // This Google account already has 10nis: sign in to it and bring this guest's log along.
+    if (!(await keepGuestToken())) return {error: {message: "Couldn't reach 10nis. Try again."}};
+    return sb.auth.signInWithIdToken({provider: 'google', token, nonce});
+  }
+  report('link', body.msg || body.error_description || body.error_code);
+  return {error: {message: body.msg || body.error_description || "Couldn't save to Google"}};
+}
+// A one-time token that lets the next account on this phone (or the browser a link is opened in) take over
+// this guest's sessions. Kept in localStorage until it is used.
+async function keepGuestToken() {
+  if (!isAnon()) return true;
+  const {data, error} = await sb.rpc('begin_guest_merge');
+  if (error || !data) { report('merge', error && error.message); return false; }
+  try { localStorage.setItem('10nis-merge', data); } catch (e) { return false; }
+  return data;
+}
+async function finishGuestMerge() {
+  let t = null;
+  try { t = localStorage.getItem('10nis-merge'); } catch (e) {}
+  if (!t || !user || finishGuestMerge.busy) return;
+  finishGuestMerge.busy = true;
+  const {data: guest, error} = await sb.rpc('finish_guest_merge', {t});
+  finishGuestMerge.busy = false;
+  if (error) { report('merge', error.message); return; }
+  try { localStorage.removeItem('10nis-merge'); } catch (e) {}
+  if (!guest) return;
+  // The open session moved with the guest: keep logging it under the same id.
+  if (S.owner === guest) { S.owner = user.id; syncSession.last = null; save(); }
+  track('merged');
+  sessionLog = null; me = null; myMatches = null; ratingsByPid = {}; loadRatings(); render();
+  toast('Your sessions from this phone are in your log');
+}
+// Coming back from a redirect where Google was already linked to another 10nis account.
+(() => {
+  const q = new URLSearchParams(location.hash.slice(1) + '&' + location.search.slice(1));
+  if (q.get('error_code') === 'identity_already_exists' || /already/i.test(q.get('error_description') || '')) {
+    setTimeout(async () => {
+      await authKnown;
+      try { if (user) localStorage.setItem('10nis-link-taken', user.id); } catch (e) {}
+      toast('That Google account already has 10nis. Tap Continue with Google again to sign in to it');
+    });
+    history.replaceState(null, '', location.pathname);
+  }
+  // A guest opened this link from an in-app browser: take over their sessions here.
+  const carry = new URLSearchParams(location.search).get('carry');
+  if (/^[0-9a-f]{64}$/.test(carry || '')) {
+    try { localStorage.setItem('10nis-merge', carry); } catch (e) {}
+    history.replaceState(null, '', location.pathname);
+    setTimeout(async () => { await authKnown; if (user) finishGuestMerge(); else if (await ensureUser()) finishGuestMerge(); });
+  }
+})();
+
+// "Not now" on a nudge hides it for a few days.
+const snoozed = k => { try { return +localStorage.getItem(k) > Date.now(); } catch (e) { return false; } };
+const snooze = (k, days) => { try { localStorage.setItem(k, Date.now() + days * 864e5); } catch (e) {} };
+const inAppBanner = () => inApp() && !snoozed('10nis-inapp') ? `<div class="card" style="padding:14px 16px">
+  <p style="margin:0 0 4px"><b>Open in your browser</b></p>
+  <p class="muted" style="margin:0 0 10px;font-size:13px">You're inside ${esc(browserKind().replace(/^.* in-app /, ''))}. What you save here stays here; open 10nis in ${isAndroid ? 'Chrome' : 'Safari'} to keep everything in one place.</p>
+  <div class="row" style="flex-wrap:wrap">${isAndroid ? `<button class="btn sm primary" onclick="openOutside()">Open in Chrome</button>` : ''}
+    <button class="btn sm ${isAndroid ? 'soft' : 'primary'}" onclick="openOutside(true)">Copy link</button>
+    <button class="btn sm text" onclick="snooze('10nis-inapp', 3); render()">Not now</button></div></div>` : '';
+// ---------- in-app browsers ----------
+// WhatsApp, Instagram, Threads and Facebook open links in their own browser: Google blocks sign-in there,
+// and what's saved there is separate from Chrome/Safari. Offer to open 10nis in the phone's browser instead,
+// carrying a guest's sessions along.
+const isAndroid = /Android/.test(navigator.userAgent);
+const inApp = () => /in-app/.test(browserKind()) || (isAndroid && /; wv\)/.test(navigator.userAgent));
+const openInBrowser = msg => `<p class="muted" style="text-align:center;margin-bottom:12px">${msg} Open 10nis in ${isAndroid ? 'Chrome' : 'Safari'} to sign in.</p>
+  <div class="row" style="justify-content:center;flex-wrap:wrap">
+    ${isAndroid ? `<button class="btn primary" onclick="openOutside()">${ic('arrow')}Open in Chrome</button>` : ''}
+    <button class="btn ${isAndroid ? 'soft' : 'primary'}" onclick="openOutside(true)">${ic('share')}Copy link</button></div>
+  ${isIOS ? `<p class="muted" style="text-align:center;margin-top:10px;font-size:12.5px">Then paste it in Safari. Or tap ••• and choose Open in browser.</p>` : ''}`;
+async function openOutside(copy) {
+  const t = isAnon() ? await keepGuestToken() : null;
+  const url = `${location.origin}${location.pathname}${t ? `?carry=${t}` : ''}`;
+  if (copy) { await copyText(url, `Link copied. Paste it in ${isAndroid ? 'Chrome' : 'Safari'}`); return; }
+  track('open_outside');
+  location.href = `intent://${location.host}${location.pathname}${t ? `?carry=${t}` : ''}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
 }
 
 async function openSession(id) {
@@ -1961,18 +2121,33 @@ async function deleteSession(id, e) {
   render();
 }
 
+// The Google button, or, inside WhatsApp / Instagram / Threads (where Google blocks sign-in), how to open 10nis in a real browser.
+const signInCard = msg => `<div class="card" style="padding:22px 18px">${msg ? `<p class="muted" style="text-align:center;margin-bottom:12px">${msg}</p>` : ''}
+  ${inApp() ? openInBrowser('Google sign-in doesn\'t work inside this app.') : `<div id="gbtn" style="display:flex;justify-content:center;min-height:44px">
+    ${window.google && google.accounts ? '' : `<button class="btn" style="width:100%;padding:13px 14px" onclick="googleSignIn()">${GOOGLE}Continue with Google</button>`}
+  </div>
+  <p class="muted" style="text-align:center;margin-top:12px;font-size:12.5px">We only use your name, email and photo to keep your session log.</p>`}</div>`;
+const ADVANCED = () => `<details class="past" style="margin-top:20px"><summary><span class="grow muted" style="font-weight:600">Advanced</span>${ic('arrow')}</summary>
+  <div style="padding:0 15px 15px"><p class="muted" style="margin-bottom:10px;font-size:13px">Clear the roster and courts on this phone and start over with 4 default players. Your session log is kept.</p>
+    <button class="btn sm text danger" onclick="resetAll()">Reset the mixer</button></div></details>`;
 function viewAccount() {
   if (!sb) return `<div class="empty"><div class="orb" style="color:var(--muted)">${ic('user')}</div><h3>Accounts unavailable</h3>${navigator.onLine ? 'Sign-in is not set up yet.' : "You're offline. The mixer still works on this phone."}</div>`;
   if (!user) return `
     <h1 class="title">Account</h1>
-    <p class="sub">Sign in to keep a log of every session you run.</p>
-    <div class="card" style="padding:22px 18px">
-      <div id="gbtn" style="display:flex;justify-content:center;min-height:44px">
-        ${window.google && google.accounts ? '' : `<button class="btn" style="width:100%;padding:13px 14px" onclick="googleSignIn()">${GOOGLE}Continue with Google</button>`}
-      </div>
-      <p class="muted" style="text-align:center;margin-top:12px;font-size:12.5px">We only use your name, email and photo to keep your session log.</p>
-    </div>${shareCard()}${LEGAL}`;
+    <p class="sub">Sign in to keep a log of every session you run, on every phone.</p>
+    ${signInCard()}${shareCard()}${ADVANCED()}${LEGAL}`;
   if (!me) loadMe();
+  if (isAnon()) return `
+  <h1 class="title">Account</h1>
+  <p class="sub">Sessions are logged automatically once round 1 starts.</p>
+  <div class="card" style="padding:18px"><p style="margin:0 0 4px"><b>Not saved to Google yet</b></p>
+    <p class="muted" style="margin:0 0 4px;font-size:13.5px">Your log is kept for this browser only. Save it to your Google account to open it on another phone, and keep it if you clear this browser.</p></div>
+  ${signInCard()}
+  <div class="sec-head"><p class="label">Your rating</p></div>
+  ${viewMe()}
+  <div class="sec-head"><p class="label">Sessions</p></div>
+  ${viewSessions()}
+  ${shareCard()}${ADVANCED()}${LEGAL}`;
   return `
   <h1 class="title">Account</h1>
   <p class="sub">Sessions are logged automatically once round 1 starts.</p>
@@ -1983,7 +2158,7 @@ function viewAccount() {
       <span class="row" style="margin-top:8px"><button class="btn sm primary" onclick="saveName()">Save</button>
         <button class="btn sm soft" onclick="editName = false; render()">Cancel</button></span></span>`
     : `<span class="who"><button class="namebtn" onclick="editName = true; render(); const i = document.getElementById('myname'); i.focus(); i.select()"
-        title="Edit your name"><b>${esc(userName())}</b>${ic('pen')}</button><small>${esc(user.email)}</small></span>`}
+        title="Edit your name"><b>${esc(userName())}</b>${ic('pen')}</button><small>${esc(user.email || '')}</small></span>`}
     <button class="btn sm soft" onclick="signOut()">Sign out</button></div>
   ${me && me.player && /\/storage\/v1\/object\/public\/avatars\//.test(me.player.photo || '')
     ? `<p class="muted" style="margin:-6px 4px 14px;font-size:12.5px">Tap your photo to change it · <a href="#" style="color:inherit" onclick="useGooglePhoto(); return false">Use Google photo</a></p>`
@@ -1992,7 +2167,7 @@ function viewAccount() {
   ${viewMe()}
   <div class="sec-head"><p class="label">Sessions</p></div>
   ${viewSessions()}
-  ${shareCard()}
+  ${shareCard()}${ADVANCED()}
   <div class="row" style="justify-content:center;margin-top:20px"><button class="btn text danger" onclick="deleteAccount()">Delete account</button></div>
   ${LEGAL}`;
 }
@@ -2041,15 +2216,17 @@ function viewShare() {
 }
 
 async function loadClaim() {
-  if (loadClaim.busy) return;
+  if (loadClaim.busy) { loadClaim.again = true; return; }
   loadClaim.busy = true;
   const {data, error} = await sb.rpc('share_roster', {t: shareToken});
   loadClaim.busy = false;
+  if (loadClaim.again) { loadClaim.again = false; return loadClaim(); }
   claimData = error ? {error: error.message} : data || {error: 'This link has expired. Ask the organizer for a new one.'};
   render();
 }
 async function claimName(local, name) {
   if (!confirm(`Are you ${name}? Results under this name will count towards your level.`)) return;
+  if (!(await ensureUser(true))) { toast(navigator.onLine ? 'No reply from 10nis. Try again.' : "You're offline. Try again."); return; }
   const {error} = await sb.rpc('claim_name', {t: shareToken, local_id: local});
   if (error) { toast(error.message); return; }
   toast(`You're linked as ${name}`);
@@ -2074,13 +2251,10 @@ async function addCodeTo(localId) {
   if (await linkToPlayer(localId, addCode)) { leaveClaim(); goTab('players'); }
 }
 function viewAddCode() {
-  const signIn = `<div class="card" style="padding:22px 18px"><p class="muted" style="text-align:center;margin-bottom:12px">Sign in to add this player to your game.</p>
-    <div id="gbtn" style="display:flex;justify-content:center;min-height:44px">
-      ${window.google && google.accounts ? '' : `<button class="btn" style="width:100%;padding:13px 14px" onclick="googleSignIn()">${GOOGLE}Continue with Google</button>`}
-    </div></div>`;
   const back = `<div class="row" style="justify-content:center;margin-top:16px"><button class="btn text" onclick="leaveClaim()">Open 10nis</button></div>`;
   if (!sb) return `<div class="empty"><h3>Accounts unavailable</h3>Try again when you're online.</div>`;
-  if (!user) return `<h1 class="title">Add a player</h1><p class="sub">Player code ${esc(addCode)}</p>${signIn}${back}`;
+  if (!user && !viewAddCode.tried) { viewAddCode.tried = true; ensureUser(true).then(render); return '<p class="muted" style="padding:20px 4px">Loading…</p>'; }
+  if (!user) return `<h1 class="title">Add a player</h1><p class="sub">Player code ${esc(addCode)}</p><p class="hint warn">${ic('x')}Couldn't reach 10nis. Check your connection and open the link again.</p>${back}`;
   if (codeData === undefined) { loadCode(); return '<p class="muted" style="padding:20px 4px">Loading…</p>'; }
   if (!codeData) return `<div class="empty"><div class="orb">${LOGO}</div><h3>Code not found</h3>No 10nis player has the code ${esc(addCode)}.</div>${back}`;
   if (codeData.mine) return `<div class="empty"><div class="orb">${LOGO}</div><h3>This is your code</h3>Show it to the organizer so they can add you to their game.</div>${back}`;
@@ -2108,15 +2282,12 @@ function viewClaim() {
   return `
   <h1 class="title">Who are you?</h1>
   <p class="sub">${claimData.title ? `<b>${esc(claimData.title)}</b>, ` : 'Session on '}${day}. ${mine ? "You're linked. Your level is on the Account tab." : 'Tap your name so your results count towards your 10nis level.'}</p>
-  ${!user ? `<div class="card" style="padding:22px 18px"><p class="muted" style="text-align:center;margin-bottom:12px">Sign in first, then tap your name.</p>
-    <div id="gbtn" style="display:flex;justify-content:center;min-height:44px">
-      ${window.google && google.accounts ? '' : `<button class="btn" style="width:100%;padding:13px 14px" onclick="googleSignIn()">${GOOGLE}Continue with Google</button>`}
-    </div></div>` : ''}
+
   <div class="card plist">${claimData.players.map(p => `
     <div class="player">${avatar(p.name, '', p.photo || null)}
       <span class="grow" style="font-weight:600;overflow-wrap:anywhere">${esc(p.name)}</span>
       ${p.mine ? '<span class="tag">You</span>' : p.claimed ? '<span class="muted">Claimed</span>'
-        : p.claimable && user && !mine ? `<button class="btn sm primary" data-n="${esc(p.name)}" onclick="claimName('${p.local}', this.dataset.n)">That's me</button>` : ''}
+        : p.claimable && !mine ? `<button class="btn sm primary" data-n="${esc(p.name)}" onclick="claimName('${p.local}', this.dataset.n)">That's me</button>` : ''}
     </div>`).join('')}</div>
   <div class="row" style="justify-content:center;margin-top:16px"><button class="btn text" onclick="leaveClaim()">Open 10nis</button></div>
   ${LEGAL}`;
@@ -2129,7 +2300,7 @@ const pinText = p => p ? p.slice(0, 3) + ' ' + p.slice(3) : '';
 const localInput = iso => { const d = new Date(iso); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16); };
 let pinOpen = false;
 async function openPin() {
-  if (!user) { toast('Sign in under Account to get a game PIN'); goTab('account'); return; }
+  if (!(await ensureUser(true))) { toast(`Couldn't get a PIN (${navigator.onLine ? 'no reply from 10nis' : "you're offline"}). Try again.`); return; }
   if (!(await syncSession(true))) { toast(`Couldn't save (${saveError()}). Try again.`); return; }
   const {data, error} = await sb.rpc('create_pin', {sid: S.sessionId});
   if (error) { report('pin', error.message); toast(error.message); return; }
@@ -2327,6 +2498,7 @@ async function disablePush() {
 async function claimFromGame() {
   const p = game.players.find(x => x.id === follow.me);
   if (!confirm(`Are you ${p.name}? Results under this name will count towards your 10nis level.`)) return;
+  if (!(await ensureUser(true))) { toast(navigator.onLine ? 'No reply from 10nis. Try again.' : "You're offline. Try again."); return; }
   const {error} = await sb.rpc('claim_by_pin', {p: follow.pin, local_id: follow.me});
   if (error) { toast(error.message); return; }
   toast(`You're linked as ${p.name}`); me = null; loadGame();
@@ -2395,8 +2567,7 @@ function viewJoin() {
       <small>${follow.push ? "We'll ping this phone when your court changes." : isIOS && !standalone() ? 'On iPhone: add 10nis to your Home Screen first, then open it from there.' : 'Know your court the moment the host starts a round.'}</small></span>
       <button class="sw ${follow.push ? 'on' : ''}" role="switch" aria-checked="${!!follow.push}" aria-label="Notifications" onclick="${follow.push ? 'disablePush()' : 'enablePush()'}"></button></div>` : ''}
     ${meP.mine ? `<p class="hint">${ic('ball')}These games count towards your 10nis level.</p>`
-      : meP.claimable ? (user ? `<button class="pinbar ghost" onclick="claimFromGame()">${ic('trophy')}<span class="grow"><b>Count these games for my level</b><small>Link ${esc(meP.name)} to your 10nis account</small></span>${ic('arrow')}</button>`
-        : `<button class="pinbar ghost" onclick="googleSignIn()">${GOOGLE}<span class="grow"><b>Sign in to count these games</b><small>Your results add to your 10nis level</small></span>${ic('arrow')}</button>`) : ''}
+      : meP.claimable ? `<button class="pinbar ghost" onclick="claimFromGame()">${ic('trophy')}<span class="grow"><b>Count these games for my level</b><small>Link ${esc(meP.name)} to your 10nis log</small></span>${ic('arrow')}</button>` : ''}
     ${played.length ? `<div class="sec-head"><p class="label">Your games</p></div><div class="card mm">${played.join('')}</div>` : ''}
     ${game.rounds.some(rd => rd.matches.some(hasScore)) ? `<div class="sec-head"><p class="label">Standings</p></div>
     <div class="card" style="padding:0;overflow:hidden"><ol class="lb">${rows.map((r, i) => `<li class="${r.id === follow.me ? 'me-row' : ''}">
@@ -2411,12 +2582,15 @@ function viewJoin() {
 }
 
 if (sb) sb.auth.onAuthStateChange((event, session) => {
-  const was = user && user.id;
+  const was = user && user.id, wasAnon = isAnon();
   user = session ? session.user : null;
+  authReady();
   // Supabase also reports SIGNED_IN when it restores a saved login on page load, so only count a sign-in
   // the user just did (Google button, or coming back from the Google redirect).
   try { if (user && sessionStorage.getItem('10nis-signing-in')) { sessionStorage.removeItem('10nis-signing-in'); setTimeout(() => track('signin')); } } catch (e) {}
   // Defer: Supabase calls made inside this callback can deadlock the auth lock.
+  if (user && !user.is_anonymous) setTimeout(finishGuestMerge);
+  if (user && (was === user.id && wasAnon && !user.is_anonymous || event === 'USER_UPDATED')) setTimeout(() => { me = null; render(); });
   if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; myMatches = null; allMatches = false; claimData = null; codeData = undefined; setTimeout(() => { render(); queueSync(); loadRatings(); if (follow.pin) loadGame(true); }); }
 });
 

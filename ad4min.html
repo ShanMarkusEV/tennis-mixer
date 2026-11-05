@@ -316,6 +316,7 @@ function viewOverview() {
   <div class="tiles">
     ${tile('Accounts', s.accounts, `+${fmt(s.accounts_7d)} this week · +${fmt(s.accounts_30d)} in 30 days`)}
     ${tile('Signed in, 7 days', s.signed_in_7d, 'accounts active')}
+    ${s.guests != null ? tile('Guests', s.guests, `+${fmt(s.guests_7d)} this week · no Google yet`) : ''}
     ${tile('Phones today', s.phones_today, 'opened 10nis (incl. no account)')}
     ${tile('Phones, 7 days', s.phones_7d, `${fmt(s.phones_30d)} in 30 days · ${fmt(s.phones)} ever`)}
     ${tile('Home-screen installs', s.installs, 'phones')}
