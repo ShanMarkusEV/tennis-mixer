@@ -303,6 +303,13 @@ textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
 .cele{text-align:center;margin:auto 0;padding:10px 0}
 .cele-emoji{font-size:84px;line-height:1;animation:pop .5s ease-out}
 @keyframes pop{0%{transform:scale(.3)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+.lvcard .lvrow{display:flex;align-items:center;gap:14px}.lvcard .lvrow b{font-size:52px;line-height:1;font-weight:900;color:var(--green)}
+@media (prefers-color-scheme: dark){.lvcard .lvrow b{color:var(--lime)}}
+.lvcard .lvrow > span:not(.delta){flex:1;min-width:0}.lvcard strong{display:block;font-size:16px}.lvcard small,.lvchange small{display:block;color:var(--muted);font-size:12.5px;font-weight:600}
+.delta{flex:none;text-align:center;font-weight:900;font-size:22px;padding:6px 12px;border-radius:12px;background:var(--surface-2)}
+.delta small{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.delta.up{color:var(--green)}.delta.down{color:var(--warn)}@media (prefers-color-scheme: dark){.delta.up{color:var(--lime)}}
+.lvchange{display:flex;align-items:center;justify-content:space-between;gap:12px}.lvchange b{font-size:28px;font-weight:900}
 .sharecard img{display:block;width:100%;height:auto;aspect-ratio:4/5;border-radius:14px;border:2px solid var(--edge);background:#0a1633}
 .hint.warn .ic{color:var(--warn)}
 /* a match is a little hard court: blue, white lines, scoreboard tiles for the score */
@@ -519,7 +526,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.9.1';
+const APP_VERSION = '0.9.2';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1218,6 +1225,8 @@ async function syncPlays() {
       if (error) { report('plays', error.message); return; }
       // Only clear what was sent; a game added meanwhile stays dirty.
       dirty.forEach((p, i) => { if (JSON.stringify(row(p)) === sent[i]) delete p.dirty; });
+      // A finished session moves the game rating: fetch the new one once the server has worked it out.
+      if (rows.some(r => r.ended_at)) setTimeout(refreshRating, 600);
       try { localStorage.setItem(DIARY_KEY, JSON.stringify(diary)); } catch (e) {}
     }
     if (onboard && onboard.done && !onboard.synced) {
@@ -1247,6 +1256,36 @@ async function loadPlays() {
   });
   saveDiary();
   if (page && ['beranda', 'catat', 'ringkasan'].includes(page.kind)) render();
+}
+
+// ---------- game rating from the diary ----------
+// Finished sessions count towards the game rating like mabar matches (worked out on the server); play_ratings
+// holds the rating before and after each session.
+let playRatings = null;   // {play id: {before, after}}
+const toScore = r => Math.min(10, Math.max(1, 1 + (Number(r) - 800) / 100));
+async function loadPlayRatings() {
+  if (!sb || !user || loadPlayRatings.busy) return;
+  loadPlayRatings.busy = true;
+  const {data, error} = await sb.from('play_ratings').select('play_id, before, after');
+  loadPlayRatings.busy = false;
+  if (error) return;
+  playRatings = Object.fromEntries((data || []).map(r => [r.play_id, r]));
+  if (page && ['beranda', 'ringkasan'].includes(page.kind)) render();
+}
+const refreshRating = () => { me = null; loadMe(); loadPlayRatings(); };
+const fmtDelta = d => `${d > 0 ? '+' : d < 0 ? '−' : '±'}${Math.abs(d).toFixed(1)}`;
+function levelCard() {
+  const rt = me && me.rating;
+  if (!user) return '';
+  if (!rt || !rt.matches) return `<div class="card lvcard"><p class="label" style="margin-bottom:6px">Level 10nis kamu</p>
+    <p class="muted" style="margin:0;font-size:14px">${rt ? `Sekarang ${Number(rt.score).toFixed(1)}, dari level yang kamu pilih. ` : ''}Naik turun dari setiap game yang kamu catat dan main di Mabar. Muncul setelah sesi pertama selesai.</p></div>`;
+  const last = diary.find(p => p.ended_at && playRatings && playRatings[p.id]);
+  const d = last ? toScore(playRatings[last.id].after) - toScore(playRatings[last.id].before) : null;
+  const sc = Number(rt.score), band = LEVELS_ID[Math.min(10, Math.max(1, Math.round(sc)))][0];
+  return `<div class="card lvcard"><p class="label" style="margin-bottom:6px">Level 10nis kamu</p>
+    <div class="lvrow"><b class="num">${sc.toFixed(1)}</b><span><strong>${esc(band)}</strong>
+      <small>${rt.matches} game · diary & mabar</small></span>
+      ${d != null && Math.abs(d) >= .05 ? `<span class="delta ${d > 0 ? 'up' : 'down'}">${fmtDelta(d)}<small>sesi terakhir</small></span>` : ''}</div></div>`;
 }
 
 // ---------- diary helpers ----------
@@ -1317,6 +1356,8 @@ function viewBeranda() {
   ${steps.every(s => s[1]) ? '' : `<div class="sec-head"><p class="label">Langkah pertama</p></div>
     <div class="card checklist">${steps.map(([t, ok, go]) => ok ? `<div class="ok"><i>✓</i><span>${esc(t)}</span></div>`
       : `<button onclick="${go}"><i></i><span>${esc(t)}</span>${ic('arrow')}</button>`).join('')}</div>`}
+  ${user && !me ? (loadMe(), '') : ''}${user && !playRatings ? (loadPlayRatings(), '') : ''}
+  ${levelCard()}
   ${ft ? `<div class="sec-head"><p class="label">Fokus minggu ini</p></div>${coachCard(ft)}` : ''}
   ${g30.length ? `<div class="sec-head"><p class="label">30 hari terakhir</p></div>
     <div class="card stats"><div><b class="num">${g30.length}</b><small>game</small></div><div><b class="num">${r30.w}</b><small>menang</small></div>
@@ -1604,6 +1645,9 @@ function viewRingkasan() {
   <h1 class="title">${esc(pr.h)}</h1>
   <p class="sub" style="font-size:15px">${esc(pr.p)}</p>
   <div class="card stats"><div><b class="num">${p.games.length}</b><small>game</small></div><div><b class="num">${r.w}</b><small>menang</small></div><div><b class="num">${r.l}</b><small>kalah</small></div></div>
+  ${user && !playRatings ? (loadPlayRatings(), '') : ''}${(pr => pr ? `<div class="card lvchange"><span><small>Level 10nis</small><b class="num">${toScore(pr.before).toFixed(1)} → ${toScore(pr.after).toFixed(1)}</b></span>
+      <span class="delta ${pr.after >= pr.before ? 'up' : 'down'}">${fmtDelta(toScore(pr.after) - toScore(pr.before))}</span></div>`
+    : user && p.ended_at && p.games.length ? `<p class="hint">${ic('trophy')}Level 10nis kamu diperbarui setelah sesi ini tersimpan.</p>` : '')(playRatings && playRatings[p.id])}
   ${p.games.length ? `<div class="card glist">${p.games.map((g, i) => `<div class="grow-row"><span class="res-pill ${g.res}">${g.res === 'W' ? '✓' : '✕'}</span>
     <span class="grow"><b>Game ${i + 1}${scoreText(g) ? ` · ${scoreText(g)}` : ''}</b>${g.note ? `<small class="note">“${esc(g.note)}”</small>` : ''}</span></div>`).join('')}</div>` : ''}
   ${good.length ? `<div class="sec-head"><p class="label">👍 Yang jalan bagus</p></div>
@@ -2782,7 +2826,7 @@ async function loadMe() {
   me = {player: p || null, rating: rating || null, code: code || null};
   myMatches = null;
   loadMe.busy = false;
-  if (S.tab === 'account') render();
+  if (S.tab === 'account' && !page || page && ['beranda', 'ringkasan'].includes(page.kind)) render();
 }
 // Resize on the phone to a 256px square, upload to the user's own folder, then use it as their photo.
 async function uploadPhoto(input) {
@@ -3517,7 +3561,7 @@ if (sb) sb.auth.onAuthStateChange((event, session) => {
   // Defer: Supabase calls made inside this callback can deadlock the auth lock.
   if (user && !user.is_anonymous) setTimeout(finishGuestMerge);
   if (user && (was === user.id && wasAnon && !user.is_anonymous || event === 'USER_UPDATED')) setTimeout(() => { me = null; render(); });
-  if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; myMatches = null; allMatches = false; claimData = null; codeData = undefined; setTimeout(() => { render(); queueSync(); queuePlaySync(); loadPlays(); loadRatings(); if (follow.pin) loadGame(true); }); }
+  if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; myMatches = null; allMatches = false; claimData = null; codeData = undefined; setTimeout(() => { render(); queueSync(); queuePlaySync(); loadPlays(); playRatings = null; loadRatings(); if (follow.pin) loadGame(true); }); }
 });
 
 function render() {
