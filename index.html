@@ -261,9 +261,10 @@ textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
 .stats{display:flex;justify-content:space-around;text-align:center;padding:14px 8px}
 .stats b{display:block;font-size:30px;line-height:1}.stats small{color:var(--muted);font-size:12px;font-weight:700}
 .coach .cue{margin:0;padding:10px 12px;border-radius:12px;background:var(--surface-2);font-weight:800;font-size:16px}
-.checklist div{display:flex;align-items:center;gap:10px;padding:6px 0;font-weight:700}
+.checklist div,.checklist button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 0;font:inherit;font-weight:700;color:var(--text);background:none;border:0;text-align:left;cursor:pointer}
+.checklist button span{flex:1}.checklist button .ic{color:var(--muted)}
 .checklist i{width:24px;height:24px;border-radius:50%;border:2px solid var(--edge);display:grid;place-items:center;font-style:normal;font-size:13px;font-weight:900}
-.checklist .ok{color:var(--muted);text-decoration:line-through}.checklist .ok i{background:var(--lime);color:#0a1633;text-decoration:none}
+.checklist .ok{color:var(--muted)}.checklist .ok span{text-decoration:line-through}.checklist .ok i{background:var(--lime);color:#0a1633;border-color:#0a1633}
 .dots{display:flex;gap:6px;margin:0 0 18px}.dots i{width:28px;height:6px;border-radius:3px;background:var(--line)}.dots i.on{background:var(--lime)}
 .mseg{margin:-6px 0 18px}
 .phead{display:flex;align-items:center;gap:12px;margin:0 0 12px}
@@ -518,7 +519,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.9.0';
+const APP_VERSION = '0.9.1';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1300,7 +1301,8 @@ function viewBeranda() {
     ${LEGAL}`;
   }
   const stale = op && Date.now() - new Date(op.started_at) > 12 * 36e5;
-  const steps = [['Cek level', onboard && onboard.done], ['Catat game pertama', diary.some(p => p.games.length)], ['Selesai main & lihat ringkasan', done.length > 0]];
+  const steps = [['Cek level', !!(onboard && onboard.level), 'startOnboard(1)'], ['Catat game pertama', diary.some(p => p.games.length), "goPage('catat')"],
+    ['Selesai main & lihat ringkasan', done.length > 0, "goPage('catat')"]];
   const g30 = recentGames(30), r30 = wl(g30), weak = topTags(g30, 'bad', 2), ft = focusTag();
   return `${inAppBanner()}
   <h1 class="title">Halo${userFirstName() ? `, ${esc(userFirstName())}` : ''}!</h1>
@@ -1313,7 +1315,8 @@ function viewBeranda() {
       <small>Mulai ${esc(idTime(op.started_at))}${op.place ? ` · ${esc(op.place)}` : ''} · tap untuk catat game</small></span>${ic('arrow')}</button>`
     : `<button class="btn primary big" onclick="goPage('catat')">${ic('plus')}Mulai main</button>`}
   ${steps.every(s => s[1]) ? '' : `<div class="sec-head"><p class="label">Langkah pertama</p></div>
-    <div class="card checklist">${steps.map(([t, ok]) => `<div class="${ok ? 'ok' : ''}"><i>${ok ? '✓' : ''}</i>${esc(t)}</div>`).join('')}</div>`}
+    <div class="card checklist">${steps.map(([t, ok, go]) => ok ? `<div class="ok"><i>✓</i><span>${esc(t)}</span></div>`
+      : `<button onclick="${go}"><i></i><span>${esc(t)}</span>${ic('arrow')}</button>`).join('')}</div>`}
   ${ft ? `<div class="sec-head"><p class="label">Fokus minggu ini</p></div>${coachCard(ft)}` : ''}
   ${g30.length ? `<div class="sec-head"><p class="label">30 hari terakhir</p></div>
     <div class="card stats"><div><b class="num">${g30.length}</b><small>game</small></div><div><b class="num">${r30.w}</b><small>menang</small></div>
@@ -1337,7 +1340,7 @@ const userFirstName = () => {
 // ---------- onboarding (/mulai): what 10nis is, then your level, then straight to playing ----------
 // This week's focus comes later, from what the player marks as "kurang" while playing.
 let ob = null;   // {step, level}
-function startOnboard() { ob = {step: 0, level: onboard && onboard.level || null}; goPage('mulai'); }
+function startOnboard(step = 0) { ob = {step, level: onboard && onboard.level || null}; goPage('mulai'); }
 function viewMulai() {
   if (!ob) ob = {step: 0, level: null};
   document.title = 'Mulai · 10nis';
