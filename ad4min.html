@@ -61,6 +61,22 @@ input.code{font-size:34px;font-weight:900;font-stretch:72%;letter-spacing:.3em;t
 .tile .k{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .tile .v{font-size:40px;font-weight:900;font-stretch:72%;line-height:1;margin:6px 0 2px;font-variant-numeric:tabular-nums}
 .tile .s{font-size:12px;color:var(--muted);font-weight:600}
+/* Fase 1 gate: progress against each target */
+.gates{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.fgate{background:var(--surface);border:2px solid var(--edge);border-radius:14px;padding:12px 14px;box-shadow:3px 3px 0 var(--hard)}
+.fgate .k{font-size:12.5px;font-weight:700;color:var(--text);min-height:32px}
+.fgate .v{display:flex;align-items:baseline;gap:8px;margin:6px 0 8px}.fgate .v b{font-size:30px;font-weight:900;font-stretch:72%;font-variant-numeric:tabular-nums}
+.fgate .v span{font-size:12px;color:var(--muted);font-weight:700}
+.fgate .bar2{height:10px;border-radius:999px;background:var(--surface-2);border:1.5px solid var(--edge);overflow:hidden}
+.fgate .bar2 i{display:block;height:100%;background:var(--warn)}.fgate.ok .bar2 i{background:var(--green)}
+.fgate .st{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-top:6px;color:var(--warn)}.fgate.ok .st{color:var(--green)}
+/* funnel and tag lists: one horizontal bar per row */
+.hbars{display:grid;gap:8px}
+.hbar{display:grid;grid-template-columns:minmax(0,9.5em) 1fr auto;align-items:center;gap:10px;font-size:13px;font-weight:700}
+.hbar .t{height:14px;border-radius:999px;background:var(--surface-2);overflow:hidden}.hbar .t i{display:block;height:100%;background:var(--text);border-radius:999px}
+.hbar .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}
+.two .card{margin:0}.two .card h3{margin:0;font-size:14px;font-weight:800}.two .card .tot{font-size:12px;color:var(--muted);font-weight:600;margin:0 0 12px}
 /* charts */
 .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
 .chart h3{margin:0;font-size:14px;font-weight:800}
@@ -307,22 +323,69 @@ function tip(e) {
 }
 
 // ---------- views ----------
-const tile = (k, v, s) => `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${fmt(v)}</div><div class="s">${s || '&nbsp;'}</div></div>`;
+const TAG_ID = {servis: 'Servis', return: 'Return', forehand: 'Forehand', backhand: 'Backhand', volley: 'Volley/net', footwork: 'Footwork',
+  posisi: 'Posisi', error: 'Error sendiri', mental: 'Fokus/mental', fisik: 'Fisik/capek'};
+const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+// One Fase 1 gate: the measured value against its target (from 06 - Main Sendiri in the product notes).
+const gateCard = (k, value, target, unit, detail) => {
+  const ok = value >= target, w = Math.min(100, target ? value / target * 100 : 0);
+  return `<div class="fgate ${ok ? 'ok' : ''}"><div class="k">${esc(k)}</div>
+    <div class="v"><b>${fmt(value)}${unit}</b><span>target ${fmt(target)}${unit}</span></div>
+    <div class="bar2"><i style="width:${w}%"></i></div><div class="st">${ok ? 'Tercapai' : 'Belum'}${detail ? ` · ${esc(detail)}` : ''}</div></div>`;
+};
+const hbars = (rows, label) => {
+  const max = Math.max(1, ...rows.map(r => r.n));
+  return rows.length ? `<div class="hbars">${rows.map(r => `<div class="hbar"><span>${esc(r.l)}</span><span class="t"><i style="width:${r.n / max * 100}%"></i></span>
+    <span class="n">${fmt(r.n)}${r.sub ? ` <small>${esc(r.sub)}</small>` : ''}</span></div>`).join('')}</div>` : `<p class="muted small">${esc(label)}</p>`;
+};
+function viewDiary(d) {
+  if (!d) return '<p class="muted">Diary numbers are unavailable (run the play diary migration).</p>';
+  const f = d.funnel_30d, steps = [['Opened 10nis', f.open], ['Did onboarding', f.onboard], ['Started playing', f.play_start],
+    ['Logged a game', f.play_game], ['Finished a session', f.play_end], ['Shared a summary', f.play_share]];
+  return `
+  <div class="gates">
+    ${gateCard('Players who finished a diary session', d.players, 30, '', `${fmt(d.players_7d)} this week`)}
+    ${gateCard('Sessions with 3+ games', pct(d.sessions_3plus, d.finished), 50, '%', `${fmt(d.sessions_3plus)} of ${fmt(d.finished)}`)}
+    ${gateCard('Games with a good/bad tag', pct(d.games_tagged, d.games), 70, '%', `${fmt(d.games_tagged)} of ${fmt(d.games)}`)}
+    ${gateCard('Players back for a 2nd session', pct(d.returning, d.players), 30, '%', `${fmt(d.returning)} of ${fmt(d.players)}`)}
+    ${gateCard('Summaries shared', pct(d.shares, d.finished), 20, '%', `${fmt(d.shares)} shares`)}
+  </div>
+  <div class="tiles" style="margin-top:10px">
+    ${tile('Sessions finished', d.finished, `+${fmt(d.finished_7d)} this week · ${fmt(d.open)} still open`)}
+    ${tile('Games logged', d.games, `${pct(d.wins, d.games)}% won · ${d.finished ? (d.games / d.finished).toFixed(1) : 0} per session`)}
+    ${tile('Games with a score', pct(d.games_scored, d.games) + '%', `${fmt(d.games_scored)} games`)}
+    ${tile('Games with a note', pct(d.games_noted, d.games) + '%', `${fmt(d.lessons)} sessions with a lesson`)}
+  </div>
+  <div class="two" style="margin-top:10px">
+    <div class="card"><h3>Funnel, last 30 days</h3><p class="tot">Phones, each counted once per step</p>
+      ${hbars(steps.map(([l, n]) => ({l, n, sub: f.open ? pct(n, f.open) + '%' : ''})), 'No events yet')}</div>
+    <div class="card"><h3>Most marked “kurang”, 30 days</h3><p class="tot">What players say cost them games</p>
+      ${hbars(d.bad_30d.slice(0, 8).map(r => ({l: TAG_ID[r.tag] || r.tag, n: r.n})), 'Nothing marked yet')}</div>
+    <div class="card"><h3>Most marked “bagus”, 30 days</h3><p class="tot">What went well</p>
+      ${hbars(d.good_30d.slice(0, 8).map(r => ({l: TAG_ID[r.tag] || r.tag, n: r.n})), 'Nothing marked yet')}</div>
+  </div>
+  <div class="charts" style="margin-top:10px">
+    ${barChart('Diary sessions', d.daily, 'plays')}
+    ${barChart('Games logged', d.daily, 'games')}
+  </div>`;
+}
+const tile = (k, v, s) => `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${typeof v === 'string' ? esc(v) : fmt(v)}</div><div class="s">${s || '&nbsp;'}</div></div>`;
 function viewOverview() {
   if (!stats) return '<p class="muted">Loading numbers…</p>';
   const s = stats;
   return `
+  <h2>Fase 1 · Main sendiri (diary)</h2>
+  ${viewDiary(s.play)}
   <h2>People</h2>
   <div class="tiles">
     ${tile('Accounts', s.accounts, `+${fmt(s.accounts_7d)} this week · +${fmt(s.accounts_30d)} in 30 days`)}
     ${tile('Signed in, 7 days', s.signed_in_7d, 'accounts active')}
     ${s.guests != null ? tile('Guests', s.guests, `+${fmt(s.guests_7d)} this week · no Google yet`) : ''}
-    ${s.play ? tile('Play diary', s.play.plays, `${fmt(s.play.plays_7d)} this week by ${fmt(s.play.players_7d)} players · ${fmt(s.play.games)} games logged`) : ''}
     ${tile('Phones today', s.phones_today, 'opened 10nis (incl. no account)')}
     ${tile('Phones, 7 days', s.phones_7d, `${fmt(s.phones_30d)} in 30 days · ${fmt(s.phones)} ever`)}
     ${tile('Home-screen installs', s.installs, 'phones')}
   </div>
-  <h2>Play</h2>
+  <h2>Mabar (mixer)</h2>
   <div class="tiles">
     ${tile('Sessions', s.sessions, `+${fmt(s.sessions_7d)} this week · ${fmt(s.sessions_finished)} finished`)}
     ${tile('Matches', s.matches, `+${fmt(s.matches_7d)} this week · ${fmt(s.rounds)} rounds`)}

@@ -111,7 +111,36 @@ end;
 $$;
 revoke execute on function public.purge_idle_guests() from public, anon, authenticated;
 
--- Admin: play diary counts, next to the existing numbers.
+-- ---------- usage events ----------
+-- The app sends more events since 0.7 (guest accounts, practice pages, the diary); track() silently dropped
+-- anything not on its list, so add them.
+alter table public.events drop constraint events_event_check;
+alter table public.events add constraint events_event_check check (event in (
+  'open', 'round', 'finish', 'import', 'signin', 'install', 'error', 'join',
+  'guest', 'linked', 'merged', 'open_outside', 'latihan', 'share_latihan',
+  'onboard', 'play_start', 'play_game', 'play_end', 'play_share'));
+
+create or replace function public.track(device text, event text, props jsonb default '{}', signed_in boolean default false)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if device !~ '^[0-9a-f]{16}$' or event not in ('open', 'round', 'finish', 'import', 'signin', 'install', 'error', 'join',
+      'guest', 'linked', 'merged', 'open_outside', 'latihan', 'share_latihan',
+      'onboard', 'play_start', 'play_game', 'play_end', 'play_share') then return; end if;
+  -- Ignore floods from one device (more than 500 events in a day).
+  if (select count(*) from public.events e where e.device = track.device and e.created_at > now() - interval '1 day') >= 500 then return; end if;
+  insert into public.events (device, event, signed_in, props)
+    values (device, event, coalesce(signed_in, false),
+            case when jsonb_typeof(props) = 'object' and pg_column_size(props) < 512 then props else '{}' end);
+end;
+$$;
+
+-- ---------- admin: the play diary ----------
+-- Everything the admin overview shows about the diary: the Fase 1 gate numbers, the funnel from opening 10nis
+-- to sharing a summary, what players mark as good and bad, and plays and games per day.
 create function public.admin_play_stats()
 returns jsonb
 language plpgsql
@@ -119,13 +148,45 @@ stable
 security definer
 set search_path = ''
 as $$
+declare jkt date := (now() at time zone 'Asia/Jakarta')::date;
 begin
   perform public.require_admin();
-  return jsonb_build_object(
-    'plays', (select count(*) from public.plays),
-    'plays_7d', (select count(*) from public.plays where started_at > now() - interval '7 days'),
-    'players_7d', (select count(distinct user_id) from public.plays where started_at > now() - interval '7 days'),
-    'games', (select coalesce(sum(jsonb_array_length(games)), 0) from public.plays));
+  return (
+    with fin as (select * from public.plays where ended_at is not null),
+    g as (select p.user_id, p.started_at, x.j from public.plays p cross join lateral jsonb_array_elements(p.games) as x(j)),
+    g30 as (select * from g where started_at > now() - interval '30 days'),
+    per_user as (select user_id, count(*) as n from fin group by user_id),
+    ev as (select e.event, e.device from public.events e where e.created_at > now() - interval '30 days')
+    select jsonb_build_object(
+      'finished', (select count(*) from fin),
+      'finished_7d', (select count(*) from fin where ended_at > now() - interval '7 days'),
+      'open', (select count(*) from public.plays where ended_at is null),
+      'players', (select count(*) from per_user),
+      'players_7d', (select count(distinct user_id) from fin where ended_at > now() - interval '7 days'),
+      'returning', (select count(*) from per_user where n >= 2),
+      'sessions_3plus', (select count(*) from fin where jsonb_array_length(games) >= 3),
+      'games', (select count(*) from g),
+      'wins', (select count(*) from g where g.j ->> 'res' = 'W'),
+      'games_tagged', (select count(*) from g where jsonb_array_length(coalesce(g.j -> 'good', '[]')) + jsonb_array_length(coalesce(g.j -> 'bad', '[]')) > 0),
+      'games_scored', (select count(*) from g where g.j ->> 'me' is not null),
+      'games_noted', (select count(*) from g where coalesce(g.j ->> 'note', '') <> ''),
+      'lessons', (select count(*) from fin where coalesce(lesson, '') <> ''),
+      'shares', (select count(*) from public.events where event = 'play_share'),
+      'bad_30d', (select coalesce(jsonb_agg(jsonb_build_object('tag', z.tag, 'n', z.n) order by z.n desc), '[]')
+        from (select t.tag, count(*) as n from g30 cross join lateral jsonb_array_elements_text(coalesce(g30.j -> 'bad', '[]')) as t(tag) group by t.tag) z),
+      'good_30d', (select coalesce(jsonb_agg(jsonb_build_object('tag', z.tag, 'n', z.n) order by z.n desc), '[]')
+        from (select t.tag, count(*) as n from g30 cross join lateral jsonb_array_elements_text(coalesce(g30.j -> 'good', '[]')) as t(tag) group by t.tag) z),
+      'funnel_30d', jsonb_build_object(
+        'open', (select count(distinct device) from ev where event = 'open'),
+        'onboard', (select count(distinct device) from ev where event = 'onboard'),
+        'play_start', (select count(distinct device) from ev where event = 'play_start'),
+        'play_game', (select count(distinct device) from ev where event = 'play_game'),
+        'play_end', (select count(distinct device) from ev where event = 'play_end'),
+        'play_share', (select count(distinct device) from ev where event = 'play_share')),
+      'daily', (select jsonb_agg(jsonb_build_object('day', d.day,
+          'plays', (select count(*) from public.plays p where (p.started_at at time zone 'Asia/Jakarta')::date = d.day),
+          'games', (select count(*) from g where (g.started_at at time zone 'Asia/Jakarta')::date = d.day)) order by d.day)
+        from (select generate_series(jkt - 29, jkt, interval '1 day')::date as day) d)));
 end;
 $$;
 revoke execute on function public.admin_play_stats() from public, anon;
