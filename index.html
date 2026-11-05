@@ -229,6 +229,13 @@ textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
 .hint.fin{background:var(--lime);color:var(--lime-ink);border:2px solid var(--edge);padding:10px 12px;border-radius:14px}
 .hint.fin .ic{color:var(--lime-ink)}
 .hint.warn{color:var(--warn)}
+/* practice library (/latihan) */
+.limg{display:block;width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;border:2px solid var(--edge);border-radius:18px;box-shadow:3px 3px 0 var(--hard);margin:0 0 16px;background:var(--surface-2)}
+.lsteps{margin:0;padding:0;list-style:none;counter-reset:s}
+.lsteps li{counter-increment:s;display:flex;gap:12px;align-items:flex-start;padding:8px 0;font-weight:700;font-size:16px;line-height:1.35}
+.lsteps li small{display:block;font-weight:500;font-size:14px;color:var(--muted);margin-top:2px}
+.lsteps li::before{content:counter(s);flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--lime);color:#0a1633;font-weight:900;font-size:14px}
+.ltext p{margin:0 0 10px;font-size:16px;line-height:1.5}.ltext p:last-child{margin:0}
 .hint.warn .ic{color:var(--warn)}
 /* a match is a little hard court: blue, white lines, scoreboard tiles for the score */
 .match{position:relative;border-radius:20px;padding:10px 20px 14px;margin-bottom:14px;color:#fff;overflow:hidden;
@@ -443,7 +450,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.7.0';
+const APP_VERSION = '0.8.0';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -470,6 +477,7 @@ function load() {
   catch (e) { return null; }
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} queueSync(); }
+const FIRST_VISIT = !load();   // nothing saved on this phone yet
 let S = Object.assign(defaultState(), load() || {});
 S.total = 0; // "Games / match" (score autofill) is hidden for now, so it is off for everyone
 setTimeout(() => { if (dedupeRoster()) { save(); render(); } });
@@ -973,7 +981,111 @@ async function resetAll() {
   S = defaultState(); pinOpen = false; save(); render();
   toast('Mixer reset');
 }
-function goTab(t) { if (claimView) leaveClaim(); S.tab = t; save(); render(); window.scrollTo(0, 0); if (t === 'join' && follow.pin) loadGame(true); }
+function goTab(t) {
+  if (claimView) leaveClaim();
+  page = null; S.tab = t;
+  if (location.pathname !== TAB_PATH[t]) history.pushState(null, '', TAB_PATH[t]);
+  save(); render(); window.scrollTo(0, 0); if (t === 'join' && follow.pin) loadGame(true);
+}
+
+// ---------- practice library: /latihan and /latihan/<topic> ----------
+// Short technique tips from the 10nis Threads posts: a few checkpoints and one drill per topic.
+// Content is in Indonesian, like the posts that link here. Data: /latihan.json (also read by the OG function).
+let latihan = null;
+async function loadLatihan() {
+  if (loadLatihan.busy) return;
+  loadLatihan.busy = true;
+  try { const r = await fetch('/latihan.json'); latihan = r.ok ? await r.json() : {error: true}; } catch (e) { latihan = {error: true}; }
+  loadLatihan.busy = false;
+  render();
+}
+function viewLatihan() {
+  if (!latihan) { loadLatihan(); return '<p class="muted" style="padding:20px 4px">Memuat…</p>'; }
+  if (latihan.error) return `<div class="empty"><div class="orb">${LOGO}</div><h3>Belum bisa dibuka</h3>Cek sinyal, lalu coba lagi.
+    <div style="margin-top:16px"><button class="btn" onclick="latihan = null; render()">Coba lagi</button></div></div>`;
+  const topics = latihan.topics, t = page.slug && topics.find(x => x.slug === page.slug);
+  if (page.slug && !t) return view404();
+  const mabar = `<button class="pinbar ghost" onclick="goTab('players')">${ic('users')}<span class="grow"><b>Atur mabar di 10nis</b>
+    <small>Ronde adil, skor, klasemen & level pemain. Gratis, tanpa daftar.</small></span>${ic('arrow')}</button>`;
+  if (!t) {
+    document.title = 'Latihan · 10nis';
+    return `<p class="kicker">10nis latihan</p>
+    <h1 class="title">Latihan</h1>
+    <p class="sub">Tips teknik singkat: beberapa checkpoint dan 1 drill per topik. Pilih satu, pakai di latihan berikutnya.</p>
+    ${latihan.categories.filter(c => topics.some(x => x.cat === c)).map(c => `<div class="sec-head"><p class="label">${esc(c)}</p></div>
+      ${topics.filter(x => x.cat === c).map(x => `<button class="pinbar ghost" onclick="goPage('latihan', '${x.slug}')">${ic('ball')}
+        <span class="grow"><b>${esc(x.title)}</b><small>${esc(x.hook)}</small></span>${ic('arrow')}</button>`).join('')}`).join('')}
+    <div class="sec-head"><p class="label">Main bareng</p></div>${mabar}${LEGAL}`;
+  }
+  document.title = `${t.title} · Latihan · 10nis`;
+  const i = topics.indexOf(t), next = topics[(i + 1) % topics.length];
+  if (viewLatihan.seen !== t.slug) { viewLatihan.seen = t.slug; track('latihan', {topic: t.slug}); }
+  return `<div class="row" style="margin:0 0 6px"><button class="btn text" style="padding-left:0" onclick="goPage('latihan')">← Semua latihan</button></div>
+  <p class="kicker">${esc(t.cat)}</p>
+  <h1 class="title">${esc(t.title)}</h1>
+  <p class="sub">${esc(t.hook)}</p>
+  ${t.img ? `<img class="limg" src="${esc(t.img)}" alt="${esc(t.title)}: ${esc(t.steps.map(x => x.t).join(', '))}" width="720" height="900">` : ''}
+  <div class="card ltext">${t.intro.map(p => `<p>${esc(p)}</p>`).join('')}</div>
+  <div class="sec-head"><p class="label">Checkpoint</p></div>
+  <div class="card"><ol class="lsteps">${t.steps.map(x => `<li><span>${esc(x.t)}<small>${esc(x.d)}</small></span></li>`).join('')}</ol></div>
+  ${t.mistake ? `<p class="hint warn">${ic('x')}<span>Yang sering salah: ${esc(t.mistake)}</span></p>` : ''}
+  <div class="sec-head"><p class="label">Drill</p></div>
+  <div class="card ltext"><p>${esc(t.drill)}</p></div>
+  <div class="row" style="margin:4px 0 18px;flex-wrap:wrap"><button class="btn sm soft" onclick="shareLatihan()">${ic('share')}Bagikan ke teman</button></div>
+  <div class="sec-head"><p class="label">Berikutnya</p></div>
+  <button class="pinbar ghost" onclick="goPage('latihan', '${next.slug}')">${ic('ball')}<span class="grow"><b>${esc(next.title)}</b><small>${esc(next.hook)}</small></span>${ic('arrow')}</button>
+  ${mabar}${LEGAL}`;
+}
+async function shareLatihan() {
+  const t = latihan.topics.find(x => x.slug === page.slug), url = `${APP_URL}/latihan/${t.slug}`;
+  const text = `${t.title}: ${t.hook}`;
+  track('share_latihan', {topic: t.slug});
+  if (navigator.share) { try { await navigator.share({title: t.title, text, url}); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  copyText(`${text}\n${url}`, 'Link disalin');
+}
+const view404 = () => { document.title = 'Not found · 10nis'; return `<div class="empty"><div class="orb">${LOGO}</div><h3>Page not found</h3>There's nothing at this address.
+  <div class="row" style="justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn primary" onclick="goTab('players')">Open 10nis</button>
+    <button class="btn" onclick="goPage('latihan')">Latihan</button></div></div>`; };
+
+// ---------- routes ----------
+// Each tab has its own address, so Android's Back button moves between tabs instead of leaving 10nis and a
+// tab can be linked to. /j/, /s/ and /p/ links are handled below; /latihan is the practice library.
+const TAB_PATH = {players: '/mabar/pemain', rounds: '/mabar/ronde', standings: '/mabar/klasemen', results: '/mabar/hasil',
+  join: '/mabar/gabung', account: '/saya'};
+const PATH_TAB = Object.fromEntries(Object.entries(TAB_PATH).map(([t, p]) => [p, t]));
+let page = null;   // null: the mixer tabs. {kind: 'latihan', slug} or {kind: '404'}
+function route() {
+  const path = location.pathname.replace(/\/+$/, '') || '/';
+  const m = path.match(/^\/latihan(?:\/([a-z0-9-]+))?$/);
+  page = PATH_TAB[path] || path === '/mabar' || /^\/[jsp]\//.test(path + '/') ? null
+    : m ? {kind: 'latihan', slug: m[1] || null}
+    : path === '/' ? (FIRST_VISIT && !follow.pin && !S.rounds.length ? {kind: 'latihan', slug: null} : null)
+    : {kind: '404'};
+  if (PATH_TAB[path]) S.tab = PATH_TAB[path];
+  if (S.tab === 'results' && !S.last) S.tab = 'standings';
+}
+const pagePath = () => !page ? TAB_PATH[S.tab] || '/mabar/pemain' : page.kind === 'latihan' ? '/latihan' + (page.slug ? '/' + page.slug : '') : location.pathname;
+function goPage(kind, slug = null) {
+  if (claimView) leaveClaim();
+  page = {kind, slug};
+  if (location.pathname !== pagePath()) history.pushState(null, '', pagePath());
+  render(); window.scrollTo(0, 0);
+}
+// Back closes an open sheet (report a problem, scanner…) before it changes page.
+let ownBack = false;
+window.addEventListener('popstate', () => {
+  if (ownBack) { ownBack = false; return; }
+  const sheet = [...document.querySelectorAll('body > .sheet')].pop();
+  if (sheet) { sheet.dataset.popped = '1'; sheet.remove(); return; }
+  if (claimView) { claimView = false; }
+  route(); render(); window.scrollTo(0, 0);
+});
+new MutationObserver(muts => muts.forEach(m => {
+  m.addedNodes.forEach(n => { if (n.classList && n.classList.contains('sheet')) history.pushState({sheet: 1}, '', location.href); });
+  m.removedNodes.forEach(n => {
+    if (n.classList && n.classList.contains('sheet') && !n.dataset.popped && history.state && history.state.sheet) { ownBack = true; history.back(); }
+  });
+})).observe(document.body, {childList: true});
 
 // ---------- sharing ----------
 // Invite others to 10nis: the phone's share sheet where available, otherwise copy the message.
@@ -981,10 +1093,10 @@ const APP_URL = 'https://10nis.win';
 async function shareApp() {
   const text = 'Run social or competitive tennis sessions with 10nis: fair rounds, live courts, scores and player levels.';
   if (navigator.share) {
-    try { await navigator.share({title: '10nis', text, url: APP_URL}); return; }
+    try { await navigator.share({title: '10nis', text, url: APP_URL + '/mabar'}); return; }
     catch (e) { if (e.name === 'AbortError') return; }
   }
-  copyText(`${text} ${APP_URL}`);
+  copyText(`${text} ${APP_URL}/mabar`);
 }
 // ---------- install to the home screen (PWA) ----------
 // Android/Chrome offer a real install prompt; iPhone Safari only allows Share → Add to Home Screen.
@@ -1936,7 +2048,7 @@ function viewMe() {
 }
 
 async function deleteAccount() {
-  if (!confirm('Delete your account and every logged session? This cannot be undone. The mixer on this phone is kept.')) return;
+  if (!confirm(`Delete your ${isAnon() ? 'guest data' : 'account'} and every logged session? This cannot be undone. The mixer on this phone is kept.`)) return;
   await sb.storage.from('avatars').remove([`${user.id}/avatar`]).catch(() => {});
   const {error} = await sb.rpc('delete_my_account');
   if (error) { toast(error.message); return; }
@@ -2129,7 +2241,9 @@ const signInCard = msg => `<div class="card" style="padding:22px 18px">${msg ? `
   <p class="muted" style="text-align:center;margin-top:12px;font-size:12.5px">We only use your name, email and photo to keep your session log.</p>`}</div>`;
 const ADVANCED = () => `<details class="past" style="margin-top:20px"><summary><span class="grow muted" style="font-weight:600">Advanced</span>${ic('arrow')}</summary>
   <div style="padding:0 15px 15px"><p class="muted" style="margin-bottom:10px;font-size:13px">Clear the roster and courts on this phone and start over with 4 default players. Your session log is kept.</p>
-    <button class="btn sm text danger" onclick="resetAll()">Reset the mixer</button></div></details>`;
+    <button class="btn sm text danger" onclick="resetAll()">Reset the mixer</button>
+    ${isAnon() ? `<p class="muted" style="margin:14px 0 10px;font-size:13px">Delete the guest account on this browser and every session in its log.</p>
+    <button class="btn sm text danger" onclick="deleteAccount()">Delete my guest data</button>` : ''}</div></details>`;
 function viewAccount() {
   if (!sb) return `<div class="empty"><div class="orb" style="color:var(--muted)">${ic('user')}</div><h3>Accounts unavailable</h3>${navigator.onLine ? 'Sign-in is not set up yet.' : "You're offline. The mixer still works on this phone."}</div>`;
   if (!user) return `
@@ -2232,7 +2346,7 @@ async function claimName(local, name) {
   toast(`You're linked as ${name}`);
   me = null; claimData = null; loadClaim();
 }
-function leaveClaim() { claimView = false; history.replaceState(null, '', '/'); render(); }
+function leaveClaim() { claimView = false; page = null; history.replaceState(null, '', TAB_PATH[S.tab] || '/mabar/pemain'); render(); }
 
 async function loadCode() {
   if (loadCode.busy) return;
@@ -2386,7 +2500,7 @@ function openGame(pin) {
 if (follow.pin) saveFollow(); // refresh the service worker's copy
 // 10nis.win/j/<pin> (the host's invite or QR, or a tapped notification).
 const deepPin = (location.pathname.match(/^\/j\/(\d{6})\/?$/) || [])[1];
-if (deepPin) { openGame(deepPin); history.replaceState(null, '', '/'); }
+if (deepPin) { openGame(deepPin); history.replaceState(null, '', TAB_PATH.join); }
 if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => {
   const m = String((e.data && e.data.open) || '').match(/^\/j\/(\d{6})/);
   if (m) { openGame(m[1]); goTab('join'); }
@@ -2604,6 +2718,17 @@ function render() {
     mountGoogleButton();
     return;
   }
+  if (page) {
+    document.body.classList.remove('player-mode');
+    document.querySelectorAll('.tabbar button').forEach(b => b.classList.remove('on'));
+    document.getElementById('status').innerHTML = '';
+    document.getElementById('view').innerHTML = page.kind === 'latihan' ? viewLatihan() : view404();
+    document.getElementById('dock').innerHTML = '';
+    return;
+  }
+  document.title = '10nis';
+  // Keep the address in step with the tab (finishing a session, joining a game… switch tabs without a click).
+  if (location.pathname !== TAB_PATH[S.tab] && TAB_PATH[S.tab]) history.replaceState(history.state, '', TAB_PATH[S.tab] + location.search + location.hash);
   const pm = playerMode();
   document.body.classList.toggle('player-mode', pm);
   document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === (S.tab === 'results' ? 'standings' : S.tab)));
@@ -2635,6 +2760,7 @@ document.querySelectorAll('.tabbar button').forEach(b => {
   b.querySelector('.pill').innerHTML = ic(b.querySelector('.pill').dataset.ic);
   b.onclick = () => goTab(b.dataset.tab);
 });
+if (!claimView) route();
 render();
 </script>
 </body>

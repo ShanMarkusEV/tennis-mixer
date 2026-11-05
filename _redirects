@@ -1,3 +1,15 @@
-/s/* /index.html 200
-/p/* /index.html 200
-/j/* /index.html 200
+# Old tab addresses
+/players /mabar/pemain 301
+/rounds /mabar/ronde 301
+/standings /mabar/klasemen 301
+/join /mabar/gabung 301
+/account /saya 301
+# App pages (the single-page app routes them); anything else gets 404.html
+/mabar / 200
+/mabar/* / 200
+/saya / 200
+/latihan / 200
+/latihan/* / 200
+/s/* / 200
+/p/* / 200
+/j/* / 200

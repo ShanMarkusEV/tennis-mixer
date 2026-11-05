@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /ad4min
+Disallow: /api/
+Disallow: /s/
+Disallow: /p/
+Disallow: /j/
+
+Sitemap: https://10nis.win/sitemap.xml

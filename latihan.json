@@ -1,0 +1,297 @@
+{
+ "categories": [
+  "Footwork",
+  "Forehand",
+  "Backhand",
+  "Servis",
+  "Return",
+  "Net",
+  "Strategi",
+  "Latihan"
+ ],
+ "topics": [
+  {
+   "slug": "split-step",
+   "cat": "Footwork",
+   "title": "Split step",
+   "posted": "2026-11-03",
+   "hook": "Bukan lambat, tapi telat lompat.",
+   "intro": [
+    "Split step itu lompatan kecil pas raket lawan kena bola. Cuma 2–3 cm, tapi dari situ kaki kamu sudah \"on\" dan bisa langsung ke kiri atau kanan.",
+    "Kebanyakan pemula lompatnya telat, atau malah nggak lompat sama sekali. Hasilnya selalu ngejar bola."
+   ],
+   "steps": [
+    {
+     "t": "Lompat pas lawan mukul",
+     "d": "Lompatan kecil, tepat saat raket lawan kena bola."
+    },
+    {
+     "t": "Mendarat di ujung kaki",
+     "d": "Lutut agak ditekuk, kaki selebar bahu."
+    },
+    {
+     "t": "Langsung dorong ke bola",
+     "d": "Langkah pertama pendek dan cepat."
+    }
+   ],
+   "mistake": "Lompat ketinggian atau kelamaan diam. Kecil aja, yang penting timing.",
+   "drill": "Shadow split step 3×10, lalu geser ke kiri atau kanan.",
+   "img": "/img/latihan/split-step.jpg"
+  },
+  {
+   "slug": "grip-forehand",
+   "cat": "Forehand",
+   "title": "Grip forehand",
+   "posted": "2026-11-04",
+   "hook": "Forehand nyangkut di net atau kepanjangan? Cek grip dulu.",
+   "intro": [
+    "Kalau forehand kamu sering nyangkut di net atau kepanjangan, cek grip dulu sebelum ganti teknik.",
+    "Nggak ada yang salah, yang penting tahu kamu pakai yang mana."
+   ],
+   "steps": [
+    {
+     "t": "Eastern",
+     "d": "Paling gampang buat yang baru mulai, bola lebih flat."
+    },
+    {
+     "t": "Semi-Western",
+     "d": "Lebih banyak topspin, bola lebih aman masuk."
+    },
+    {
+     "t": "Pilih satu, pakai konsisten",
+     "d": "Nggak ada yang salah, yang penting tahu kamu pakai yang mana."
+    }
+   ],
+   "drill": "Rally 10 bola pakai grip yang biasa kamu pakai. Catat berapa yang nyangkut di net dan berapa yang keluar: itu petunjuk grip mana yang cocok.",
+   "img": null
+  },
+  {
+   "slug": "unit-turn",
+   "cat": "Forehand",
+   "title": "Unit turn",
+   "posted": "2026-11-05",
+   "hook": "Forehand kurang tenaga? Putar badan dulu.",
+   "intro": [
+    "Forehand yang kenceng itu jarang datang dari tangan.",
+    "Begitu lihat bola ke forehand, putar bahu dulu, raket ikut ke belakang. Baru ayun dari bawah ke atas, selesai di atas bahu seberang.",
+    "Rasanya lebih santai, tapi bolanya malah lebih berat."
+   ],
+   "steps": [
+    {
+     "t": "Putar bahu duluan",
+     "d": "Begitu lihat bola ke forehand, badan menyamping."
+    },
+    {
+     "t": "Ayun bawah ke atas",
+     "d": "Raket turun dulu, baru naik ke bola."
+    },
+    {
+     "t": "Selesai di bahu",
+     "d": "Finish di atas bahu seberang, jangan berhenti."
+    }
+   ],
+   "drill": "Shadow swing 3×10, fokus putaran bahu. Lalu rekam forehand kamu 10 detik dan bandingkan dengan 3 langkah ini.",
+   "img": "/img/latihan/unit-turn.jpg",
+   "mistake": "Mukul pakai tangan doang, badan diam menghadap net."
+  },
+  {
+   "slug": "backhand-dua-tangan",
+   "cat": "Backhand",
+   "title": "Backhand dua tangan",
+   "posted": "2026-11-06",
+   "hook": "Backhand masih \"dorong\" doang?",
+   "intro": [
+    "Backhand dua tangan terasa lemah? Biasanya karena tangan kanan kerja sendirian.",
+    "Coba bayangkan kamu lagi forehand pakai tangan kiri (buat yang kidal, kebalikannya). Tangan kanan cuma bantu arahkan.",
+    "Kaki menyamping, mata tetap di bola sampai kena raket."
+   ],
+   "steps": [
+    {
+     "t": "Tangan kiri mimpin",
+     "d": "Rasanya kayak forehand pakai tangan kiri."
+    },
+    {
+     "t": "Kaki menyamping",
+     "d": "Bahu kanan menghadap ke arah net."
+    },
+    {
+     "t": "Mata di titik kena",
+     "d": "Kepala diam sampai bola lepas dari raket."
+    }
+   ],
+   "mistake": "Tangan kanan kerja sendiri, tangan kiri cuma nempel.",
+   "drill": "Backhand pakai tangan kiri saja, 20 bola pelan.",
+   "img": "/img/latihan/backhand-dua-tangan.jpg"
+  },
+  {
+   "slug": "lemparan-servis",
+   "cat": "Servis",
+   "title": "Lemparan servis",
+   "posted": "2026-11-07",
+   "hook": "Servis kacau? Cek lemparannya.",
+   "intro": [
+    "Servis yang kacau seringnya bukan salah ayunan, tapi lemparan bolanya.",
+    "Lengan lurus, lepas bola kira-kira setinggi mata, dan arahkan ke \"jam 1\", sedikit di depan badan. Kalau lemparannya jelek, tangkap aja dan ulang. Itu legal kok."
+   ],
+   "steps": [
+    {
+     "t": "Lengan lurus",
+     "d": "Angkat dari bahu, bukan dari pergelangan."
+    },
+    {
+     "t": "Lepas setinggi mata",
+     "d": "Bola dilepas, jangan dilempar pakai jari."
+    },
+    {
+     "t": "Arah jam 1",
+     "d": "Sedikit di depan badan, kanan atas kepala."
+    }
+   ],
+   "mistake": "Lemparan jelek tapi tetap dipukul. Tangkap dan ulang aja.",
+   "drill": "Tantangan: 20 lemparan tanpa dipukul. Berapa yang jatuh pas di depan kaki kiri?",
+   "img": "/img/latihan/lemparan-servis.jpg"
+  },
+  {
+   "slug": "crosscourt",
+   "cat": "Strategi",
+   "title": "Main aman: crosscourt",
+   "posted": "2026-11-08",
+   "hook": "Lagi ragu? Pukul crosscourt.",
+   "intro": [
+    "Di level menengah, yang menang biasanya bukan yang mukulnya paling keras, tapi yang paling jarang bikin error.",
+    "Kelihatannya membosankan, tapi lawan yang biasanya error duluan."
+   ],
+   "steps": [
+    {
+     "t": "Jarak lebih panjang",
+     "d": "Diagonal kasih ruang lebih buat bola turun."
+    },
+    {
+     "t": "Net lebih rendah",
+     "d": "Di tengah, net sekitar 15 cm lebih rendah."
+    },
+    {
+     "t": "Kasih jarak ±1 m",
+     "d": "Bola tinggi di atas net lebih jarang nyangkut."
+    }
+   ],
+   "drill": "Coba di match: ragu sedikit = crosscourt. Hitung error kamu.",
+   "img": "/img/latihan/crosscourt.jpg",
+   "mistake": "Ganti arah ke down the line pas posisi belum siap."
+  },
+  {
+   "slug": "recovery",
+   "cat": "Footwork",
+   "title": "Balik ke tengah setelah mukul",
+   "posted": "2026-11-09",
+   "hook": "Habis mukul, jangan nonton bola.",
+   "intro": [
+    "Kebiasaan yang paling sering terlihat: habis mukul bagus, diam sambil lihat bolanya.",
+    "Pas bola balik, posisi kamu masih di pinggir lapangan dan sisi satunya kosong."
+   ],
+   "steps": [
+    {
+     "t": "Langsung geser balik",
+     "d": "Begitu bola lepas, kaki sudah gerak."
+    },
+    {
+     "t": "Pakai side step",
+     "d": "Langkah samping, bukan lari mundur."
+    },
+    {
+     "t": "Split step lagi",
+     "d": "Pas lawan mukul, kamu sudah siap."
+    }
+   ],
+   "mistake": "Diam lihat bola bagusmu, lapangan sisi lain kosong.",
+   "drill": "Rally 10 bola, tiap habis mukul sentuh tanda tengah.",
+   "img": "/img/latihan/recovery.jpg"
+  },
+  {
+   "slug": "volley-dasar",
+   "cat": "Net",
+   "title": "Volley dasar",
+   "posted": "2026-11-10",
+   "hook": "Volley itu ditahan, bukan diayun.",
+   "intro": [
+    "Banyak yang waktu baru belajar volley mengayun raket kayak forehand. Bolanya ke mana-mana.",
+    "Volley itu gerakannya pendek. Raket tetap di depan badan, sedikit \"punch\" ke depan, dan kaki ikut melangkah. Kecepatan bola lawan sudah cukup, kamu tinggal arahkan."
+   ],
+   "steps": [
+    {
+     "t": "Grip continental",
+     "d": "Kayak pegang palu, nggak perlu ganti grip."
+    },
+    {
+     "t": "Raket di depan",
+     "d": "Selalu kelihatan dari ujung mata kamu."
+    },
+    {
+     "t": "Punch + melangkah",
+     "d": "Dorong pendek ke depan, kaki ikut maju."
+    }
+   ],
+   "mistake": "Ayun raket kayak forehand. Bola jadi ke mana-mana.",
+   "drill": "Teman lempar pelan, kamu volley 20× tanpa ayunan.",
+   "img": "/img/latihan/volley-dasar.jpg"
+  },
+  {
+   "slug": "return-servis",
+   "cat": "Return",
+   "title": "Return servis",
+   "posted": "2026-11-11",
+   "hook": "Return servis: yang penting balik dulu.",
+   "intro": [
+    "Banyak yang kalah poin di return karena ayunannya kepanjangan. Servis datang cepat, ayunan belum selesai, bola sudah lewat.",
+    "Untuk return, cukup ayunan pendek kayak blok. Arahkan ke tengah dan dalam. Nggak perlu winner, yang penting rally dimulai."
+   ],
+   "steps": [
+    {
+     "t": "Split step lagi",
+     "d": "Tepat saat lawan mukul servis."
+    },
+    {
+     "t": "Ayunan pendek",
+     "d": "Kayak blok, cukup putar bahu sedikit."
+    },
+    {
+     "t": "Ke tengah, dalam",
+     "d": "Nggak perlu winner, yang penting rally jalan."
+    }
+   ],
+   "mistake": "Ayunan kepanjangan, bola keburu lewat duluan.",
+   "drill": "Teman servis pelan, kamu return 20× ke tengah.",
+   "img": "/img/latihan/return-servis.jpg"
+  },
+  {
+   "slug": "rutinitas-30-menit",
+   "cat": "Latihan",
+   "title": "Rutinitas 30 menit",
+   "posted": "2026-11-12",
+   "hook": "Cuma punya 30 menit? Ini urutannya.",
+   "intro": [
+    "Kalau cuma punya 30 menit di lapangan, pakai urutan ini. Semua topik di atas masuk di sini."
+   ],
+   "steps": [
+    {
+     "t": "5 menit: footwork",
+     "d": "Split step dan geser kiri-kanan."
+    },
+    {
+     "t": "10 menit: forehand & backhand",
+     "d": "Rally crosscourt."
+    },
+    {
+     "t": "10 menit: servis",
+     "d": "Fokus lemparan."
+    },
+    {
+     "t": "5 menit: rally",
+     "d": "Target 10 bola tanpa error."
+    }
+   ],
+   "drill": "Simpan jadwal ini dan pakai di latihan berikutnya.",
+   "img": "/img/latihan/rutinitas-30-menit.jpg"
+  }
+ ]
+}
