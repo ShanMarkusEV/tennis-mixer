@@ -473,7 +473,6 @@ details.past .match{box-shadow:none}
 <div id="dock"></div>
 <nav class="tabbar"><div class="in">
   <button data-nav="beranda"><span class="pill" data-ic="home"></span>Beranda</button>
-  <button data-nav="latihan"><span class="pill" data-ic="target"></span>Latihan</button>
   <button data-nav="catat" class="mainbtn"><span class="pill" data-ic="plus"></span>Main</button>
   <button data-nav="mabar"><span class="pill" data-ic="users"></span>Mabar</button>
   <button data-nav="saya"><span class="pill" data-ic="user"></span>Saya</button>
@@ -1555,14 +1554,14 @@ function route() {
 const pagePath = () => !page ? TAB_PATH[S.tab] || '/mabar/pemain'
   : {beranda: '/', mulai: '/mulai', catat: '/catat', ringkasan: '/catat/' + page.slug,
      latihan: '/latihan' + (page.slug ? '/' + page.slug : '')}[page.kind] || location.pathname;
-// Bottom bar: Beranda · Latihan · Main · Mabar · Saya.
+// Bottom bar: Beranda · Main · Mabar · Saya. The /latihan pages have no tab: coaching cards and Threads posts link to them.
 function goNav(n) {
   if (n === 'mabar') goTab(MABAR_TABS.includes(S.tab) ? S.tab : 'players');
   else if (n === 'saya') goTab('account');
   else if (n === 'beranda' && (!onboard || !onboard.done) && !diary.length) { ob = null; goPage('mulai'); }
   else goPage(n);
 }
-const navNow = () => claimView ? '' : page ? ({mulai: 'beranda', ringkasan: 'catat', '404': ''}[page.kind] ?? page.kind)
+const navNow = () => claimView ? '' : page ? ({mulai: 'beranda', ringkasan: 'catat', latihan: '', '404': ''}[page.kind] ?? page.kind)
   : S.tab === 'account' ? 'saya' : 'mabar';
 function goPage(kind, slug = null) {
   if (claimView) leaveClaim();
