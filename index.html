@@ -267,6 +267,10 @@ textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
 .dots{display:flex;gap:6px;margin:0 0 18px}.dots i{width:28px;height:6px;border-radius:3px;background:var(--line)}.dots i.on{background:var(--lime)}
 .mseg{margin:-6px 0 18px}
 .phead{display:flex;align-items:center;gap:12px;margin:0 0 12px}
+.wlbig{display:flex;gap:10px}
+.wlbig div{display:flex;flex-direction:column;align-items:center;min-width:92px;padding:8px 14px 10px;border-radius:16px;border:2px solid var(--edge);background:var(--surface);box-shadow:3px 3px 0 var(--hard)}
+.wlbig b{font-size:46px;line-height:1;font-weight:900}.wlbig span{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+.wlbig .w b{color:var(--green)}@media (prefers-color-scheme: dark){.wlbig .w b{color:var(--lime)}}
 .streak{font-size:20px;font-weight:900;padding:4px 12px;border-radius:999px;background:var(--surface);border:2px solid var(--edge)}
 .quote{margin:0 0 22px;min-height:1.4em;color:var(--muted);font-style:italic;font-size:14.5px;line-height:1.4;transition:opacity .4s}
 .quote.fade{opacity:0}
@@ -1305,7 +1309,7 @@ function viewBeranda() {
     <p class="muted" style="margin:0 0 12px;font-size:13.5px">${`${op.games.length} game`} tercatat. Sudah selesai main?</p>
     <div class="row" style="flex-wrap:wrap"><button class="btn sm primary" onclick="endPlay()">Selesaikan</button>
       <button class="btn sm soft" onclick="goPage('catat')">Lanjut main</button></div></div>`
-    : op ? `<button class="pinbar" onclick="goPage('catat')">${ic('ball')}<span class="grow"><b>Lagi main · ${(r => `${r.w}M ${r.l}K`)(wl(op.games))}</b>
+    : op ? `<button class="pinbar" onclick="goPage('catat')">${ic('ball')}<span class="grow"><b>Lagi main · ${(r => `${r.w} menang, ${r.l} kalah`)(wl(op.games))}</b>
       <small>Mulai ${esc(idTime(op.started_at))}${op.place ? ` · ${esc(op.place)}` : ''} · tap untuk catat game</small></span>${ic('arrow')}</button>`
     : `<button class="btn primary big" onclick="goPage('catat')">${ic('plus')}Mulai main</button>`}
   ${steps.every(s => s[1]) ? '' : `<div class="sec-head"><p class="label">Langkah pertama</p></div>
@@ -1433,7 +1437,7 @@ function viewCatat() {
         ${!(g.good || []).length && !(g.bad || []).length && !g.note ? '<small>Tap untuk tambah catatan</small>' : ''}</button></div>`;
   return `
   <p class="kicker">Lagi main · ${esc(lasted(op.started_at))}${op.place ? ` · ${esc(op.place)}` : ''}</p>
-  <div class="phead"><h1 class="title" style="margin:0">${r.w}M · ${r.l}K</h1>
+  <div class="phead"><div class="wlbig"><div class="w"><b class="num">${r.w}</b><span>menang</span></div><div class="l"><b class="num">${r.l}</b><span>kalah</span></div></div>
     ${st.n >= 2 && st.res === 'W' ? `<span class="streak">🔥 ${st.n}</span>` : ''}</div>
   <p class="quote" id="quote">“${esc(quotesFor(op)[rotateQuote.i % quotesFor(op).length])}”</p>
   <div class="path">
@@ -1583,7 +1587,7 @@ function viewRingkasan() {
   <h1 class="title">${esc(pr.h)}</h1>
   <p class="sub" style="font-size:15px">${esc(pr.p)}</p>
   <div class="card stats"><div><b class="num">${p.games.length}</b><small>game</small></div><div><b class="num">${r.w}</b><small>menang</small></div><div><b class="num">${r.l}</b><small>kalah</small></div></div>
-  ${p.games.length ? `<div class="card glist">${p.games.map((g, i) => `<div class="grow-row"><span class="res-pill ${g.res}">${g.res === 'W' ? 'M' : 'K'}</span>
+  ${p.games.length ? `<div class="card glist">${p.games.map((g, i) => `<div class="grow-row"><span class="res-pill ${g.res}">${g.res === 'W' ? '✓' : '✕'}</span>
     <span class="grow"><b>Game ${i + 1}${scoreText(g) ? ` · ${scoreText(g)}` : ''}</b>${g.note ? `<small class="note">“${esc(g.note)}”</small>` : ''}</span></div>`).join('')}</div>` : ''}
   ${good.length ? `<div class="sec-head"><p class="label">👍 Yang jalan bagus</p></div>
     <div class="card">${good.map(x => `<p style="margin:4px 0;font-weight:700">${esc(GOOD_LINE[x.t])} 👏${x.k > 1 ? ` <span class="muted">(${x.k} game)</span>` : ''}</p>`).join('')}</div>` : ''}
@@ -1592,7 +1596,10 @@ function viewRingkasan() {
   <div class="sec-head"><p class="label">Satu hal yang kamu pelajari hari ini?</p></div>
   <div class="card"><textarea id="lesson" maxlength="280" placeholder="Contoh: kalau ragu, crosscourt aja" onchange="saveLesson('${p.id}', this.value)">${esc(p.lesson || '')}</textarea></div>
   <div class="sec-head"><p class="label">Bagikan</p></div>
-  <div class="card sharecard"><img id="cardprev" alt="Kartu hasil main" width="1080" height="1350">
+  <div class="card sharecard">
+    <div class="chips" style="margin-bottom:10px">${CARD_FRAMES.map(([k, l]) => `<button class="tagchip ${cardOpt.frame === k ? 'on' : ''}" onclick="setCardOpt('frame', '${k}')">${l}</button>`).join('')}</div>
+    <div class="seg" style="margin-bottom:12px">${[['dark', 'Gelap'], ['light', 'Terang']].map(([k, l]) => `<button class="${cardOpt.theme === k ? 'on' : ''}" onclick="setCardOpt('theme', '${k}')">${l}</button>`).join('')}</div>
+    <img id="cardprev" alt="Kartu hasil main" width="1080" height="1350">
     <div class="row" style="flex-wrap:wrap;margin-top:12px">
       <label class="btn sm soft">${ic('plus')}${playPhoto[p.id] ? 'Ganti foto' : 'Pakai foto kamu'}<input type="file" accept="image/*" hidden onchange="pickPlayPhoto('${p.id}', this)"></label>
       ${playPhoto[p.id] ? `<button class="btn sm text" onclick="delete playPhoto['${p.id}']; render()">Hapus foto</button>` : ''}</div>
@@ -1646,70 +1653,151 @@ function pickPlayPhoto(id, input) {
   img.onerror = () => toast('Foto nggak bisa dibuka');
   img.src = URL.createObjectURL(f);
 }
+// Three frames (Skor, Polaroid, Catatan), each in a dark or light theme, with the player's photo or without.
+const CARD_FRAMES = [['skor', 'Skor'], ['polaroid', 'Polaroid'], ['catatan', 'Catatan']];
+let cardOpt = readJSON('10nis-card', {frame: 'skor', theme: 'dark'});
+function setCardOpt(k, v) { cardOpt = {...cardOpt, [k]: v}; try { localStorage.setItem('10nis-card', JSON.stringify(cardOpt)); } catch (e) {} render(); }
+const CARD_THEME = {
+  dark: {bg: '#0b1220', ink: '#f2f5fa', muted: '#8d97ab', line: 'rgba(255,255,255,.14)', accent: '#c6ef3a', accentInk: '#0b1220', paper: '#151d2b'},
+  light: {bg: '#f3f0e8', ink: '#111a2b', muted: '#6b6f78', line: 'rgba(17,26,43,.14)', accent: '#3e7b10', accentInk: '#ffffff', paper: '#e6e0d3'},
+};
 async function playCard(id) {
-  const p = playById(id), r = wl(p.games), photo = playPhoto[id];
-  const W = 1080, H = 1350, F = (w, sz, it) => `${it ? 'italic ' : ''}${w} ${sz}px "Archivo", system-ui, sans-serif`;
-  try { await Promise.all([document.fonts.load(F(900, 80, 1)), document.fonts.load(F(700, 30))]); } catch (e) {}
+  const p = playById(id), r = wl(p.games), photo = playPhoto[id], t = CARD_THEME[cardOpt.theme] || CARD_THEME.dark;
+  const W = 1080, H = 1350, M = 88;
+  const F = (w, sz, cond) => `${w} ${sz}px "Archivo", system-ui, sans-serif`;
+  try { await Promise.all([document.fonts.load(F(800, 300)), document.fonts.load(F(500, 30)), document.fonts.load(F(600, 40))]); } catch (e) {}
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
+  const cond = on => { if ('fontStretch' in x) x.fontStretch = on ? 'condensed' : 'normal'; };
+  const track = px => { if ('letterSpacing' in x) x.letterSpacing = px + 'px'; };
   const rr = (X, Y, w, h, rad) => { x.beginPath(); x.moveTo(X + rad, Y); x.arcTo(X + w, Y, X + w, Y + h, rad); x.arcTo(X + w, Y + h, X, Y + h, rad); x.arcTo(X, Y + h, X, Y, rad); x.arcTo(X, Y, X + w, Y, rad); x.closePath(); };
-  const ball = (cx, cy, rad) => {
-    x.save(); x.beginPath(); x.arc(cx, cy, rad, 0, Math.PI * 2); x.fillStyle = '#c6ef3a'; x.fill(); x.clip();
-    x.strokeStyle = '#fff'; x.lineWidth = rad * .14;
-    x.beginPath(); x.arc(cx - rad * 1.56, cy, rad * 1.24, -1, 1); x.stroke();
-    x.beginPath(); x.arc(cx + rad * 1.56, cy, rad * 1.24, Math.PI - 1, Math.PI + 1); x.stroke(); x.restore();
+  const cover = (img, X, Y, w, h) => {
+    const sc = Math.max(w / img.naturalWidth, h / img.naturalHeight), sw = w / sc, sh = h / sc;
+    x.drawImage(img, (img.naturalWidth - sw) / 2, (img.naturalHeight - sh) / 2, sw, sh, X, Y, w, h);
   };
-  if (photo) {
-    // cover the card with the photo, then darken top and bottom so the text reads on any picture
-    const sc = Math.max(W / photo.naturalWidth, H / photo.naturalHeight), pw = photo.naturalWidth * sc, ph = photo.naturalHeight * sc;
-    x.drawImage(photo, (W - pw) / 2, (H - ph) / 2, pw, ph);
-    let g = x.createLinearGradient(0, 0, 0, 300); g.addColorStop(0, 'rgba(6,11,25,.7)'); g.addColorStop(1, 'rgba(6,11,25,0)');
-    x.fillStyle = g; x.fillRect(0, 0, W, 300);
-    g = x.createLinearGradient(0, H * .4, 0, H); g.addColorStop(0, 'rgba(6,11,25,0)'); g.addColorStop(.45, 'rgba(6,11,25,.75)'); g.addColorStop(1, 'rgba(6,11,25,.95)');
-    x.fillStyle = g; x.fillRect(0, H * .4, W, H * .6);
-  } else {
-    x.fillStyle = '#0a1633'; x.fillRect(0, 0, W, H);
-    x.strokeStyle = 'rgba(198,239,58,.16)'; x.lineWidth = 6;
-    x.strokeRect(90, 200, W - 180, 440); x.beginPath(); x.moveTo(90, 420); x.lineTo(W - 90, 420); x.moveTo(W / 2, 280); x.lineTo(W / 2, 560);
-    x.moveTo(90, 280); x.lineTo(W - 90, 280); x.moveTo(90, 560); x.lineTo(W - 90, 560); x.stroke();
-    ball(W - 250, 400, 110);
-  }
-  x.textBaseline = 'alphabetic'; x.textAlign = 'left';
-  x.font = F(900, 46, 1); x.fillStyle = '#c6ef3a'; x.fillText('10nis.win', 64, 104);
-  x.font = F(700, 30); x.fillStyle = 'rgba(255,255,255,.9)';
-  x.fillText(`${idDay(p.started_at)}${p.place ? ' · ' + p.place : ''}`.slice(0, 48), 64, 150);
-  // From the bottom up: footer, the scores of the games won, the big number, the headline.
-  const won = p.games.filter(g => g.res === 'W');
-  x.font = F(700, 30); x.fillStyle = 'rgba(255,255,255,.75)'; x.fillText('Catat main kamu di 10nis.win', 64, H - 64);
-  if (won.length) {
-    const chips = won.slice(0, 8).map(g => scoreText(g) || '✓'), more = won.length - chips.length;
-    let cx = 64;
-    x.font = F(800, 40);
-    chips.concat(more > 0 ? [`+${more}`] : []).forEach(t => {
-      const w = x.measureText(t).width + 48;
-      if (cx + w > W - 64) return;
-      rr(cx, H - 232, w, 72, 20); x.fillStyle = '#c6ef3a'; x.fill();
-      x.fillStyle = '#0a1633'; x.fillText(t, cx + 24, H - 182); cx += w + 14;
+  const text = (s, X, Y, font, color, align = 'left') => { x.font = font; x.fillStyle = color; x.textAlign = align; x.fillText(s, X, Y); };
+  const wrap = (s, maxW, font) => {
+    x.font = font; const out = [''];
+    s.split(/\s+/).forEach(w => { const tt = (out[out.length - 1] + ' ' + w).trim(); if (x.measureText(tt).width > maxW && out[out.length - 1]) out.push(w); else out[out.length - 1] = tt; });
+    return out;
+  };
+  const head = praise(r.w, r.l, p.id).h.replace(/[^\p{L}\p{N}\s,.!?'-]/gu, '').trim();
+  const day = new Date(p.started_at).toLocaleDateString('id-ID', {weekday: 'long', day: 'numeric', month: 'long'});
+  const where = p.place ? ` · ${p.place}` : '';
+  const res = g => scoreText(g) || (g.res === 'W' ? '✓' : '✕');
+  // A top-down hard court, for frames without a photo.
+  const court = (X, Y, w, h) => {
+    x.fillStyle = '#2f6f4e'; x.fillRect(X, Y, w, h);
+    const ix = X + w * .12, iy = Y + h * .08, iw = w * .76, ih = h * .84;
+    x.fillStyle = '#3b7fb8'; x.fillRect(ix, iy, iw, ih);
+    x.strokeStyle = 'rgba(255,255,255,.92)'; x.lineWidth = Math.max(3, w / 160);
+    x.strokeRect(ix, iy, iw, ih);
+    const sx = iw * .125; x.beginPath();
+    x.moveTo(ix + sx, iy); x.lineTo(ix + sx, iy + ih); x.moveTo(ix + iw - sx, iy); x.lineTo(ix + iw - sx, iy + ih);
+    const s1 = iy + ih * .23, s2 = iy + ih * .77; x.moveTo(ix + sx, s1); x.lineTo(ix + iw - sx, s1); x.moveTo(ix + sx, s2); x.lineTo(ix + iw - sx, s2);
+    x.moveTo(ix + iw / 2, s1); x.lineTo(ix + iw / 2, s2); x.stroke();
+    x.lineWidth *= 1.8; x.beginPath(); x.moveTo(X + w * .06, iy + ih / 2); x.lineTo(X + w * .94, iy + ih / 2); x.stroke();
+    x.beginPath(); x.arc(ix + iw * .7, iy + ih * .32, w / 38, 0, Math.PI * 2); x.fillStyle = '#d9f24a'; x.fill();
+  };
+  // Results as tiles: filled for a win, outlined for a loss.
+  const tiles = (Y, size, maxW, align = 'left') => {
+    const gap = size * .18, per = Math.max(1, Math.floor((maxW + gap) / (size + gap)));
+    const games = p.games.slice(0, per * 2), rows = Math.ceil(games.length / per);
+    games.forEach((g, i) => {
+      const row = Math.floor(i / per), inRow = Math.min(per, games.length - row * per), col = i % per;
+      const startX = align === 'center' ? (W - (inRow * size + (inRow - 1) * gap)) / 2 : M;
+      const X = startX + col * (size + gap), YY = Y + row * (size + gap);
+      rr(X, YY, size, size, size * .22);
+      if (g.res === 'W') { x.fillStyle = t.accent; x.fill(); } else { x.lineWidth = 3; x.strokeStyle = t.line; x.stroke(); }
+      cond(true); const lbl = res(g);
+      text(lbl, X + size / 2, YY + size * .62, F(800, lbl.length > 3 ? size * .3 : size * .36), g.res === 'W' ? t.accentInk : t.muted, 'center'); cond(false);
     });
+    return rows * (size + gap);
+  };
+  x.textBaseline = 'alphabetic';
+  x.fillStyle = t.bg; x.fillRect(0, 0, W, H);
+
+  if (cardOpt.frame === 'polaroid') {
+    x.fillStyle = t.paper; x.fillRect(0, 0, W, H);
+    x.save(); x.translate(W / 2, 600); x.rotate(-0.035);
+    const fw = 820, fh = 960;
+    x.shadowColor = 'rgba(0,0,0,.28)'; x.shadowBlur = 50; x.shadowOffsetY = 18;
+    x.fillStyle = '#fbfaf6'; x.fillRect(-fw / 2, -fh / 2, fw, fh);
+    x.shadowColor = 'transparent';
+    const pw = fw - 80, ph = 700, px = -fw / 2 + 40, py = -fh / 2 + 40;
+    if (photo) cover(photo, px, py, pw, ph); else court(px, py, pw, ph);
+    cond(true); text(r.w ? `Menang ${r.w} dari ${p.games.length} game` : `${p.games.length} game, tetap semangat`, px, py + ph + 96, F(800, 56), '#111a2b'); cond(false);
+    text(`${day}${where}`, px, py + ph + 150, F(500, 30), '#6b6f78');
+    x.restore();
+    track(2); text('10nis.win', W / 2, H - 72, F(700, 28), t.muted, 'center'); track(0);
+    return c;
   }
-  const base = won.length ? H - 290 : H - 200;
-  const big = won.length ? String(won.length) : 'GG';
-  x.font = F(900, 300, 1); x.fillStyle = '#c6ef3a'; x.fillText(big, 54, base);
-  const bw = x.measureText(big).width;
-  x.fillStyle = '#fff'; x.font = F(900, 78, 1);
-  x.fillText(won.length ? 'GAME' : 'GOOD', 54 + bw + 30, base - 110);
-  x.fillText(won.length ? 'MENANG' : 'GAME', 54 + bw + 30, base - 22);
-  x.font = F(900, 60, 1); x.fillStyle = '#fff';
-  const words = praise(r.w, r.l, p.id).h.replace(/[^\p{L}\p{N}\s,.!?'-]/gu, '').trim().split(/\s+/), lines = [''];
-  words.forEach(w => { const t = (lines[lines.length - 1] + ' ' + w).trim(); if (x.measureText(t).width > W - 128 && lines[lines.length - 1]) lines.push(w); else lines[lines.length - 1] = t; });
-  lines.slice(0, 2).reverse().forEach((l, i) => x.fillText(l, 64, base - 290 - i * 72));
+
+  if (cardOpt.frame === 'catatan') {
+    track(4); text('DIARY TENIS', M, 140, F(700, 24), t.muted); track(0);
+    text(`${day}${where}`, M, 192, F(600, 36), t.ink);
+    let y = 250;
+    if (photo) { x.save(); rr(M, y, W - 2 * M, 300, 28); x.clip(); cover(photo, M, y, W - 2 * M, 300); x.restore(); y += 300 + 10; } else y += 40;
+    const bs = photo ? 230 : 340, k = bs / 340;
+    cond(true); const big = String(r.w);
+    text(big, M - 8, y + 300 * k, F(800, bs), t.accent); const bw = x.measureText(big).width; cond(false);
+    text('game', M + bw + 28, y + 200 * k, F(600, 56 * Math.max(k, .8)), t.ink);
+    text('menang', M + bw + 28, y + 266 * k, F(600, 56 * Math.max(k, .8)), t.ink);
+    text(`dari ${p.games.length} game`, M + bw + 28, y + 310 * k, F(500, 28), t.muted);
+    y += 370 * k;
+    x.fillStyle = t.line; x.fillRect(M, y, W - 2 * M, 2); y += 22;
+    const rows = Math.max(1, Math.floor((H - 170 - y) / 58));
+    p.games.slice(0, rows).forEach((g, i) => {
+      const yy = y + 42 + i * 58;
+      text(`Game ${i + 1}`, M, yy, F(500, 32), t.muted);
+      text(g.res === 'W' ? 'Menang' : 'Kalah', M + 260, yy, F(700, 32), g.res === 'W' ? t.accent : t.ink);
+      cond(true); text(scoreText(g), W - M, yy, F(700, 34), t.ink, 'right'); cond(false);
+    });
+    if (p.games.length > rows) text(`+ ${p.games.length - rows} game lagi`, M, y + 42 + rows * 58, F(500, 28), t.muted);
+    x.fillStyle = t.line; x.fillRect(M, H - 130, W - 2 * M, 2);
+    text('10nis.win', M, H - 76, F(800, 30), t.ink);
+    text(head, W - M, H - 76, F(500, 28), t.muted, 'right');
+    return c;
+  }
+
+  // Skor: a scoreboard
+  let y = 0;
+  if (photo) {
+    cover(photo, 0, 0, W, 560);
+    const g = x.createLinearGradient(0, 0, 0, 200); g.addColorStop(0, 'rgba(0,0,0,.45)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.fillRect(0, 0, W, 200);
+    text('10nis', M, 110, F(800, 40), '#ffffff');
+    text(day, W - M, 108, F(600, 28), 'rgba(255,255,255,.9)', 'right');
+    y = 560;
+  } else {
+    text('10nis', M, 130, F(800, 40), t.ink);
+    text(day, W - M, 128, F(600, 28), t.muted, 'right');
+    x.fillStyle = t.line; x.fillRect(M, 170, W - 2 * M, 2);
+    y = 190;
+  }
+  track(4); text(`HASIL MAIN${p.place ? ' · ' + p.place.toUpperCase() : ''}`.slice(0, 40), M, y + (photo ? 90 : 140), F(700, 24), t.muted); track(0);
+  const bs = photo ? 230 : 320, by = y + (photo ? 90 : 140) + bs * .88;
+  cond(true);
+  x.font = F(800, bs); const ws = String(r.w), w1 = x.measureText(ws).width, dash = x.measureText('–').width;
+  text(ws, M - 6, by, F(800, bs), t.accent);
+  text('–', M - 6 + w1 + bs * .04, by, F(800, bs), t.muted);
+  text(String(r.l), M - 6 + w1 + dash + bs * .08, by, F(800, bs), t.ink);
+  cond(false);
+  text('menang', M, by + 52, F(600, 30), t.accent);
+  x.font = F(600, 30); text('kalah', M + w1 + dash + bs * .08, by + 52, F(600, 30), t.muted);
+  const ty = by + 110;
+  const th = tiles(ty, photo ? 84 : 104, W - 2 * M);
+  const lines = wrap(head, W - 2 * M, F(600, 54)).slice(0, 2), hy = ty + th + 100;
+  if (hy + (lines.length - 1) * 64 < H - 160) lines.forEach((l, i) => text(l, M, hy + i * 64, F(600, 54), t.ink));
+  x.fillStyle = t.line; x.fillRect(M, H - 120, W - 2 * M, 2);
+  text('Catat diary tenismu di 10nis.win', M, H - 66, F(500, 28), t.muted);
   return c;
 }
 // Preview on the summary page; redrawn when the photo changes.
 async function drawPlayPreview() {
   const img = document.getElementById('cardprev');
   if (!img || !page || page.kind !== 'ringkasan') return;
-  const id = page.slug, key = id + (playPhoto[id] ? playPhoto[id].src : '');
+  const id = page.slug, key = [id, playPhoto[id] ? playPhoto[id].src : '', cardOpt.frame, cardOpt.theme, playById(id).games.length].join('|');
   if (drawPlayPreview.key === key && drawPlayPreview.url) { img.src = drawPlayPreview.url; return; }
   const c = await playCard(id);
   drawPlayPreview.key = key; drawPlayPreview.url = c.toDataURL('image/jpeg', .8);
@@ -3429,7 +3517,7 @@ function render() {
   if (page) {
     document.body.classList.remove('player-mode');
     const op = openPlay();
-    document.getElementById('status').innerHTML = op && page.kind !== 'catat' ? `<i></i>Lagi main · ${(r => `${r.w}M ${r.l}K`)(wl(op.games))}` : '';
+    document.getElementById('status').innerHTML = op && page.kind !== 'catat' ? `<i></i>Lagi main · ${(r => `${r.w} menang, ${r.l} kalah`)(wl(op.games))}` : '';
     document.getElementById('view').innerHTML = {beranda: viewBeranda, mulai: viewMulai, catat: viewCatat, ringkasan: viewRingkasan, latihan: viewLatihan}[page.kind]?.() ?? view404();
     if (page.kind === 'ringkasan') drawPlayPreview();
     document.getElementById('dock').innerHTML = page.kind === 'catat' && op ? `<div class="dock"><div class="in">
