@@ -236,6 +236,36 @@ textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
 .lsteps li small{display:block;font-weight:500;font-size:14px;color:var(--muted);margin-top:2px}
 .lsteps li::before{content:counter(s);flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--lime);color:#0a1633;font-weight:900;font-size:14px}
 .ltext p{margin:0 0 10px;font-size:16px;line-height:1.5}.ltext p:last-child{margin:0}
+/* play diary */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.tagchip{min-height:40px;padding:8px 14px;border-radius:999px;border:2px solid var(--edge);background:var(--surface);color:var(--text);font-size:14.5px;font-weight:700;cursor:pointer}
+.tagchip.on{background:var(--lime);color:#0a1633;border-color:#0a1633}
+.resrow{display:flex;gap:10px;margin:12px 0 8px}
+.resbtn{flex:1;min-height:64px;border-radius:16px;border:2px solid var(--edge);background:var(--surface);color:var(--text);font-size:19px;font-weight:900;cursor:pointer;box-shadow:3px 3px 0 var(--hard)}
+.resbtn.W.on{background:var(--green);color:#fff}.resbtn.L.on{background:var(--warn);color:#fff}
+.scorerow{display:flex;gap:10px;margin:4px 0}
+.stepper{flex:1;min-width:0;display:flex;flex-direction:column;text-align:center}.stepper small{display:block;font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.stepper > div{display:flex;align-items:center;justify-content:space-between;border:2px solid var(--edge);border-radius:14px;background:var(--surface)}
+.stepper button{width:52px;height:52px;border:0;background:none;color:var(--text);font-size:26px;font-weight:900;cursor:pointer}
+.stepper b{font-size:30px}
+.gsheet{max-height:calc(100dvh - 40px);overflow-y:auto}
+.gsheet textarea{min-height:70px;font-size:16px}
+.gsheet .acts{position:sticky;bottom:-18px;margin:14px -18px -18px;padding:12px 18px 16px;background:var(--surface);border-top:1px solid var(--line);justify-content:space-between}
+.resbtn{display:flex;align-items:center;justify-content:center;gap:8px}
+.glist{padding:4px 0;overflow:hidden}
+.grow-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:12px 16px;color:var(--text);cursor:pointer;font:inherit}
+.grow-row:last-child{border-bottom:0}.grow-row b{display:block;font-size:15px}.grow-row small{display:block;color:var(--muted);font-size:13px;line-height:1.35;margin-top:2px}
+.grow-row small.note{font-style:italic}
+.res-pill{flex:none;min-width:38px;height:30px;padding:0 8px;border-radius:9px;display:grid;place-items:center;font-weight:900;font-size:14px;color:#fff;background:var(--warn)}
+.res-pill.W{background:var(--green)}
+.stats{display:flex;justify-content:space-around;text-align:center;padding:14px 8px}
+.stats b{display:block;font-size:30px;line-height:1}.stats small{color:var(--muted);font-size:12px;font-weight:700}
+.coach .cue{margin:0;padding:10px 12px;border-radius:12px;background:var(--surface-2);font-weight:800;font-size:16px}
+.checklist div{display:flex;align-items:center;gap:10px;padding:6px 0;font-weight:700}
+.checklist i{width:24px;height:24px;border-radius:50%;border:2px solid var(--edge);display:grid;place-items:center;font-style:normal;font-size:13px;font-weight:900}
+.checklist .ok{color:var(--muted);text-decoration:line-through}.checklist .ok i{background:var(--lime);color:#0a1633;text-decoration:none}
+.dots{display:flex;gap:6px;margin:0 0 18px}.dots i{width:28px;height:6px;border-radius:3px;background:var(--line)}.dots i.on{background:var(--lime)}
+.mseg{margin:-6px 0 18px}
 .hint.warn .ic{color:var(--warn)}
 /* a match is a little hard court: blue, white lines, scoreboard tiles for the score */
 .match{position:relative;border-radius:20px;padding:10px 20px 14px;margin-bottom:14px;color:#fff;overflow:hidden;
@@ -423,6 +453,8 @@ details.past .match{box-shadow:none}
 .tabbar .pill{width:48px;height:30px;border-radius:11px;display:grid;place-items:center;transition:background .2s}
 .tabbar button.on{color:#fff}
 .tabbar button.on .pill{background:var(--lime);color:#0a1633}
+.tabbar button.mainbtn .pill{background:var(--lime);color:#0a1633;width:52px;height:40px;margin-top:-14px;border:2px solid #0a1633;box-shadow:2px 2px 0 #0a1633}
+.tabbar button.mainbtn{color:#fff}
 
 .upd{position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top));z-index:30;max-width:560px;margin:0 auto;display:flex;align-items:center;gap:10px;
   background:#0a1633;color:#fff;border:2px solid var(--lime);border-radius:14px;padding:10px 10px 10px 14px;font-weight:700;font-size:14px;box-shadow:4px 4px 0 var(--hard)}
@@ -440,17 +472,17 @@ details.past .match{box-shadow:none}
 <main id="view"></main>
 <div id="dock"></div>
 <nav class="tabbar"><div class="in">
-  <button data-tab="players"><span class="pill" data-ic="users"></span>Players</button>
-  <button data-tab="rounds"><span class="pill" data-ic="court"></span>Rounds</button>
-  <button data-tab="standings"><span class="pill" data-ic="trophy"></span>Standings</button>
-  <button data-tab="join"><span class="pill" data-ic="ticket"></span>Join</button>
-  <button data-tab="account"><span class="pill" data-ic="user"></span>Account</button>
+  <button data-nav="beranda"><span class="pill" data-ic="home"></span>Beranda</button>
+  <button data-nav="latihan"><span class="pill" data-ic="target"></span>Latihan</button>
+  <button data-nav="catat" class="mainbtn"><span class="pill" data-ic="plus"></span>Main</button>
+  <button data-nav="mabar"><span class="pill" data-ic="users"></span>Mabar</button>
+  <button data-nav="saya"><span class="pill" data-ic="user"></span>Saya</button>
 </div></nav>
 <div class="toast" id="toast"></div>
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.8.0';
+const APP_VERSION = '0.9.0';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1047,24 +1079,491 @@ const view404 = () => { document.title = 'Not found · 10nis'; return `<div clas
   <div class="row" style="justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn primary" onclick="goTab('players')">Open 10nis</button>
     <button class="btn" onclick="goPage('latihan')">Latihan</button></div></div>`; };
 
+// ---------- play diary ("Main sendiri") ----------
+// The main feature: while playing, a player logs each game (win or lose, score optional, no opponent needed),
+// says what went well and what didn't, and keeps going until they tap "Selesai main". The summary then praises
+// them (more after a win, encouragement after a loss) and gives simple coaching for what went badly, from fixed
+// rules that point to the /latihan topics. Saved on the phone first, then to the `plays` table.
+// The diary, onboarding and Beranda are in Indonesian; the mixer (Mabar) is still English.
+const TAGS = {
+  servis: {bad: 'Servis', good: 'Servis'}, return: {bad: 'Return', good: 'Return'},
+  forehand: {bad: 'Forehand', good: 'Forehand'}, backhand: {bad: 'Backhand', good: 'Backhand'},
+  volley: {bad: 'Volley/net', good: 'Volley/net'}, footwork: {bad: 'Footwork', good: 'Footwork'},
+  posisi: {bad: 'Telat balik posisi', good: 'Posisi'}, error: {bad: 'Error sendiri', good: 'Jarang error'},
+  mental: {bad: 'Fokus/mental', good: 'Fokus'}, fisik: {bad: 'Fisik/capek', good: 'Stamina'},
+};
+// Praise for what went well, by tag.
+const GOOD_LINE = {
+  servis: 'Servis kamu jalan hari ini', return: 'Return kamu bikin lawan susah', forehand: 'Forehand kamu lagi enak',
+  backhand: 'Backhand kamu solid', volley: 'Main di net kamu berani', footwork: 'Kaki kamu rajin gerak',
+  posisi: 'Posisi kamu rapi', error: 'Kamu jarang bikin error', mental: 'Kamu fokus terus', fisik: 'Stamina kamu kuat',
+};
+// Simple coaching per weakness: why it happens, a cue to remember, one drill, and the /latihan topic.
+const COACH = {
+  servis: {why: 'Servis kacau seringnya karena lemparan bola, bukan ayunan.', cue: 'Lengan lurus, lepas setinggi mata, arah jam 1.',
+    drill: '20 lemparan tanpa dipukul. Lemparan jelek? Tangkap dan ulang, itu legal.', slug: 'lemparan-servis'},
+  return: {why: 'Return gagal biasanya karena ayunan kepanjangan untuk bola yang datang cepat.', cue: 'Split step, ayunan pendek kayak blok, ke tengah.',
+    drill: 'Minta teman servis pelan, kamu return 20× ke tengah.', slug: 'return-servis'},
+  forehand: {why: 'Forehand kurang tenaga atau nyasar biasanya karena cuma pakai tangan.', cue: 'Putar bahu dulu, ayun dari bawah ke atas.',
+    drill: 'Shadow swing 3×10, fokus putaran bahu.', slug: 'unit-turn'},
+  backhand: {why: 'Backhand lemah biasanya karena tangan kanan kerja sendirian.', cue: 'Tangan kiri yang mimpin, kaki menyamping.',
+    drill: 'Backhand pakai tangan kiri saja, 20 bola pelan.', slug: 'backhand-dua-tangan'},
+  volley: {why: 'Volley nyasar biasanya karena raket diayun kayak forehand.', cue: 'Raket di depan, dorong pendek, langkah maju.',
+    drill: 'Teman lempar pelan, kamu volley 20× tanpa ayunan.', slug: 'volley-dasar'},
+  footwork: {why: 'Sering telat ke bola biasanya karena telat split step.', cue: 'Lompat kecil pas raket lawan kena bola.',
+    drill: 'Shadow split step 3×10, lalu geser ke kiri atau kanan.', slug: 'split-step'},
+  posisi: {why: 'Lapangan kosong biasanya karena habis mukul diam nonton bola.', cue: 'Habis mukul, side step balik ke tengah.',
+    drill: 'Rally 10 bola, tiap habis mukul sentuh tanda tengah.', slug: 'recovery'},
+  error: {why: 'Error sendiri sering datang dari memaksa pukulan yang susah.', cue: 'Ragu? Crosscourt, ±1 m di atas net.',
+    drill: 'Game berikutnya, hitung error kamu. Targetnya lebih sedikit dari hari ini.', slug: 'crosscourt'},
+  mental: {why: 'Setelah poin jelek, pikiran sering masih nyangkut di poin itu.', cue: 'Antar poin: tarik napas, lihat senar, pilih 1 rencana.',
+    drill: 'Sebelum tiap poin di game berikutnya, lakukan rutinitas 10 detik itu.', slug: null},
+  fisik: {why: 'Capek bikin kaki telat, lalu pukulan jadi pakai tangan.', cue: 'Minum tiap ganti sisi, tetap langkah kecil.',
+    drill: 'Sebelum main: 5 menit pemanasan (lari kecil, side step, ayunan pelan). Tidur cukup sebelum sesi berikutnya.', slug: null},
+};
+const WIN_TOAST = ['Mantap! 🔥', 'Game kamu! 💪', 'Keren, lanjut! 🎾', 'Gas terus! 🚀'];
+const LOSS_TOAST = ['Gapapa, game berikutnya! 💪', 'Tarik napas, reset. 🙌', 'Belajar dari yang ini, lanjut! 🎾'];
+// The summary headline, by how the session went.
+function praise(w, l) {
+  if (!w && !l) return {h: 'Sesi tercatat', p: 'Belum ada game di sesi ini. Lain kali tap + Catat game tiap habis main.'};
+  if (!l) return {h: pick(['Sempurna! 🏆', 'Nggak terkalahkan hari ini! 🔥']), p: `${`${w} game`}, semua kamu menangkan. Ingat rasanya, dan lihat apa yang bikin kamu jalan.`};
+  if (!w) return {h: pick(['Tetap semangat! 🙌', 'Good game, jangan menyerah! 💪']), p: 'Semua orang pernah di hari kayak gini. Kamu tetap main dan mencatat, dan ini bahan buat naik level.'};
+  if (w > l) return {h: pick(['Hari yang bagus! 💪', 'Mantap, lebih banyak menang! 🔥']), p: `Menang ${w}, kalah ${l}. Pertahankan yang jalan, perbaiki satu hal di bawah.`};
+  if (w === l) return {h: 'Seimbang! ⚖️', p: `Menang ${w}, kalah ${l}. Tinggal sedikit lagi buat jadi hari yang menang.`};
+  return {h: pick(['Good game! 🎾', 'Tetap semangat! 🙌']), p: `Menang ${w}, kalah ${l}. Hari ini belum berpihak, tapi tiap game ngasih tahu apa yang perlu dilatih.`};
+}
+// Self-rating levels in Indonesian, for onboarding (same 1–10 scale as LEVELS).
+const LEVELS_ID = {
+  1: ['Pemula', 'Baru kenal tenis. Belajar grip dan cara kena bola.'],
+  2: ['Pemula', 'Bisa rally pelan beberapa pukulan. Servis masih belajar.'],
+  3: ['Pemula', 'Rally 4–6 pukulan santai. Servis pelan kebanyakan masuk.'],
+  4: ['Pemula atas', 'Forehand stabil, backhand belum. Tahu posisi main ganda.'],
+  5: ['Pemula atas', 'Konsisten di tempo sedang, mulai bisa mengarahkan bola. Bisa volley.'],
+  6: ['Menengah bawah', 'Rally dengan arah dan kedalaman. Servis bisa diandalkan.'],
+  7: ['Menengah', 'Pakai spin dan tenaga, bisa menggerakkan lawan, jarang kebobol servis.'],
+  8: ['Mahir', 'Kuat di dua sisi, menyerang bola pendek, solid di net.'],
+  9: ['Mahir', 'Pemain turnamen. Servis bervariasi, jarang error di bawah tekanan.'],
+  10: ['Mahir', 'Level kompetisi tinggi, sekitar NTRP 5.0 ke atas.'],
+};
+
+// ---------- diary storage: this phone first, then the server ----------
+const DIARY_KEY = '10nis-diary', ONBOARD_KEY = '10nis-onboard';
+const readJSON = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
+let diary = readJSON(DIARY_KEY, []);           // [{id, started_at, ended_at, place, games, lesson, dirty}], newest first
+let onboard = readJSON(ONBOARD_KEY, null);     // {level, weak: [], done, synced}
+const openPlay = () => diary.find(p => !p.ended_at) || null;
+const playById = id => diary.find(p => p.id === id) || null;
+function saveDiary() {
+  diary.sort((a, b) => b.started_at.localeCompare(a.started_at));
+  // Keep the phone copy small: the open session, anything not yet saved, and the 60 newest.
+  diary = diary.filter((p, i) => i < 60 || !p.ended_at || p.dirty);
+  try { localStorage.setItem(DIARY_KEY, JSON.stringify(diary)); } catch (e) {}
+  queuePlaySync();
+}
+function saveOnboard() { try { localStorage.setItem(ONBOARD_KEY, JSON.stringify(onboard)); } catch (e) {} }
+function queuePlaySync() {
+  if (!sb || !diary.some(p => p.dirty) && !(onboard && onboard.done && !onboard.synced)) return;
+  if (!user) { ensureUser(); return; }   // signing in calls this again
+  clearTimeout(queuePlaySync.t); queuePlaySync.t = setTimeout(syncPlays, 800);
+}
+async function syncPlays() {
+  if (!sb || !user || syncPlays.busy) return;
+  syncPlays.busy = true;
+  try {
+    const dirty = diary.filter(p => p.dirty);
+    if (dirty.length) {
+      const row = ({id, started_at, ended_at, place, games, lesson}) => ({id, started_at, ended_at: ended_at || null,
+        place: place || null, games, lesson: lesson || null});
+      const rows = dirty.map(row), sent = rows.map(r => JSON.stringify(r));
+      const {error} = await sb.from('plays').upsert(rows);
+      if (error) { report('plays', error.message); return; }
+      // Only clear what was sent; a game added meanwhile stays dirty.
+      dirty.forEach((p, i) => { if (JSON.stringify(row(p)) === sent[i]) delete p.dirty; });
+      try { localStorage.setItem(DIARY_KEY, JSON.stringify(diary)); } catch (e) {}
+    }
+    if (onboard && onboard.done && !onboard.synced) {
+      const jobs = [];
+      if (onboard.level) jobs.push(sb.rpc('set_my_level', {level: onboard.level}));
+      if (onboard.weak && onboard.weak.length) jobs.push(sb.from('profiles').update({weak_tags: onboard.weak}).eq('id', user.id));
+      const res = await Promise.all(jobs);
+      if (res.every(r => !r.error)) { onboard.synced = true; saveOnboard(); me = null; }
+      else report('onboard', (res.find(r => r.error).error || {}).message);
+    }
+  } finally {
+    syncPlays.busy = false;
+    if (diary.some(p => p.dirty)) { clearTimeout(queuePlaySync.t); queuePlaySync.t = setTimeout(syncPlays, 5000); }
+  }
+}
+window.addEventListener('online', queuePlaySync);
+// The server's copy (e.g. from another phone after Save to Google) joins the phone's; unsaved local edits win.
+async function loadPlays() {
+  if (!sb || !user || loadPlays.busy) return;
+  loadPlays.busy = true;
+  const {data, error} = await sb.from('plays').select('id, started_at, ended_at, place, games, lesson').order('started_at', {ascending: false}).limit(60);
+  loadPlays.busy = false;
+  if (error || !data) return;
+  data.forEach(row => {
+    const i = diary.findIndex(p => p.id === row.id);
+    if (i < 0) diary.push(row); else if (!diary[i].dirty) diary[i] = row;
+  });
+  saveDiary();
+  if (page && ['beranda', 'catat', 'ringkasan'].includes(page.kind)) render();
+}
+
+// ---------- diary helpers ----------
+const wl = games => ({w: games.filter(g => g.res === 'W').length, l: games.filter(g => g.res === 'L').length});
+const idDay = iso => new Date(iso).toLocaleDateString('id-ID', {weekday: 'short', day: 'numeric', month: 'short'});
+const idTime = iso => new Date(iso).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'});
+function lasted(from, to) {
+  const m = Math.max(0, Math.round(((to ? new Date(to) : new Date()) - new Date(from)) / 6e4));
+  return m < 60 ? `${m} mnt` : `${Math.floor(m / 60)} jam ${String(m % 60).padStart(2, '0')} mnt`;
+}
+// The most frequent tags of one kind ('good' or 'bad') over some games, most frequent first.
+function topTags(games, kind, n = 2) {
+  const c = {};
+  games.forEach(g => (g[kind] || []).forEach(t => { if (TAGS[t]) c[t] = (c[t] || 0) + 1; }));
+  return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, n).map(([t, k]) => ({t, k}));
+}
+const recentGames = days => diary.filter(p => Date.now() - new Date(p.started_at) < days * 864e5).flatMap(p => p.games);
+// This week's focus: the weakness that came up most in the last 14 days, else the one picked in onboarding.
+function focusTag() {
+  const top = topTags(recentGames(14), 'bad', 1)[0];
+  return top ? top.t : onboard && onboard.weak && onboard.weak[0] || null;
+}
+const scoreText = g => g.me != null && g.opp != null ? `${g.me}-${g.opp}` : '';
+const resIcon = g => g.res === 'W' ? '✅' : '❌';
+function coachCard(t, n) {
+  const c = COACH[t];
+  return `<div class="card coach"><p class="label" style="margin-bottom:6px">${esc(TAGS[t].bad)}${n ? ` · ${n}×` : ''}</p>
+    <p style="margin:0 0 10px">${esc(c.why)}</p>
+    <p class="cue">“${esc(c.cue)}”</p>
+    <p style="margin:10px 0 0"><b>Drill:</b> ${esc(c.drill)}</p>
+    ${c.slug ? `<button class="btn sm soft" style="margin-top:12px" onclick="goPage('latihan', '${c.slug}')">${ic('ball')}Pelajari tekniknya</button>` : ''}</div>`;
+}
+
+// ---------- Beranda (/) ----------
+function viewBeranda() {
+  document.title = '10nis · Diary tenis kamu';
+  const op = openPlay(), done = diary.filter(p => p.ended_at);
+  if (!onboard || !onboard.done) {
+    if (!diary.length) return `${inAppBanner()}
+    <p class="kicker">10nis.win</p>
+    <h1 class="title">Skor cuma awal.</h1>
+    <p class="sub" style="font-size:16px">10nis bantu kamu jadi lebih baik. Catat tiap game waktu main, tulis apa yang jalan dan apa yang belum, lalu dapat tips sesudahnya.</p>
+    <button class="btn primary big" onclick="startOnboard()">${ic('arrow')}Cek level kamu (1 menit)</button>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="btn text" onclick="goPage('catat')">Langsung mulai main</button></div>
+    <div class="sec-head"><p class="label">Cara kerjanya</p></div>
+    <div class="card"><ol class="lsteps">
+      <li><span>Mulai main<small>Tap ➕ Main waktu kamu turun ke lapangan.</small></span></li>
+      <li><span>Catat tiap game<small>Menang atau kalah, skor kalau mau, lalu apa yang bagus dan apa yang kurang. 10 detik.</small></span></li>
+      <li><span>Selesai main<small>Dapat ringkasan, pujian, dan 1–2 hal yang perlu dilatih.</small></span></li>
+    </ol></div>
+    <button class="pinbar ghost" onclick="goTab('players')">${ic('users')}<span class="grow"><b>Atur mabar grup</b><small>Ronde adil, skor dan klasemen untuk main bareng. Ada di menu Mabar.</small></span>${ic('arrow')}</button>
+    ${LEGAL}`;
+  }
+  const stale = op && Date.now() - new Date(op.started_at) > 12 * 36e5;
+  const steps = [['Cek level', onboard && onboard.done], ['Catat game pertama', diary.some(p => p.games.length)], ['Selesai main & lihat ringkasan', done.length > 0]];
+  const g30 = recentGames(30), r30 = wl(g30), weak = topTags(g30, 'bad', 2), ft = focusTag();
+  return `${inAppBanner()}
+  <h1 class="title">Halo${userFirstName() ? `, ${esc(userFirstName())}` : ''}!</h1>
+  <p class="sub">${op ? 'Kamu lagi main. Catat tiap game, ya.' : 'Mau main hari ini? Catat biar tahu apa yang perlu dilatih.'}</p>
+  ${stale ? `<div class="card"><p style="margin:0 0 4px"><b>Sesi ${esc(idDay(op.started_at))} masih terbuka</b></p>
+    <p class="muted" style="margin:0 0 12px;font-size:13.5px">${`${op.games.length} game`} tercatat. Sudah selesai main?</p>
+    <div class="row" style="flex-wrap:wrap"><button class="btn sm primary" onclick="endPlay()">Selesaikan</button>
+      <button class="btn sm soft" onclick="goPage('catat')">Lanjut main</button></div></div>`
+    : op ? `<button class="pinbar" onclick="goPage('catat')">${ic('ball')}<span class="grow"><b>Lagi main · ${(r => `${r.w}M ${r.l}K`)(wl(op.games))}</b>
+      <small>Mulai ${esc(idTime(op.started_at))}${op.place ? ` · ${esc(op.place)}` : ''} · tap untuk catat game</small></span>${ic('arrow')}</button>`
+    : `<button class="btn primary big" onclick="goPage('catat')">${ic('plus')}Mulai main</button>`}
+  ${steps.every(s => s[1]) ? '' : `<div class="sec-head"><p class="label">Langkah pertama</p></div>
+    <div class="card checklist">${steps.map(([t, ok]) => `<div class="${ok ? 'ok' : ''}"><i>${ok ? '✓' : ''}</i>${esc(t)}</div>`).join('')}</div>`}
+  ${ft ? `<div class="sec-head"><p class="label">Fokus minggu ini</p></div>${coachCard(ft)}` : ''}
+  ${g30.length ? `<div class="sec-head"><p class="label">30 hari terakhir</p></div>
+    <div class="card stats"><div><b class="num">${g30.length}</b><small>game</small></div><div><b class="num">${r30.w}</b><small>menang</small></div>
+      <div><b class="num">${r30.l}</b><small>kalah</small></div><div><b class="num">${Math.round(r30.w / g30.length * 100)}%</b><small>menang</small></div></div>
+    ${weak.length ? `<p class="hint">${ic('x')}Paling sering kurang: ${weak.map(x => `${esc(TAGS[x.t].bad)} (${x.k}×)`).join(', ')}</p>` : ''}` : ''}
+  <div class="sec-head"><p class="label">Riwayat main</p></div>
+  ${done.length ? done.slice(0, 10).map(p => {
+      const r = wl(p.games), b = topTags(p.games, 'bad', 1)[0];
+      return `<button class="pinbar ghost" onclick="goPage('ringkasan', '${p.id}')"><span class="res-pill ${r.w >= r.l && r.w ? 'W' : 'L'}">${r.w}–${r.l}</span>
+        <span class="grow"><b>${esc(idDay(p.started_at))}${p.place ? ` · ${esc(p.place)}` : ''}</b>
+        <small>${`${p.games.length} game`}${b ? ` · kurang: ${esc(TAGS[b.t].bad)}` : ''}</small></span>${ic('arrow')}</button>`;
+    }).join('') : `<p class="muted" style="padding:0 4px">Belum ada catatan. Tap ➕ Main waktu kamu mulai main.</p>`}
+  ${LEGAL}`;
+}
+const userFirstName = () => {
+  if (!user || isAnon()) return '';
+  const m = user.user_metadata || {};
+  return ((me && me.player && me.player.name) || m.full_name || m.name || '').split(' ')[0];
+};
+
+// ---------- onboarding (/mulai): level + what usually costs points → this week's focus ----------
+let ob = null;   // {step, level, weak}
+function startOnboard() { ob = {step: 0, level: onboard && onboard.level || null, weak: (onboard && onboard.weak || []).slice()}; goPage('mulai'); }
+function viewMulai() {
+  if (!ob) ob = {step: 0, level: null, weak: []};
+  document.title = 'Mulai · 10nis';
+  const dots = `<div class="dots">${[0, 1, 2].map(i => `<i class="${i <= ob.step ? 'on' : ''}"></i>`).join('')}</div>`;
+  if (ob.step === 0) return `${dots}
+    <p class="kicker">Selamat datang</p>
+    <h1 class="title">Diary tenis kamu</h1>
+    <p class="sub" style="font-size:16px">Main sendiri, main bareng teman, atau mabar di Reclub/Kuyy: catat di 10nis. Habis main, kamu dapat ringkasan dan 1–2 hal yang perlu dilatih.</p>
+    <div class="card"><ol class="lsteps">
+      <li><span>Catat tiap game<small>Menang atau kalah, skor boleh dikosongkan. Lawannya siapa nggak perlu.</small></span></li>
+      <li><span>Refleksi 10 detik<small>Apa yang jalan bagus, apa yang kurang.</small></span></li>
+      <li><span>Dapat tips<small>Pujian, semangat, dan drill untuk yang kurang.</small></span></li>
+    </ol></div>
+    <button class="btn primary big" onclick="ob.step = 1; render(); scrollTo(0, 0)">Lanjut${ic('arrow')}</button>
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn text" onclick="finishOnboard(true)">Lewati</button></div>`;
+  if (ob.step === 1) return `${dots}
+    <p class="kicker">1 dari 2</p>
+    <h1 class="title">Level kamu?</h1>
+    <p class="sub">Kira-kira aja. Bisa diubah kapan pun di menu Saya.</p>
+    <div class="lvgrid">${Object.keys(LEVELS_ID).map(n => `<button class="lv${band(+n)} ${ob.level === +n ? 'on' : ''}" style="--c:var(--lv${band(+n)})"
+      onclick="ob.level = ${n}; render()">${n}</button>`).join('')}</div>
+    ${ob.level ? `<div class="card lvl" style="margin-top:12px"><strong>${ob.level} · ${esc(LEVELS_ID[ob.level][0])}</strong><p style="margin:6px 0 0">${esc(LEVELS_ID[ob.level][1])}</p></div>` : ''}
+    <button class="btn primary big" style="margin-top:14px" ${ob.level ? '' : 'disabled'} onclick="ob.step = 2; render(); scrollTo(0, 0)">Lanjut${ic('arrow')}</button>
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn text" onclick="ob.level = null; ob.step = 2; render()">Nggak yakin, lewati</button></div>`;
+  if (ob.step === 2) return `${dots}
+    <p class="kicker">2 dari 2</p>
+    <h1 class="title">Poin paling sering hilang karena?</h1>
+    <p class="sub">Pilih 1 atau 2.</p>
+    <div class="chips">${Object.keys(TAGS).map(t => `<button class="tagchip ${ob.weak.includes(t) ? 'on' : ''}" onclick="toggleWeak('${t}')">${esc(TAGS[t].bad)}</button>`).join('')}</div>
+    <button class="btn primary big" style="margin-top:16px" ${ob.weak.length ? '' : 'disabled'} onclick="ob.step = 3; render(); scrollTo(0, 0)">Lihat fokus kamu${ic('arrow')}</button>
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn text" onclick="finishOnboard(true)">Lewati</button></div>`;
+  return `
+    <p class="kicker">Fokus minggu ini</p>
+    <h1 class="title">${esc(TAGS[ob.weak[0]].bad)}</h1>
+    <p class="sub">${ob.level ? `Level ${ob.level} · ${esc(LEVELS_ID[ob.level][0])}. ` : ''}Mulai dari satu hal dulu. Ini yang paling sering bikin naik level.</p>
+    ${coachCard(ob.weak[0])}
+    <button class="btn primary big" onclick="finishOnboard(); goPage('catat')">${ic('plus')}Mulai main</button>
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn text" onclick="finishOnboard(); goPage('beranda')">Nanti aja</button></div>`;
+}
+function toggleWeak(t) {
+  const i = ob.weak.indexOf(t);
+  if (i >= 0) ob.weak.splice(i, 1); else { ob.weak.push(t); if (ob.weak.length > 2) ob.weak.shift(); }
+  render();
+}
+function finishOnboard(skip) {
+  onboard = {level: skip ? onboard && onboard.level || null : ob && ob.level, weak: skip ? onboard && onboard.weak || [] : ob && ob.weak || [], done: true, synced: false};
+  saveOnboard(); track('onboard', {skip: !!skip, level: onboard.level, weak: onboard.weak});
+  if (onboard.level || onboard.weak.length) queuePlaySync();
+  if (skip) goPage('beranda');
+}
+
+// ---------- playing (/catat) ----------
+function startPlay() {
+  if (openPlay()) { goPage('catat'); return; }
+  const place = (document.getElementById('place') || {}).value || '';
+  diary.unshift({id: crypto.randomUUID(), started_at: new Date().toISOString(), ended_at: null, place: place.trim().slice(0, 120) || null, games: [], lesson: null, dirty: true});
+  saveDiary(); track('play_start'); render();
+  setTimeout(() => openGameSheet(), 150);
+}
+function viewCatat() {
+  document.title = 'Main · 10nis';
+  const op = openPlay();
+  if (!op) {
+    let last = '';
+    try { last = localStorage.getItem('10nis-last-place') || ''; } catch (e) {}
+    const ft = focusTag();
+    return `
+    <p class="kicker">Main sendiri</p>
+    <h1 class="title">Mulai main</h1>
+    <p class="sub">Catat tiap game waktu main. Skor dan lawan nggak wajib.</p>
+    <div class="card"><p class="label">Main di mana? (opsional)</p>
+      <input id="place" class="linkin" maxlength="120" placeholder="Contoh: Senayan, lapangan komplek" value="${esc(last)}"></div>
+    <button class="btn primary big" onclick="startPlay()">${ic('ball')}Mulai main</button>
+    ${ft ? `<div class="sec-head"><p class="label">Ingat fokus kamu</p></div><div class="card"><b>${esc(TAGS[ft].bad)}:</b> “${esc(COACH[ft].cue)}”</div>` : ''}
+    ${LEGAL}`;
+  }
+  const r = wl(op.games);
+  return `
+  <p class="kicker">Lagi main · ${esc(lasted(op.started_at))}</p>
+  <h1 class="title">${r.w}M · ${r.l}K</h1>
+  <p class="sub">Mulai ${esc(idTime(op.started_at))}${op.place ? ` · ${esc(op.place)}` : ''}. Tap + Catat game tiap habis satu game.</p>
+  ${op.games.length ? `<div class="card glist">${op.games.map((g, i) => `<button class="grow-row" onclick="openGameSheet(${i})">
+      <span class="res-pill ${g.res}">${g.res === 'W' ? 'M' : 'K'}</span>
+      <span class="grow"><b>Game ${i + 1}${scoreText(g) ? ` · ${scoreText(g)}` : ''}</b>
+        <small>${[(g.good || []).length ? '👍 ' + g.good.map(t => TAGS[t].good).join(', ') : '', (g.bad || []).length ? '👎 ' + g.bad.map(t => TAGS[t].bad).join(', ') : ''].filter(Boolean).map(esc).join(' · ') || 'Tanpa catatan'}</small>
+        ${g.note ? `<small class="note">“${esc(g.note)}”</small>` : ''}</span>${ic('pen')}</button>`).join('')}</div>`
+    : `<div class="empty" style="padding:30px 20px"><div class="orb">${ic('ball')}</div><h3>Belum ada game</h3>Habis satu game, tap <b>+ Catat game</b>. Cuma 10 detik.</div>`}
+  <div class="row" style="justify-content:center;margin-top:18px"><button class="btn ${op.games.length ? 'primary' : 'soft'}" onclick="endPlay()">${ic('trophy')}Selesai main</button></div>
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:12px">Tersimpan di HP ini${user ? ' dan di akunmu' : ''}.</p>`;
+}
+// Log (or edit) one game: win/lose, optional score, what went well, what didn't, a note.
+function openGameSheet(i) {
+  const op = openPlay() || (page && page.kind === 'ringkasan' && playById(page.slug));
+  if (!op) return;
+  const old = i != null ? op.games[i] : null;
+  const g = old ? {...old, good: [...(old.good || [])], bad: [...(old.bad || [])]} : {res: null, me: null, opp: null, good: [], bad: [], note: ''};
+  let showScore = g.me != null;
+  const box = document.createElement('div');
+  box.className = 'sheet';
+  const chips = kind => Object.keys(TAGS).map(t => `<button class="tagchip ${g[kind].includes(t) ? 'on' : ''}" data-k="${kind}" data-t="${t}">${esc(TAGS[t][kind])}</button>`).join('');
+  const draw = () => {
+    box.innerHTML = `<div class="card sheetin gsheet" role="dialog" aria-label="Catat game">
+      <h3>Game ${i != null ? i + 1 : op.games.length + 1}</h3>
+      <div class="resrow"><button class="resbtn W ${g.res === 'W' ? 'on' : ''}" data-r="W">✅ Menang</button><button class="resbtn L ${g.res === 'L' ? 'on' : ''}" data-r="L">❌ Kalah</button></div>
+      ${showScore ? `<div class="scorerow">${['me', 'opp'].map(k => `<div class="stepper"><small>${k === 'me' ? 'Kamu' : 'Lawan'}</small>
+          <div><button data-s="${k}" data-d="-1" aria-label="Kurangi">−</button><b class="num">${g[k] ?? 0}</b><button data-s="${k}" data-d="1" aria-label="Tambah">+</button></div></div>`).join('')}</div>`
+        : `<button class="btn text" data-a="score" style="padding-left:0">${ic('plus')}Tambah skor (opsional)</button>`}
+      <p class="label" style="margin:14px 0 8px">👍 Apa yang jalan bagus?</p><div class="chips">${chips('good')}</div>
+      <p class="label" style="margin:14px 0 8px">👎 Apa yang kurang?</p><div class="chips">${chips('bad')}</div>
+      <textarea id="g-note" maxlength="280" placeholder="Ceritain apa yang terjadi (opsional)">${esc(g.note || '')}</textarea>
+      <div class="row acts">
+        ${old ? '<button class="btn sm text danger" data-a="del">Hapus</button>' : '<button class="btn sm soft" data-a="cancel">Batal</button>'}
+        <button class="btn primary" data-a="save" ${g.res ? '' : 'disabled'}>Simpan</button></div></div>`;
+  };
+  draw();
+  document.body.appendChild(box);
+  const close = () => box.remove();
+  box.addEventListener('click', e => {
+    if (e.target === box) { close(); return; }
+    const b = e.target.closest('button');
+    g.note = (box.querySelector('#g-note') || {}).value || '';
+    if (!b) return;
+    if (b.dataset.r) g.res = b.dataset.r;
+    else if (b.dataset.s) {
+      g[b.dataset.s] = Math.max(0, Math.min(99, (g[b.dataset.s] || 0) + +b.dataset.d));
+      if (g.me !== g.opp) g.res = g.me > g.opp ? 'W' : 'L';   // the score decides who won
+    } else if (b.dataset.k) {
+      const l = g[b.dataset.k], j = l.indexOf(b.dataset.t);
+      if (j >= 0) l.splice(j, 1); else { l.push(b.dataset.t); if (l.length > 3) l.shift(); }
+    } else if (b.dataset.a === 'score') { showScore = true; g.me = g.me ?? 0; g.opp = g.opp ?? 0; }
+    else if (b.dataset.a === 'cancel') { close(); return; }
+    else if (b.dataset.a === 'del') {
+      if (!confirm(`Hapus game ${i + 1}?`)) return;
+      op.games.splice(i, 1); op.dirty = true; saveDiary(); close(); render(); return;
+    } else if (b.dataset.a === 'save') {
+      if (!g.res) return;
+      const game = {at: old ? old.at : new Date().toISOString(), res: g.res, me: showScore ? g.me : null, opp: showScore ? g.opp : null,
+        good: g.good, bad: g.bad, note: g.note.trim().slice(0, 280) || null};
+      if (old) op.games[i] = game; else op.games.push(game);
+      op.dirty = true; saveDiary(); close(); render();
+      if (!old) { track('play_game', {res: game.res}); toast(pick(game.res === 'W' ? WIN_TOAST : LOSS_TOAST)); }
+      return;
+    }
+    const y = box.querySelector('.gsheet').scrollTop;
+    draw(); box.querySelector('.gsheet').scrollTop = y;
+  });
+}
+function endPlay() {
+  const op = openPlay();
+  if (!op) return;
+  if (!op.games.length) {
+    if (!confirm('Belum ada game yang dicatat. Hapus sesi ini?')) return;
+    diary = diary.filter(p => p !== op); saveDiary();
+    if (user) sb.from('plays').delete().eq('id', op.id).then(() => {}, () => {});
+    goPage('beranda'); return;
+  }
+  if (!confirm('Selesai main? Kamu akan dapat ringkasan dan tips.')) return;
+  op.ended_at = new Date().toISOString(); op.dirty = true;
+  try { if (op.place) localStorage.setItem('10nis-last-place', op.place); } catch (e) {}
+  saveDiary(); track('play_end', {games: op.games.length, ...wl(op.games)});
+  page = {kind: 'ringkasan', slug: op.id};
+  history.replaceState(null, '', pagePath());
+  render(); window.scrollTo(0, 0);
+}
+
+// ---------- summary (/catat/<id>) ----------
+function viewRingkasan() {
+  const p = playById(page.slug);
+  if (!p) {
+    if (user && !loadPlays.tried) { loadPlays.tried = true; loadPlays(); return '<p class="muted" style="padding:20px 4px">Memuat…</p>'; }
+    return view404();
+  }
+  document.title = `Ringkasan ${idDay(p.started_at)} · 10nis`;
+  const r = wl(p.games), pr = praise(r.w, r.l), good = topTags(p.games, 'good', 3), bad = topTags(p.games, 'bad', 2);
+  const firstDone = diary.filter(x => x.ended_at).length === 1;
+  return `
+  <p class="kicker">${esc(idDay(p.started_at))}${p.place ? ` · ${esc(p.place)}` : ''} · ${esc(lasted(p.started_at, p.ended_at))}</p>
+  <h1 class="title">${esc(pr.h)}</h1>
+  <p class="sub" style="font-size:15px">${esc(pr.p)}</p>
+  <div class="card stats"><div><b class="num">${p.games.length}</b><small>game</small></div><div><b class="num">${r.w}</b><small>menang</small></div><div><b class="num">${r.l}</b><small>kalah</small></div></div>
+  ${p.games.length ? `<div class="card glist">${p.games.map((g, i) => `<div class="grow-row"><span class="res-pill ${g.res}">${g.res === 'W' ? 'M' : 'K'}</span>
+    <span class="grow"><b>Game ${i + 1}${scoreText(g) ? ` · ${scoreText(g)}` : ''}</b>${g.note ? `<small class="note">“${esc(g.note)}”</small>` : ''}</span></div>`).join('')}</div>` : ''}
+  ${good.length ? `<div class="sec-head"><p class="label">👍 Yang jalan bagus</p></div>
+    <div class="card">${good.map(x => `<p style="margin:4px 0;font-weight:700">${esc(GOOD_LINE[x.t])} 👏${x.k > 1 ? ` <span class="muted">(${x.k} game)</span>` : ''}</p>`).join('')}</div>` : ''}
+  ${bad.length ? `<div class="sec-head"><p class="label">🎯 Yang perlu diperbaiki</p></div>${bad.map(x => coachCard(x.t, x.k)).join('')}`
+    : p.games.length ? `<p class="hint">${ic('ball')}Nggak ada yang dicatat kurang. Lain kali coba tandai satu hal yang mau diperbaiki.</p>` : ''}
+  <div class="sec-head"><p class="label">Satu hal yang kamu pelajari hari ini?</p></div>
+  <div class="card"><textarea id="lesson" maxlength="280" placeholder="Contoh: kalau ragu, crosscourt aja" onchange="saveLesson('${p.id}', this.value)">${esc(p.lesson || '')}</textarea></div>
+  <button class="btn primary big" style="background:#25d366;color:#0a1633" onclick="sharePlay('${p.id}')">${ic('share')}Bagikan ke WhatsApp</button>
+  <div class="row" style="justify-content:center;gap:8px;margin-top:12px;flex-wrap:wrap">
+    <button class="btn sm soft" onclick="copyText(playShareText('${p.id}'), 'Ringkasan disalin')">${ic('copy')}Salin teks</button>
+    <button class="btn sm soft" onclick="goPage('catat')">${ic('plus')}Mulai main lagi</button>
+    <button class="btn sm soft" onclick="goPage('beranda')">Ke Beranda</button></div>
+  ${isAnon() && firstDone && !snoozed('10nis-save-nudge') ? `<div class="card" style="margin-top:18px">
+    <p style="margin:0 0 4px"><b>Tersimpan ✅</b></p>
+    <p class="muted" style="margin:0 0 12px;font-size:13.5px">Simpan ke akun Google supaya diary kamu bisa dibuka dari HP lain.</p>
+    <div class="row" style="flex-wrap:wrap"><button class="btn sm primary" onclick="goTab('account')">${GOOGLE}Simpan ke Google</button>
+      <button class="btn sm text" onclick="snooze('10nis-save-nudge', 3); render()">Nanti</button></div></div>` : ''}
+  <div class="row" style="justify-content:center;margin-top:18px"><button class="btn text danger" onclick="deletePlay('${p.id}')">Hapus sesi ini</button></div>
+  ${LEGAL}`;
+}
+function saveLesson(id, v) {
+  const p = playById(id);
+  if (!p) return;
+  p.lesson = v.trim().slice(0, 280) || null; p.dirty = true; saveDiary(); toast('Tersimpan');
+}
+function deletePlay(id) {
+  if (!confirm('Hapus sesi ini dari diary kamu?')) return;
+  diary = diary.filter(p => p.id !== id); saveDiary();
+  if (user) sb.from('plays').delete().eq('id', id).then(() => {}, () => {});
+  goPage('beranda');
+}
+// The WhatsApp message: *bold* is WhatsApp's own formatting.
+function playShareText(id) {
+  const p = playById(id), r = wl(p.games), good = topTags(p.games, 'good', 2), bad = topTags(p.games, 'bad', 1)[0];
+  return [
+    `🎾 *Diary tenis* · ${idDay(p.started_at)}${p.place ? ` · ${p.place}` : ''}`,
+    `*${r.w} menang · ${r.l} kalah*`,
+    p.games.map(g => `${resIcon(g)}${scoreText(g) ? ' ' + scoreText(g) : ''}`).join('  '),
+    good.length ? `👍 Jalan: ${good.map(x => TAGS[x.t].good.toLowerCase()).join(', ')}` : '',
+    bad ? `🎯 Fokus berikutnya: ${TAGS[bad.t].bad.toLowerCase()} (“${COACH[bad.t].cue.replace(/\.$/, '')}”)` : '',
+    p.lesson ? `💡 ${p.lesson}` : '',
+    `Catat main kamu juga 👉 ${APP_URL}`,
+  ].filter(Boolean).join('\n');
+}
+function sharePlay(id) {
+  track('play_share');
+  window.open(`https://wa.me/?text=${encodeURIComponent(playShareText(id))}`, '_blank');
+}
+
 // ---------- routes ----------
 // Each tab has its own address, so Android's Back button moves between tabs instead of leaving 10nis and a
 // tab can be linked to. /j/, /s/ and /p/ links are handled below; /latihan is the practice library.
 const TAB_PATH = {players: '/mabar/pemain', rounds: '/mabar/ronde', standings: '/mabar/klasemen', results: '/mabar/hasil',
   join: '/mabar/gabung', account: '/saya'};
 const PATH_TAB = Object.fromEntries(Object.entries(TAB_PATH).map(([t, p]) => [p, t]));
-let page = null;   // null: the mixer tabs. {kind: 'latihan', slug} or {kind: '404'}
+let page = null;   // null: the mixer tabs (Mabar, Saya). Else {kind: beranda | mulai | catat | ringkasan | latihan | 404, slug}
+const MABAR_TABS = ['players', 'rounds', 'standings', 'results', 'join'];
 function route() {
   const path = location.pathname.replace(/\/+$/, '') || '/';
-  const m = path.match(/^\/latihan(?:\/([a-z0-9-]+))?$/);
-  page = PATH_TAB[path] || path === '/mabar' || /^\/[jsp]\//.test(path + '/') ? null
+  const m = path.match(/^\/latihan(?:\/([a-z0-9-]+))?$/), c = path.match(/^\/catat(?:\/([0-9a-f-]{36}))?$/);
+  page = PATH_TAB[path] || /^\/[jsp]\//.test(path + '/') ? null
+    : path === '/mabar' ? (S.tab = MABAR_TABS.includes(S.tab) ? S.tab : 'players', null)
     : m ? {kind: 'latihan', slug: m[1] || null}
-    : path === '/' ? (FIRST_VISIT && !follow.pin && !S.rounds.length ? {kind: 'latihan', slug: null} : null)
+    : c ? (c[1] ? {kind: 'ringkasan', slug: c[1]} : {kind: 'catat'})
+    : path === '/mulai' ? {kind: 'mulai'}
+    // First visit, nothing on this phone: onboarding. Someone following a game PIN goes straight to it.
+    : path === '/' ? (follow.pin ? null : FIRST_VISIT && !onboard && !diary.length ? {kind: 'mulai'} : {kind: 'beranda'})
     : {kind: '404'};
   if (PATH_TAB[path]) S.tab = PATH_TAB[path];
+  if (path === '/' && !page) S.tab = 'join';
   if (S.tab === 'results' && !S.last) S.tab = 'standings';
 }
-const pagePath = () => !page ? TAB_PATH[S.tab] || '/mabar/pemain' : page.kind === 'latihan' ? '/latihan' + (page.slug ? '/' + page.slug : '') : location.pathname;
+const pagePath = () => !page ? TAB_PATH[S.tab] || '/mabar/pemain'
+  : {beranda: '/', mulai: '/mulai', catat: '/catat', ringkasan: '/catat/' + page.slug,
+     latihan: '/latihan' + (page.slug ? '/' + page.slug : '')}[page.kind] || location.pathname;
+// Bottom bar: Beranda · Latihan · Main · Mabar · Saya.
+function goNav(n) {
+  if (n === 'mabar') goTab(MABAR_TABS.includes(S.tab) ? S.tab : 'players');
+  else if (n === 'saya') goTab('account');
+  else if (n === 'beranda' && (!onboard || !onboard.done) && !diary.length) { ob = null; goPage('mulai'); }
+  else goPage(n);
+}
+const navNow = () => claimView ? '' : page ? ({mulai: 'beranda', ringkasan: 'catat', '404': ''}[page.kind] ?? page.kind)
+  : S.tab === 'account' ? 'saya' : 'mabar';
 function goPage(kind, slug = null) {
   if (claimView) leaveClaim();
   page = {kind, slug};
@@ -1184,6 +1683,8 @@ function copyStandings() {
 
 // ---------- icons ----------
 const ICONS = {
+  home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
   court: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18M7 4v16M17 4v16"/>',
   trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
@@ -2704,7 +3205,7 @@ if (sb) sb.auth.onAuthStateChange((event, session) => {
   // Defer: Supabase calls made inside this callback can deadlock the auth lock.
   if (user && !user.is_anonymous) setTimeout(finishGuestMerge);
   if (user && (was === user.id && wasAnon && !user.is_anonymous || event === 'USER_UPDATED')) setTimeout(() => { me = null; render(); });
-  if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; myMatches = null; allMatches = false; claimData = null; codeData = undefined; setTimeout(() => { render(); queueSync(); loadRatings(); if (follow.pin) loadGame(true); }); }
+  if ((user && user.id) !== was) { sessionLog = null; ratingsByPid = {}; me = null; myMatches = null; allMatches = false; claimData = null; codeData = undefined; setTimeout(() => { render(); queueSync(); queuePlaySync(); loadPlays(); loadRatings(); if (follow.pin) loadGame(true); }); }
 });
 
 function render() {
@@ -2717,12 +3218,14 @@ function render() {
     mountGoogleButton();
     return;
   }
+  document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.nav === navNow()));
   if (page) {
     document.body.classList.remove('player-mode');
-    document.querySelectorAll('.tabbar button').forEach(b => b.classList.remove('on'));
-    document.getElementById('status').innerHTML = '';
-    document.getElementById('view').innerHTML = page.kind === 'latihan' ? viewLatihan() : view404();
-    document.getElementById('dock').innerHTML = '';
+    const op = openPlay();
+    document.getElementById('status').innerHTML = op && page.kind !== 'catat' ? `<i></i>Lagi main · ${(r => `${r.w}M ${r.l}K`)(wl(op.games))}` : '';
+    document.getElementById('view').innerHTML = {beranda: viewBeranda, mulai: viewMulai, catat: viewCatat, ringkasan: viewRingkasan, latihan: viewLatihan}[page.kind]?.() ?? view404();
+    document.getElementById('dock').innerHTML = page.kind === 'catat' && op ? `<div class="dock"><div class="in">
+        <button class="btn primary grow" onclick="openGameSheet()">${ic('plus')}Catat game</button></div></div>` : '';
     return;
   }
   document.title = '10nis';
@@ -2730,13 +3233,15 @@ function render() {
   if (location.pathname !== TAB_PATH[S.tab] && TAB_PATH[S.tab]) history.replaceState(history.state, '', TAB_PATH[S.tab] + location.search + location.hash);
   const pm = playerMode();
   document.body.classList.toggle('player-mode', pm);
-  document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === (S.tab === 'results' ? 'standings' : S.tab)));
   const avail = S.players.filter(p => p.active).length, n = S.rounds.length;
   document.getElementById('status').innerHTML = pm || S.tab === 'join' ? (game && follow.pin ? `<i></i>PIN ${pinText(follow.pin)}` : '')
     : `<i></i>${n ? `Round ${n} · ` : ''}${avail} playing`;
-  document.getElementById('view').innerHTML = pm ? viewJoin() :
+  // Mabar: Pemain · Ronde · Klasemen · Gabung on top, the bottom bar stays for the whole app.
+  const seg = MABAR_TABS.includes(S.tab) ? `<div class="seg mseg">${[['players', 'Pemain'], ['rounds', 'Ronde'], ['standings', 'Klasemen'], ['join', 'Gabung']]
+    .map(([t, l]) => `<button class="${(S.tab === 'results' ? 'standings' : S.tab) === t ? 'on' : ''}" onclick="goTab('${t}')">${l}</button>`).join('')}</div>` : '';
+  document.getElementById('view').innerHTML = pm ? viewJoin() : seg + (
     S.tab === 'rounds' ? viewRounds() : S.tab === 'standings' || S.tab === 'results' ? viewStandings() : S.tab === 'account' ? viewAccount()
-    : S.tab === 'join' ? viewJoin() : viewPlayers();
+    : S.tab === 'join' ? viewJoin() : viewPlayers());
   if (S.pin && pinOpen && document.getElementById('pinqr')) drawQR('pinqr', `${APP_URL}/j/${S.pin}`);
   if (shareLink && document.getElementById('qr')) drawQR('qr', shareLink);
   mountGoogleButton();
@@ -2757,7 +3262,7 @@ function render() {
 }
 document.querySelectorAll('.tabbar button').forEach(b => {
   b.querySelector('.pill').innerHTML = ic(b.querySelector('.pill').dataset.ic);
-  b.onclick = () => goTab(b.dataset.tab);
+  b.onclick = () => goNav(b.dataset.nav);
 });
 if (!claimView) route();
 render();

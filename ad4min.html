@@ -189,9 +189,9 @@ async function signOut() { await sb.auth.signOut({scope: 'local'}); user = null;
 // ---------- data ----------
 async function load() {
   if (tab === 'overview') {
-    const [{data, error}, br] = await Promise.all([sb.rpc('admin_stats'), sb.rpc('admin_browsers', {days: 30})]);
+    const [{data, error}, br, pl] = await Promise.all([sb.rpc('admin_stats'), sb.rpc('admin_browsers', {days: 30}), sb.rpc('admin_play_stats')]);
     if (error) return fail(error);
-    stats = {...data, browsers: br.error ? null : br.data}; render();
+    stats = {...data, browsers: br.error ? null : br.data, play: pl.error ? null : pl.data}; render();
   } else if (tab !== 'tools') await loadList(tab, true);
 }
 async function loadList(kind, fresh) {
@@ -317,6 +317,7 @@ function viewOverview() {
     ${tile('Accounts', s.accounts, `+${fmt(s.accounts_7d)} this week · +${fmt(s.accounts_30d)} in 30 days`)}
     ${tile('Signed in, 7 days', s.signed_in_7d, 'accounts active')}
     ${s.guests != null ? tile('Guests', s.guests, `+${fmt(s.guests_7d)} this week · no Google yet`) : ''}
+    ${s.play ? tile('Play diary', s.play.plays, `${fmt(s.play.plays_7d)} this week by ${fmt(s.play.players_7d)} players · ${fmt(s.play.games)} games logged`) : ''}
     ${tile('Phones today', s.phones_today, 'opened 10nis (incl. no account)')}
     ${tile('Phones, 7 days', s.phones_7d, `${fmt(s.phones_30d)} in 30 days · ${fmt(s.phones)} ever`)}
     ${tile('Home-screen installs', s.installs, 'phones')}
