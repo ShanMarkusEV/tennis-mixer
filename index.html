@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>10nis</title>
-<meta name="description" content="Social and competitive doubles and singles for tennis groups. Fair rounds, live courts, scores, standings and player levels.">
+<meta name="description" content="Diary tenis kamu: catat tiap game waktu main, single atau double, lalu dapat ringkasan, level, dan tips buat yang perlu dilatih. Ada juga mabar untuk grup.">
 <meta name="theme-color" content="#e9eef5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#060b19" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -15,9 +15,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://10nis.win/">
-<meta property="og:title" content="10nis">
-<meta property="og:description" content="Social and competitive doubles and singles for tennis groups. Fair rounds, live courts, scores, standings and player levels.">
-<meta property="og:image" content="https://10nis.win/og.png">
+<meta property="og:title" content="10nis · Diary tenis kamu">
+<meta property="og:description" content="Diary tenis kamu: catat tiap game waktu main, single atau double, lalu dapat ringkasan, level, dan tips buat yang perlu dilatih. Ada juga mabar untuk grup.">
+<meta property="og:image" content="https://10nis.win/og.png?v=2">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
@@ -294,6 +294,9 @@ textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
 .gflow{min-height:min(560px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);overflow-y:auto;display:flex;flex-direction:column}
 .gflow h3{margin:14px 0 6px;font-size:32px}
 .gflow textarea{min-height:110px;font-size:16px}
+.sheetin.notesflow h3{font-size:22px;margin:18px 0 2px;line-height:1.1}.notesflow .chips{margin-top:8px}.notesflow textarea{min-height:80px}.notesflow .gnav{margin-top:16px;position:sticky;bottom:-18px;background:var(--surface);padding:10px 0 18px;z-index:1}
+.notescard{display:block;width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.notescard small{display:block;font-size:13.5px;line-height:1.4;margin-top:4px;overflow-wrap:anywhere}.notescard small.note{font-style:italic}
 .gbar{display:flex;align-items:center;gap:12px}
 .gbar .x{flex:none;width:40px;height:40px;border-radius:12px;border:2px solid var(--edge);background:var(--surface);color:var(--text);font-size:18px;font-weight:900;display:grid;place-items:center;cursor:pointer}
 .prog{flex:1;height:14px;border-radius:999px;background:var(--surface-2);overflow:hidden;border:2px solid var(--edge)}
@@ -526,7 +529,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.9.2';
+const APP_VERSION = '0.10.0';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1218,8 +1221,9 @@ async function syncPlays() {
   try {
     const dirty = diary.filter(p => p.dirty);
     if (dirty.length) {
-      const row = ({id, started_at, ended_at, place, games, lesson}) => ({id, started_at, ended_at: ended_at || null,
-        place: place || null, games, lesson: lesson || null});
+      const row = ({id, started_at, ended_at, place, games, lesson, format, good, bad}) => ({id, started_at, ended_at: ended_at || null,
+        place: place || null, games, lesson: lesson || null, format: format === 'double' ? 'double' : 'single',
+        good: good && good.length ? good : null, bad: bad && bad.length ? bad : null});
       const rows = dirty.map(row), sent = rows.map(r => JSON.stringify(r));
       const {error} = await sb.from('plays').upsert(rows);
       if (error) { report('plays', error.message); return; }
@@ -1247,7 +1251,7 @@ window.addEventListener('online', queuePlaySync);
 async function loadPlays() {
   if (!sb || !user || loadPlays.busy) return;
   loadPlays.busy = true;
-  const {data, error} = await sb.from('plays').select('id, started_at, ended_at, place, games, lesson').order('started_at', {ascending: false}).limit(60);
+  const {data, error} = await sb.from('plays').select('id, started_at, ended_at, place, games, lesson, format, good, bad').order('started_at', {ascending: false}).limit(60);
   loadPlays.busy = false;
   if (error || !data) return;
   data.forEach(row => {
@@ -1302,10 +1306,14 @@ function topTags(games, kind, n = 2) {
   games.forEach(g => (g[kind] || []).forEach(t => { if (TAGS[t]) c[t] = (c[t] || 0) + 1; }));
   return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, n).map(([t, k]) => ({t, k}));
 }
-const recentGames = days => diary.filter(p => Date.now() - new Date(p.started_at) < days * 864e5).flatMap(p => p.games);
+const recentPlays = days => diary.filter(p => Date.now() - new Date(p.started_at) < days * 864e5);
+const recentGames = days => recentPlays(days).flatMap(p => p.games);
+// Where a session's tags live: since 0.10 on the session itself (one note per session), before that on each game.
+const tagItems = p => [...p.games, {good: p.good || [], bad: p.bad || []}];
+const recentTagItems = days => recentPlays(days).flatMap(tagItems);
 // This week's focus: the weakness that came up most in the last 14 days, else the one picked in onboarding.
 function focusTag() {
-  const top = topTags(recentGames(14), 'bad', 1)[0];
+  const top = topTags(recentTagItems(14), 'bad', 1)[0];
   return top ? top.t : onboard && onboard.weak && onboard.weak[0] || null;
 }
 const scoreText = g => g.me != null && g.opp != null ? `${g.me}-${g.opp}` : '';
@@ -1332,9 +1340,9 @@ function viewBeranda() {
     <div class="row" style="justify-content:center;margin-top:12px"><button class="btn text" onclick="goPage('catat')">Langsung mulai main</button></div>
     <div class="sec-head"><p class="label">Cara kerjanya</p></div>
     <div class="card"><ol class="lsteps">
-      <li><span>Mulai main<small>Tap ➕ Main waktu kamu turun ke lapangan.</small></span></li>
-      <li><span>Catat tiap game<small>Menang atau kalah, skor kalau mau, lalu apa yang bagus dan apa yang kurang. 10 detik.</small></span></li>
-      <li><span>Selesai main<small>Dapat ringkasan, pujian, dan 1–2 hal yang perlu dilatih.</small></span></li>
+      <li><span>Mulai main<small>Pilih single atau double, lalu tap ➕ Main waktu kamu turun ke lapangan.</small></span></li>
+      <li><span>Catat tiap game<small>Menang atau kalah, skor kalau mau. 5 detik.</small></span></li>
+      <li><span>Selesai main<small>Sekali catat apa yang bagus dan yang kurang, lalu dapat ringkasan, pujian, dan 1–2 hal yang perlu dilatih.</small></span></li>
     </ol></div>
     <button class="pinbar ghost" onclick="goTab('players')">${ic('users')}<span class="grow"><b>Atur mabar grup</b><small>Ronde adil, skor dan klasemen untuk main bareng. Ada di menu Mabar.</small></span>${ic('arrow')}</button>
     ${LEGAL}`;
@@ -1342,7 +1350,7 @@ function viewBeranda() {
   const stale = op && Date.now() - new Date(op.started_at) > 12 * 36e5;
   const steps = [['Cek level', !!(onboard && onboard.level), 'startOnboard(1)'], ['Catat game pertama', diary.some(p => p.games.length), "goPage('catat')"],
     ['Selesai main & lihat ringkasan', done.length > 0, "goPage('catat')"]];
-  const g30 = recentGames(30), r30 = wl(g30), weak = topTags(g30, 'bad', 2), ft = focusTag();
+  const g30 = recentGames(30), r30 = wl(g30), weak = topTags(recentTagItems(30), 'bad', 2), ft = focusTag();
   return `${inAppBanner()}
   <h1 class="title">Halo${userFirstName() ? `, ${esc(userFirstName())}` : ''}!</h1>
   <p class="sub">${op ? 'Kamu lagi main. Catat tiap game, ya.' : 'Mau main hari ini? Catat biar tahu apa yang perlu dilatih.'}</p>
@@ -1365,7 +1373,7 @@ function viewBeranda() {
     ${weak.length ? `<p class="hint">${ic('x')}Paling sering kurang: ${weak.map(x => `${esc(TAGS[x.t].bad)} (${x.k}×)`).join(', ')}</p>` : ''}` : ''}
   <div class="sec-head"><p class="label">Riwayat main</p></div>
   ${done.length ? done.slice(0, 10).map(p => {
-      const r = wl(p.games), b = topTags(p.games, 'bad', 1)[0];
+      const r = wl(p.games), b = topTags(tagItems(p), 'bad', 1)[0];
       return `<button class="pinbar ghost" onclick="goPage('ringkasan', '${p.id}')"><span class="res-pill ${r.w >= r.l && r.w ? 'W' : 'L'}">${r.w}–${r.l}</span>
         <span class="grow"><b>${esc(idDay(p.started_at))}${p.place ? ` · ${esc(p.place)}` : ''}</b>
         <small>${`${p.games.length} game`}${b ? ` · kurang: ${esc(TAGS[b.t].bad)}` : ''}</small></span>${ic('arrow')}</button>`;
@@ -1392,7 +1400,7 @@ function viewMulai() {
     <p class="sub" style="font-size:16px">Main sendiri, main bareng teman, atau mabar di Reclub/Kuyy: catat di 10nis. Habis main, kamu dapat ringkasan dan 1–2 hal yang perlu dilatih.</p>
     <div class="card"><ol class="lsteps">
       <li><span>Catat tiap game<small>Menang atau kalah, skor boleh dikosongkan. Lawannya siapa nggak perlu.</small></span></li>
-      <li><span>Refleksi 10 detik<small>Apa yang jalan bagus, apa yang kurang.</small></span></li>
+      <li><span>Refleksi sekali per sesi<small>Apa yang jalan bagus, apa yang kurang. Isi kapan pun, atau waktu selesai main.</small></span></li>
       <li><span>Dapat tips<small>Pujian, semangat, dan drill untuk yang kurang.</small></span></li>
     </ol></div>
     <button class="btn primary big" onclick="ob.step = 1; render(); scrollTo(0, 0)">Lanjut${ic('arrow')}</button>
@@ -1420,10 +1428,15 @@ function finishOnboard(skip) {
 // ---------- playing (/catat) ----------
 function startPlay() {
   if (openPlay()) { goPage('catat'); return; }
-  const place = (document.getElementById('place') || {}).value || '';
-  diary.unshift({id: crypto.randomUUID(), started_at: new Date().toISOString(), ended_at: null, place: place.trim().slice(0, 120) || null, games: [], lesson: null, dirty: true});
-  saveDiary(); track('play_start'); render(); window.scrollTo(0, 0);
+  const place = (document.getElementById('place') || {}).value || '', format = lastFormat();
+  diary.unshift({id: crypto.randomUUID(), started_at: new Date().toISOString(), ended_at: null, place: place.trim().slice(0, 120) || null,
+    format, games: [], good: [], bad: [], lesson: null, dirty: true});
+  saveDiary(); track('play_start', {format}); render(); window.scrollTo(0, 0);
 }
+// Singles or doubles, picked before starting; the last choice is remembered. A doubles loss counts half on the rating.
+const FORMAT_ID = {single: 'Single', double: 'Double'};
+function lastFormat() { try { return localStorage.getItem('10nis-last-format') === 'double' ? 'double' : 'single'; } catch (e) { return 'single'; } }
+function setFormat(v) { try { localStorage.setItem('10nis-last-format', v); } catch (e) {} render(); }
 // While playing the page works like a lesson path: one step per game (✓ won, ✕ lost) with a card holding the
 // result and notes, the next game waiting at the end, a running line of encouragement, and rotating tips like a
 // game's loading screen.
@@ -1448,20 +1461,24 @@ const quotesFor = op => {
 function rotateQuote() {}
 rotateQuote.i = 0;
 // Tips for this session first: the cue for anything marked "kurang", then the general ones.
-const tipsFor = op => [...new Set(topTags(op.games, 'bad', 3).map(x => `${TAGS[x.t].bad}: ${COACH[x.t].cue}`).concat(TIPS))];
+const tipsFor = op => [...new Set(topTags(tagItems(op), 'bad', 3).map(x => `${TAGS[x.t].bad}: ${COACH[x.t].cue}`).concat(TIPS))];
 function viewCatat() {
   document.title = 'Main · 10nis';
   const op = openPlay();
   if (!op) {
     let last = '';
     try { last = localStorage.getItem('10nis-last-place') || ''; } catch (e) {}
+    if (startPlay.place != null) last = startPlay.place;
     const ft = focusTag();
     return `
     <p class="kicker">Main sendiri</p>
     <h1 class="title">Mulai main</h1>
     <p class="sub">Catat tiap game waktu main. Skor dan lawan nggak wajib.</p>
-    <div class="card"><p class="label">Main di mana? (opsional)</p>
-      <input id="place" class="linkin" maxlength="120" placeholder="Contoh: Senayan, lapangan komplek" value="${esc(last)}"></div>
+    <div class="card"><p class="label">Main apa?</p>
+      <div class="seg">${Object.entries(FORMAT_ID).map(([k, l]) => `<button class="${lastFormat() === k ? 'on' : ''}" onclick="setFormat('${k}')">${l}</button>`).join('')}</div>
+      <p class="muted" style="font-size:12.5px;margin:8px 0 0">${lastFormat() === 'double' ? 'Double: menang dihitung penuh, kalah dihitung setengah ke level kamu.' : 'Single: menang dan kalah dihitung penuh ke level kamu.'}</p>
+      <p class="label" style="margin-top:14px">Main di mana? (opsional)</p>
+      <input id="place" class="linkin" maxlength="120" placeholder="Contoh: Senayan, lapangan komplek" value="${esc(last)}" oninput="startPlay.place = this.value"></div>
     <button class="btn primary big" onclick="startPlay()">${ic('ball')}Mulai main</button>
     ${ft ? `<div class="sec-head"><p class="label">Ingat fokus kamu</p></div><div class="card"><b>${esc(TAGS[ft].bad)}:</b> “${esc(COACH[ft].cue)}”</div>` : ''}
     <div class="card tipcard"><p class="label">💡 Tips</p><p id="tiptext">${esc(TIPS[0])}</p></div>
@@ -1477,9 +1494,10 @@ function viewCatat() {
         ${(g.good || []).length ? `<small>👍 ${esc(g.good.map(t => TAGS[t].good).join(', '))}</small>` : ''}
         ${(g.bad || []).length ? `<small>👎 ${esc(g.bad.map(t => TAGS[t].bad).join(', '))}</small>` : ''}
         ${g.note ? `<small class="note">“${esc(g.note)}”</small>` : ''}
-        ${!(g.good || []).length && !(g.bad || []).length && !g.note ? '<small>Tap untuk tambah catatan</small>' : ''}</button></div>`;
+        </button></div>`;
+  const hasNotes = (op.good || []).length || (op.bad || []).length || op.lesson;
   return `
-  <p class="kicker">Lagi main · ${esc(lasted(op.started_at))}${op.place ? ` · ${esc(op.place)}` : ''}</p>
+  <p class="kicker">Lagi main · ${FORMAT_ID[op.format] || 'Single'} · ${esc(lasted(op.started_at))}${op.place ? ` · ${esc(op.place)}` : ''}</p>
   <div class="phead"><div class="wlbig"><div class="w"><b class="num">${r.w}</b><span>menang</span></div><div class="l"><b class="num">${r.l}</b><span>kalah</span></div></div>
     ${st.n >= 2 && st.res === 'W' ? `<span class="streak">🔥 ${st.n}</span>` : ''}</div>
   <p class="quote" id="quote">“${esc(quotesFor(op)[rotateQuote.i % quotesFor(op).length])}”</p>
@@ -1487,8 +1505,13 @@ function viewCatat() {
     ${op.games.map(step).join('')}
     <div class="pstep next"><button class="pnode now" style="--x:${offs[n % offs.length]}px" onclick="openGameSheet()" aria-label="Catat game ${n + 1}">${ic('plus')}</button>
       <button class="pcard now" onclick="openGameSheet()"><span class="ptop"><b>Game ${n + 1}</b><small>berikutnya</small></span>
-        <small>${n ? 'Habis main, tap di sini. 10 detik.' : 'Habis game pertama, tap di sini. Cuma 10 detik.'}</small></button></div>
+        <small>${n ? 'Habis main, tap di sini. 5 detik.' : 'Habis game pertama, tap di sini. Cuma 5 detik.'}</small></button></div>
   </div>
+  <button class="card notescard" onclick="openNotesSheet('${op.id}')"><p class="label">📝 Catatan sesi</p>
+    ${hasNotes ? `${(op.good || []).length ? `<small>👍 ${esc(op.good.map(t => TAGS[t].good).join(', '))}</small>` : ''}
+      ${(op.bad || []).length ? `<small>👎 ${esc(op.bad.map(t => TAGS[t].bad).join(', '))}</small>` : ''}
+      ${op.lesson ? `<small class="note">“${esc(op.lesson)}”</small>` : ''}<small class="muted">Tap untuk ubah</small>`
+    : '<small>Yang jalan bagus & yang kurang, sekali aja buat sesi ini. Isi kapan pun, atau nanti waktu selesai.</small>'}</button>
   <div class="card tipcard"><p class="label">💡 Tips</p><p id="tiptext">${esc(tipsFor(op)[0])}</p></div>
   <div class="row" style="justify-content:center;margin-top:18px"><button class="btn ${n ? 'primary' : 'soft'}" onclick="endPlay()">${ic('trophy')}Selesai main</button></div>
   <p class="muted" style="text-align:center;font-size:12px;margin-top:12px">Tersimpan di HP ini${user ? ' dan di akunmu' : ''}.</p>`;
@@ -1511,14 +1534,13 @@ setInterval(() => {
 function rotateTip() {}
 rotateTip.i = 0;
 
-// Log (or edit) one game, one question per screen: result, score, what went well, what didn't, a note.
-// Then a short celebration, like finishing a lesson.
+// Log (or edit) one game: the result, then the score (optional). Then a short celebration, like finishing a
+// lesson. What went well and badly is noted once per session (openNotesSheet), not per game.
 function openGameSheet(i) {
   const op = openPlay();
   if (!op) return;
   const old = i != null ? op.games[i] : null, num = i != null ? i + 1 : op.games.length + 1;
-  const g = old ? {...old, good: [...(old.good || [])], bad: [...(old.bad || [])], note: old.note || ''}
-    : {res: null, me: null, opp: null, good: [], bad: [], note: ''};
+  const g = old ? {res: old.res, me: old.me, opp: old.opp} : {res: null, me: null, opp: null};
   let stepNo = 0, done = null;
   // The score has to agree with the result picked: no draws, and the winner has more games. 0-0 = no score.
   const scoreCheck = () => {
@@ -1527,10 +1549,9 @@ function openGameSheet(i) {
     if (me === opp) return 'tie';
     return (me > opp) === (g.res === 'W') ? 'ok' : 'mismatch';
   };
-  const STEPS = 5;
+  const STEPS = 2;
   const box = document.createElement('div');
   box.className = 'sheet';
-  const chips = kind => `<div class="chips">${Object.keys(TAGS).map(t => `<button class="tagchip ${g[kind].includes(t) ? 'on' : ''}" data-k="${kind}" data-t="${t}">${esc(TAGS[t][kind])}</button>`).join('')}</div>`;
   const next = (label, a = 'next') => `<button class="btn primary big" data-a="${a}">${label}</button>`;
   const body = () => {
     if (done) return `<div class="cele"><div class="cele-emoji">${done.res === 'W' ? '🔥' : '💪'}</div>
@@ -1549,15 +1570,9 @@ function openGameSheet(i) {
         : chk === 'mismatch' ? `<p class="hint warn" style="margin-top:12px">${ic('x')}Kamu pilih ${lbl}, tapi skornya ${g.me}-${g.opp}.</p>
           <button class="btn sm soft" data-a="flip">Ganti jadi ${g.res === 'W' ? 'Kalah' : 'Menang'}</button>`
         : chk === 'ok' ? `<p class="hint" style="margin-top:12px;color:var(--green)">✓ ${lbl} ${g.me}-${g.opp}</p>` : ''}
-      <div class="gnav"><button class="btn primary big" data-a="next" ${chk === 'tie' || chk === 'mismatch' ? 'disabled' : ''}>Lanjut</button><button class="btn text" data-a="noscore">Lewati</button></div>`;
+      <div class="gnav"><button class="btn primary big" data-a="save" ${chk === 'tie' || chk === 'mismatch' ? 'disabled' : ''}>Simpan</button><button class="btn text" data-a="noscore">Tanpa skor</button></div>`;
     }
-    if (stepNo === 2) return `<h3>👍 Apa yang jalan bagus?</h3><p class="muted">Pilih sampai 3.</p>${chips('good')}
-      <div class="gnav">${next(g.good.length ? 'Lanjut' : 'Lewati')}</div>`;
-    if (stepNo === 3) return `<h3>👎 Apa yang kurang?</h3><p class="muted">Pilih sampai 3. Ini bahan tips kamu nanti.</p>${chips('bad')}
-      <div class="gnav">${next(g.bad.length ? 'Lanjut' : 'Lewati')}</div>`;
-    return `<h3>Ceritain apa yang terjadi</h3><p class="muted">Opsional. Satu kalimat cukup.</p>
-      <textarea id="g-note" maxlength="280" placeholder="Contoh: servis kedua masuk terus, tapi backhand nyangkut">${esc(g.note || '')}</textarea>
-      <div class="gnav">${next('Simpan', 'save')}</div>`;
+    return '';
   };
   const draw = () => {
     box.innerHTML = `<div class="card sheetin gflow" role="dialog" aria-label="Catat game">
@@ -1565,19 +1580,20 @@ function openGameSheet(i) {
         <div class="prog"><i style="width:${(stepNo + 1) / STEPS * 100}%"></i></div>
         ${old ? '<button class="btn sm text danger" data-a="del">Hapus</button>' : ''}</div>`}
       ${body()}</div>`;
-    const t = box.querySelector('#g-note'); if (t) setTimeout(() => t.focus(), 50);
   };
   draw();
   document.body.appendChild(box);
   const close = () => box.remove();
   const save = () => {
-    const game = {at: old ? old.at : new Date().toISOString(), res: g.res, me: g.me, opp: g.opp,
-      good: g.good, bad: g.bad, note: (g.note || '').trim().slice(0, 280) || null};
+    // Tags and a note on a game logged before 0.10 are kept.
+    const game = {...(old || {}), at: old ? old.at : new Date().toISOString(), res: g.res, me: g.me, opp: g.opp};
+    ['good', 'bad'].forEach(k => { if (!(game[k] || []).length) delete game[k]; });
+    if (!game.note) delete game.note;
     if (old) op.games[i] = game; else op.games.push(game);
     op.dirty = true; saveDiary(); render();
     if (old) { close(); toast('Tersimpan'); return; }
     track('play_game', {res: game.res});
-    const st = streakOf(op.games), r = wl(op.games), bad = game.bad[0];
+    const st = streakOf(op.games), r = wl(op.games), bad = (op.bad || [])[0];
     done = {res: game.res, head: pick(game.res === 'W' ? WIN_TOAST : LOSS_TOAST),
       sub: `Game ${num} tercatat · ${r.w} menang, ${r.l} kalah${st.n >= 2 ? ` · ${st.n} ${st.res === 'W' ? 'menang' : 'kalah'} beruntun` : ''}`,
       tip: bad ? `${TAGS[bad].bad}: ${COACH[bad].cue}` : game.res === 'L' ? pick(TIPS) : ''};
@@ -1586,24 +1602,20 @@ function openGameSheet(i) {
   box.addEventListener('click', e => {
     if (e.target === box) { close(); return; }
     const b = e.target.closest('button');
-    const t = box.querySelector('#g-note'); if (t) g.note = t.value;
     if (!b) return;
     const a = b.dataset.a;
     if (b.dataset.r) { g.res = b.dataset.r; stepNo = 1; }
     else if (b.dataset.s) {
       g[b.dataset.s] = Math.max(0, Math.min(99, (g[b.dataset.s] || 0) + +b.dataset.d));
       g.me = g.me ?? 0; g.opp = g.opp ?? 0;
-    } else if (b.dataset.k) {
-      const l = g[b.dataset.k], j = l.indexOf(b.dataset.t);
-      if (j >= 0) l.splice(j, 1); else { l.push(b.dataset.t); if (l.length > 3) l.shift(); }
-    } else if (a === 'next') {
-      if (stepNo === 1 && ['tie', 'mismatch'].includes(scoreCheck())) return;
-      if (stepNo === 1 && !g.me && !g.opp) { g.me = null; g.opp = null; }   // 0-0 means no score
-      stepNo++;
     } else if (a === 'flip') { g.res = g.res === 'W' ? 'L' : 'W';
-    } else if (a === 'noscore') { g.me = null; g.opp = null; stepNo = 2; }
+    } else if (a === 'noscore') { g.me = null; g.opp = null; save(); return; }
     else if (a === 'back') stepNo--;
-    else if (a === 'save') { save(); return; }
+    else if (a === 'save') {
+      if (['tie', 'mismatch'].includes(scoreCheck())) return;
+      if (!g.me && !g.opp) { g.me = null; g.opp = null; }   // 0-0 means no score
+      save(); return;
+    }
     else if (a === 'cancel' || a === 'close') { close(); return; }
     else if (a === 'del') {
       if (!confirm(`Hapus game ${num}?`)) return;
@@ -1621,13 +1633,60 @@ function endPlay() {
     if (user) sb.from('plays').delete().eq('id', op.id).then(() => {}, () => {});
     goPage('beranda'); return;
   }
-  if (!confirm('Selesai main? Kamu akan dapat ringkasan dan tips.')) return;
+  openNotesSheet(op.id, {finishing: true});
+}
+function finishPlay(op) {
   op.ended_at = new Date().toISOString(); op.dirty = true;
   try { if (op.place) localStorage.setItem('10nis-last-place', op.place); } catch (e) {}
-  saveDiary(); track('play_end', {games: op.games.length, ...wl(op.games)});
+  saveDiary(); track('play_end', {games: op.games.length, format: op.format || 'single', ...wl(op.games)});
   page = {kind: 'ringkasan', slug: op.id};
   history.replaceState(null, '', pagePath());
   render(); window.scrollTo(0, 0);
+}
+// The session's one note: what went well, what didn't (up to 3 each) and a line of text (kept in `lesson`).
+// Open any time while playing, asked once at "Selesai main" (finishing), and editable from the summary.
+function openNotesSheet(id, {finishing} = {}) {
+  const p = playById(id);
+  if (!p) return;
+  const n = {good: [...(p.good || [])], bad: [...(p.bad || [])], note: p.lesson || '', format: p.format || 'single'};
+  const box = document.createElement('div');
+  box.className = 'sheet';
+  const chips = kind => `<div class="chips">${Object.keys(TAGS).map(t => `<button class="tagchip ${n[kind].includes(t) ? 'on' : ''}" data-k="${kind}" data-t="${t}">${esc(TAGS[t][kind])}</button>`).join('')}</div>`;
+  const draw = () => {
+    box.innerHTML = `<div class="card sheetin gflow notesflow" role="dialog" aria-label="Catatan sesi">
+      <div class="gbar"><button class="x" data-a="close" aria-label="Tutup">${ic('x')}</button>
+        <b style="flex:1">${finishing ? 'Selesai main' : 'Catatan sesi'}</b></div>
+      ${finishing ? `<p class="muted" style="margin-top:0">${(r => `${p.games.length} game · ${r.w} menang, ${r.l} kalah`)(wl(p.games))}. Semuanya opsional.</p>` : ''}
+      <div class="seg" style="margin-bottom:6px">${Object.entries(FORMAT_ID).map(([k, l]) => `<button class="${n.format === k ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div>
+      <h3>👍 Apa yang jalan bagus?</h3><p class="muted">Pilih sampai 3.</p>${chips('good')}
+      <h3>👎 Apa yang kurang?</h3><p class="muted">Pilih sampai 3. Ini bahan tips kamu.</p>${chips('bad')}
+      <h3>📝 Catatan</h3><p class="muted">Satu hal yang kamu pelajari, atau apa yang terjadi.</p>
+      <textarea id="n-note" maxlength="280" placeholder="Contoh: servis kedua masuk terus, tapi backhand nyangkut">${esc(n.note)}</textarea>
+      <div class="gnav"><button class="btn primary big" data-a="save">${finishing ? `${ic('trophy')}Selesai & lihat ringkasan` : 'Simpan'}</button></div></div>`;
+  };
+  draw();
+  document.body.appendChild(box);
+  const close = () => box.remove();
+  box.addEventListener('click', e => {
+    if (e.target === box) { close(); return; }
+    const t = box.querySelector('#n-note'); if (t) n.note = t.value;
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.k) {
+      const l = n[b.dataset.k], j = l.indexOf(b.dataset.t);
+      if (j >= 0) l.splice(j, 1); else { l.push(b.dataset.t); if (l.length > 3) l.shift(); }
+    } else if (b.dataset.f) n.format = b.dataset.f;
+    else if (b.dataset.a === 'close') { close(); return; }
+    else if (b.dataset.a === 'save') {
+      p.good = n.good; p.bad = n.bad; p.lesson = n.note.trim().slice(0, 280) || null; p.format = n.format; p.dirty = true;
+      close();
+      if (finishing) { finishPlay(p); return; }
+      saveDiary(); render(); toast('Tersimpan'); return;
+    } else return;
+    const y = box.querySelector('.gflow').scrollTop;
+    draw();
+    box.querySelector('.gflow').scrollTop = y;
+  });
 }
 
 // ---------- summary (/catat/<id>) ----------
@@ -1638,24 +1697,25 @@ function viewRingkasan() {
     return view404();
   }
   document.title = `Ringkasan ${idDay(p.started_at)} · 10nis`;
-  const r = wl(p.games), pr = praise(r.w, r.l, p.id), good = topTags(p.games, 'good', 3), bad = topTags(p.games, 'bad', 2);
+  const r = wl(p.games), pr = praise(r.w, r.l, p.id), good = topTags(tagItems(p), 'good', 3), bad = topTags(tagItems(p), 'bad', 2);
   const firstDone = diary.filter(x => x.ended_at).length === 1;
   return `
-  <p class="kicker">${esc(idDay(p.started_at))}${p.place ? ` · ${esc(p.place)}` : ''} · ${esc(lasted(p.started_at, p.ended_at))}</p>
+  <p class="kicker">${esc(idDay(p.started_at))} · ${FORMAT_ID[p.format] || 'Single'}${p.place ? ` · ${esc(p.place)}` : ''} · ${esc(lasted(p.started_at, p.ended_at))}</p>
   <h1 class="title">${esc(pr.h)}</h1>
   <p class="sub" style="font-size:15px">${esc(pr.p)}</p>
   <div class="card stats"><div><b class="num">${p.games.length}</b><small>game</small></div><div><b class="num">${r.w}</b><small>menang</small></div><div><b class="num">${r.l}</b><small>kalah</small></div></div>
   ${user && !playRatings ? (loadPlayRatings(), '') : ''}${(pr => pr ? `<div class="card lvchange"><span><small>Level 10nis</small><b class="num">${toScore(pr.before).toFixed(1)} → ${toScore(pr.after).toFixed(1)}</b></span>
-      <span class="delta ${pr.after >= pr.before ? 'up' : 'down'}">${fmtDelta(toScore(pr.after) - toScore(pr.before))}</span></div>`
+      <span class="delta ${pr.after >= pr.before ? 'up' : 'down'}">${fmtDelta(toScore(pr.after) - toScore(pr.before))}</span></div>
+      ${p.format === 'double' && wl(p.games).l ? '<p class="hint">Double: kalah dihitung setengah, karena sebagian bukan salah kamu.</p>' : ''}`
     : user && p.ended_at && p.games.length ? `<p class="hint">${ic('trophy')}Level 10nis kamu diperbarui setelah sesi ini tersimpan.</p>` : '')(playRatings && playRatings[p.id])}
   ${p.games.length ? `<div class="card glist">${p.games.map((g, i) => `<div class="grow-row"><span class="res-pill ${g.res}">${g.res === 'W' ? '✓' : '✕'}</span>
     <span class="grow"><b>Game ${i + 1}${scoreText(g) ? ` · ${scoreText(g)}` : ''}</b>${g.note ? `<small class="note">“${esc(g.note)}”</small>` : ''}</span></div>`).join('')}</div>` : ''}
   ${good.length ? `<div class="sec-head"><p class="label">👍 Yang jalan bagus</p></div>
     <div class="card">${good.map(x => `<p style="margin:4px 0;font-weight:700">${esc(GOOD_LINE[x.t])} 👏${x.k > 1 ? ` <span class="muted">(${x.k} game)</span>` : ''}</p>`).join('')}</div>` : ''}
-  ${bad.length ? `<div class="sec-head"><p class="label">🎯 Yang perlu diperbaiki</p></div>${bad.map(x => coachCard(x.t, x.k)).join('')}`
+  ${bad.length ? `<div class="sec-head"><p class="label">🎯 Yang perlu diperbaiki</p></div>${bad.map(x => coachCard(x.t, x.k > 1 ? x.k : 0)).join('')}`
     : p.games.length ? `<p class="hint">${ic('ball')}Nggak ada yang dicatat kurang. Lain kali coba tandai satu hal yang mau diperbaiki.</p>` : ''}
-  <div class="sec-head"><p class="label">Satu hal yang kamu pelajari hari ini?</p></div>
-  <div class="card"><textarea id="lesson" maxlength="280" placeholder="Contoh: kalau ragu, crosscourt aja" onchange="saveLesson('${p.id}', this.value)">${esc(p.lesson || '')}</textarea></div>
+  <div class="sec-head"><p class="label">📝 Catatan</p><button class="btn sm soft" onclick="openNotesSheet('${p.id}')">${ic('pen')}${(p.good || []).length || (p.bad || []).length || p.lesson ? 'Ubah' : 'Tambah'}</button></div>
+  <div class="card"><textarea id="lesson" maxlength="280" placeholder="Satu hal yang kamu pelajari hari ini? Contoh: kalau ragu, crosscourt aja" onchange="saveLesson('${p.id}', this.value)">${esc(p.lesson || '')}</textarea></div>
   <div class="sec-head"><p class="label">Bagikan</p></div>
   <div class="card sharecard">
     <div class="chips" style="margin-bottom:10px">${CARD_FRAMES.map(([k, l]) => `<button class="tagchip ${cardOpt.frame === k ? 'on' : ''}" onclick="setCardOpt('frame', '${k}')">${l}</button>`).join('')}</div>
@@ -1665,9 +1725,11 @@ function viewRingkasan() {
       <label class="btn sm soft">${ic('plus')}${playPhoto[p.id] ? 'Ganti foto' : 'Pakai foto kamu'}<input type="file" accept="image/*" hidden onchange="pickPlayPhoto('${p.id}', this)"></label>
       ${playPhoto[p.id] ? `<button class="btn sm text" onclick="delete playPhoto['${p.id}']; render()">Hapus foto</button>` : ''}</div>
     <p class="muted" style="font-size:12px;margin:8px 0 0">Foto cuma dipakai untuk gambar ini, nggak di-upload.</p></div>
-  <button class="btn primary big" style="background:#25d366;color:#0a1633" onclick="sharePlayImage('${p.id}', this)">${ic('share')}Bagikan ke WhatsApp</button>
+  <button class="btn primary big" onclick="sharePlayImage('${p.id}', this)">${ic('share')}Bagikan gambar</button>
+  <p class="muted" style="text-align:center;font-size:12px;margin:6px 0 0">Ke Instagram Story, WhatsApp, Telegram, atau aplikasi lain di HP kamu.</p>
   <div class="row" style="justify-content:center;gap:8px;margin-top:12px;flex-wrap:wrap">
-    <button class="btn sm soft" onclick="copyText(playShareText('${p.id}'), 'Ringkasan disalin')">${ic('copy')}Salin teks</button>
+    <button class="btn sm soft" onclick="savePlayImage('${p.id}', this)">${ic('download')}Simpan gambar</button>
+    <button class="btn sm soft" onclick="sharePlayText('${p.id}')">${ic('share')}Bagikan teks</button>
     <button class="btn sm soft" onclick="goPage('catat')">${ic('plus')}Mulai main lagi</button>
     <button class="btn sm soft" onclick="goPage('beranda')">Ke Beranda</button></div>
   ${isAnon() && firstDone && !snoozed('10nis-save-nudge') ? `<div class="card" style="margin-top:18px">
@@ -1689,9 +1751,9 @@ function deletePlay(id) {
   if (user) sb.from('plays').delete().eq('id', id).then(() => {}, () => {});
   goPage('beranda');
 }
-// The WhatsApp message: *bold* is WhatsApp's own formatting.
+// The text version of the summary. *bold* is WhatsApp/Telegram formatting; other apps show the stars as typed.
 function playShareText(id) {
-  const p = playById(id), r = wl(p.games), good = topTags(p.games, 'good', 2), bad = topTags(p.games, 'bad', 1)[0];
+  const p = playById(id), r = wl(p.games), good = topTags(tagItems(p), 'good', 2), bad = topTags(tagItems(p), 'bad', 1)[0];
   return [
     `🎾 *Diary tenis* · ${idDay(p.started_at)}${p.place ? ` · ${p.place}` : ''}`,
     `*${r.w} menang · ${r.l} kalah*`,
@@ -1703,7 +1765,7 @@ function playShareText(id) {
   ].filter(Boolean).join('\n');
 }
 // ---------- share picture of a played session ----------
-// A 1080×1350 card for WhatsApp (chat or status): the games won, big, over the player's own photo if they
+// A 1080×1350 (4:5) card for any app's feed, story or chat: the games won, big, over the player's own photo if they
 // picked one (kept on this phone only, never uploaded), else a night-court design.
 const playPhoto = {};   // play id -> Image
 function pickPlayPhoto(id, input) {
@@ -1864,23 +1926,44 @@ async function drawPlayPreview() {
   drawPlayPreview.key = key; drawPlayPreview.url = c.toDataURL('image/jpeg', .8);
   if (document.getElementById('cardprev')) document.getElementById('cardprev').src = drawPlayPreview.url;
 }
+// Share the picture through the phone's own share sheet, so any app can take it (Instagram, WhatsApp, Telegram,
+// X, Line…). Image only: Instagram and some others drop a picture that comes with text. Without file sharing
+// (most desktops), the picture is saved instead.
+async function playImageFile(id) {
+  const c = await playCard(id);
+  const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', .9));
+  return new File([blob], `10nis-${playById(id).started_at.slice(0, 10)}.jpg`, {type: 'image/jpeg'});
+}
+function downloadFile(file) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = file.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
 async function sharePlayImage(id, btn) {
   if (btn) btn.disabled = true;
   try {
-    const c = await playCard(id);
-    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', .9));
-    const file = new File([blob], `10nis-${playById(id).started_at.slice(0, 10)}.jpg`, {type: 'image/jpeg'});
-    track('play_share', {photo: !!playPhoto[id]});
+    const file = await playImageFile(id);
+    track('play_share', {photo: !!playPhoto[id], via: 'image'});
     if (navigator.canShare && navigator.canShare({files: [file]})) {
       try { await navigator.share({files: [file]}); } catch (e) {}
       return;
     }
-    // No file sharing (desktop): save the picture, to send from WhatsApp.
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    toast('Gambar disimpan. Kirim lewat WhatsApp');
+    downloadFile(file);
+    toast('Gambar disimpan. Bagikan dari galeri atau folder unduhan');
   } finally { if (btn) btn.disabled = false; }
+}
+async function savePlayImage(id, btn) {
+  if (btn) btn.disabled = true;
+  try { downloadFile(await playImageFile(id)); track('play_share', {photo: !!playPhoto[id], via: 'save'}); toast('Gambar disimpan'); }
+  finally { if (btn) btn.disabled = false; }
+}
+async function sharePlayText(id) {
+  const text = playShareText(id);
+  track('play_share', {via: 'text'});
+  if (navigator.share) {
+    try { await navigator.share({text}); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  copyText(text, 'Ringkasan disalin');
 }
 
 // ---------- routes ----------
@@ -2007,7 +2090,7 @@ const shareCard = () => `<div class="sec-head"><p class="label">10nis on your ph
     ${iosHelp && !standalone() ? `<div class="lvpick" style="margin-top:12px"><strong>On iPhone</strong>
       <p>1. In Safari, tap the Share button ${ic('share')} at the bottom of the screen.<br>2. Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.</p></div>` : ''}
   </div>`;
-async function copyText(text, msg = 'Copied, paste it in WhatsApp') {
+async function copyText(text, msg = 'Copied, paste it anywhere') {
   try { await navigator.clipboard.writeText(text); }
   catch (e) {
     const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t);
@@ -2047,6 +2130,7 @@ const ICONS = {
   share: '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4M12 2v13"/>',
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  download: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
   chev: '<path d="m6 9 6 6 6-6"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',

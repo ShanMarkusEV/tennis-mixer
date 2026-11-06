@@ -346,7 +346,8 @@ function viewDiary(d) {
   <div class="gates">
     ${gateCard('Players who finished a diary session', d.players, 30, '', `${fmt(d.players_7d)} this week`)}
     ${gateCard('Sessions with 3+ games', pct(d.sessions_3plus, d.finished), 50, '%', `${fmt(d.sessions_3plus)} of ${fmt(d.finished)}`)}
-    ${gateCard('Games with a good/bad tag', pct(d.games_tagged, d.games), 70, '%', `${fmt(d.games_tagged)} of ${fmt(d.games)}`)}
+    ${d.sessions_tagged != null ? gateCard('Sessions with a good/bad tag', pct(d.sessions_tagged, d.finished), 70, '%', `${fmt(d.sessions_tagged)} of ${fmt(d.finished)}`)
+      : gateCard('Games with a good/bad tag', pct(d.games_tagged, d.games), 70, '%', `${fmt(d.games_tagged)} of ${fmt(d.games)}`)}
     ${gateCard('Players back for a 2nd session', pct(d.returning, d.players), 30, '%', `${fmt(d.returning)} of ${fmt(d.players)}`)}
     ${gateCard('Summaries shared', pct(d.shares, d.finished), 20, '%', `${fmt(d.shares)} shares`)}
   </div>
@@ -354,7 +355,8 @@ function viewDiary(d) {
     ${tile('Sessions finished', d.finished, `+${fmt(d.finished_7d)} this week · ${fmt(d.open)} still open`)}
     ${tile('Games logged', d.games, `${pct(d.wins, d.games)}% won · ${d.finished ? (d.games / d.finished).toFixed(1) : 0} per session`)}
     ${tile('Games with a score', pct(d.games_scored, d.games) + '%', `${fmt(d.games_scored)} games`)}
-    ${tile('Games with a note', pct(d.games_noted, d.games) + '%', `${fmt(d.lessons)} sessions with a lesson`)}
+    ${tile('Sessions with a note', pct(d.lessons, d.finished) + '%', `${fmt(d.lessons)} sessions · ${fmt(d.games_noted)} older per-game notes`)}
+    ${d.doubles != null ? tile('Doubles sessions', pct(d.doubles, d.finished) + '%', `${fmt(d.doubles)} of ${fmt(d.finished)} finished`) : ''}
   </div>
   <div class="two" style="margin-top:10px">
     <div class="card"><h3>Funnel, last 30 days</h3><p class="tot">Phones, each counted once per step</p>
