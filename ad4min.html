@@ -366,6 +366,15 @@ function viewDiary(d) {
     <div class="card"><h3>Most marked “bagus”, 30 days</h3><p class="tot">What went well</p>
       ${hbars(d.good_30d.slice(0, 8).map(r => ({l: TAG_ID[r.tag] || r.tag, n: r.n})), 'Nothing marked yet')}</div>
   </div>
+  ${d.les != null ? `<h3 style="margin:18px 0 8px">Coaching journal</h3>
+  <div class="two">
+    <div class="tiles">
+      ${tile('Lessons logged', d.les, `+${fmt(d.les_7d)} this week`)}
+      ${tile('Players with a lesson', d.les_players, `${fmt(d.les_pr_tries)} homework tries`)}
+    </div>
+    <div class="card"><h3>What coaches worked on, 30 days</h3><p class="tot">Topics picked in Catatan coaching</p>
+      ${hbars(d.les_topics_30d.slice(0, 8).map(r => ({l: TAG_ID[r.tag] || r.tag, n: r.n})), 'No lessons yet')}</div>
+  </div>` : ''}
   <div class="charts" style="margin-top:10px">
     ${barChart('Diary sessions', d.daily, 'plays')}
     ${barChart('Games logged', d.daily, 'games')}

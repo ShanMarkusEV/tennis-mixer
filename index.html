@@ -257,9 +257,10 @@ textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
 .grow-row:last-child{border-bottom:0}.grow-row b{display:block;font-size:15px}.grow-row small{display:block;color:var(--muted);font-size:13px;line-height:1.35;margin-top:2px}
 .grow-row small.note{font-style:italic}
 .res-pill{flex:none;min-width:38px;height:30px;padding:0 8px;border-radius:9px;display:grid;place-items:center;font-weight:900;font-size:14px;color:#fff;background:var(--warn)}
-.res-pill.W{background:var(--green)}
+.res-pill.W{background:var(--green)}.res-pill.coach{background:var(--surface-2);border:2px solid var(--edge);font-size:16px}
 .stats{display:flex;justify-content:space-around;text-align:center;padding:14px 8px}
 .stats b{display:block;font-size:30px;line-height:1}.stats small{color:var(--muted);font-size:12px;font-weight:700}
+.cue{margin:0 0 8px;padding:10px 12px;border-radius:12px;background:var(--surface-2);font-weight:800;font-size:17px;line-height:1.35}.cue:last-of-type{margin-bottom:0}
 .coach .cue{margin:0;padding:10px 12px;border-radius:12px;background:var(--surface-2);font-weight:800;font-size:16px}
 .checklist div,.checklist button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 0;font:inherit;font-weight:700;color:var(--text);background:none;border:0;text-align:left;cursor:pointer}
 .checklist button span{flex:1}.checklist button .ic{color:var(--muted)}
@@ -290,6 +291,10 @@ textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
 .pcard.W{border-left-color:var(--green)}.pcard.now{border-left-color:var(--lime);border-style:dashed;border-left-style:solid}
 .pcard .ptop{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.pcard .ptop b{font-size:16px;font-weight:900}
 .pcard small{display:block;color:var(--muted);font-size:12.5px;line-height:1.35;margin-top:3px;overflow-wrap:anywhere}.pcard small.note{font-style:italic}
+.coachform label{display:block;margin-top:12px}.coachform label:first-child,.coachform .coachrow label{margin-top:0}.coachform .label{display:block;margin-bottom:6px}
+.linkrow{display:flex;gap:8px;align-items:center}.linkrow .linkin{flex:1;min-width:0}
+.coachrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:10px}.coachrow input[type=date]{min-width:0;width:100%}
+.coachform > label{margin-top:12px}
 .tipcard #tiptext{margin:0;font-weight:700;font-size:15px;line-height:1.4;transition:opacity .4s}.tipcard #tiptext.fade{opacity:0}
 .gflow{min-height:min(560px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);overflow-y:auto;display:flex;flex-direction:column}
 .gflow h3{margin:14px 0 6px;font-size:32px}
@@ -529,7 +534,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.10.0';
+const APP_VERSION = '0.11.0';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1200,6 +1205,9 @@ const DIARY_KEY = '10nis-diary', ONBOARD_KEY = '10nis-onboard';
 const readJSON = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
 let diary = readJSON(DIARY_KEY, []);           // [{id, started_at, ended_at, place, games, lesson, dirty}], newest first
 let onboard = readJSON(ONBOARD_KEY, null);     // {level, weak: [], done, synced}
+// Coaching journal ("Catatan coaching"): [{id, held_on, coach, place, topics, cues, homework, target, feel, note, pr_tries, dirty}], newest first
+const COACHING_KEY = '10nis-coaching';
+let coachings = readJSON(COACHING_KEY, []);
 const openPlay = () => diary.find(p => !p.ended_at) || null;
 const playById = id => diary.find(p => p.id === id) || null;
 function saveDiary() {
@@ -1209,9 +1217,15 @@ function saveDiary() {
   try { localStorage.setItem(DIARY_KEY, JSON.stringify(diary)); } catch (e) {}
   queuePlaySync();
 }
+function saveCoachings() {
+  coachings.sort((a, b) => b.held_on.localeCompare(a.held_on) || (b.created_at || '').localeCompare(a.created_at || ''));
+  coachings = coachings.filter((l, i) => i < 60 || l.dirty);
+  try { localStorage.setItem(COACHING_KEY, JSON.stringify(coachings)); } catch (e) {}
+  queuePlaySync();
+}
 function saveOnboard() { try { localStorage.setItem(ONBOARD_KEY, JSON.stringify(onboard)); } catch (e) {} }
 function queuePlaySync() {
-  if (!sb || !diary.some(p => p.dirty) && !(onboard && onboard.done && !onboard.synced)) return;
+  if (!sb || !diary.some(p => p.dirty) && !coachings.some(l => l.dirty) && !(onboard && onboard.done && !onboard.synced)) return;
   if (!user) { ensureUser(); return; }   // signing in calls this again
   clearTimeout(queuePlaySync.t); queuePlaySync.t = setTimeout(syncPlays, 800);
 }
@@ -1226,12 +1240,27 @@ async function syncPlays() {
         good: good && good.length ? good : null, bad: bad && bad.length ? bad : null});
       const rows = dirty.map(row), sent = rows.map(r => JSON.stringify(r));
       const {error} = await sb.from('plays').upsert(rows);
-      if (error) { report('plays', error.message); return; }
-      // Only clear what was sent; a game added meanwhile stays dirty.
-      dirty.forEach((p, i) => { if (JSON.stringify(row(p)) === sent[i]) delete p.dirty; });
-      // A finished session moves the game rating: fetch the new one once the server has worked it out.
-      if (rows.some(r => r.ended_at)) setTimeout(refreshRating, 600);
-      try { localStorage.setItem(DIARY_KEY, JSON.stringify(diary)); } catch (e) {}
+      if (error) report('plays', error.message);
+      else {
+        // Only clear what was sent; a game added meanwhile stays dirty.
+        dirty.forEach((p, i) => { if (JSON.stringify(row(p)) === sent[i]) delete p.dirty; });
+        // A finished session moves the game rating: fetch the new one once the server has worked it out.
+        if (rows.some(r => r.ended_at)) setTimeout(refreshRating, 600);
+        try { localStorage.setItem(DIARY_KEY, JSON.stringify(diary)); } catch (e) {}
+      }
+    }
+    const dirtyCoachings = coachings.filter(l => l.dirty);
+    if (dirtyCoachings.length) {
+      const row = ({id, held_on, coach, place, topics, cues, homework, target, feel, note, pr_tries}) => ({id, held_on,
+        coach: coach || null, place: place || null, topics: topics && topics.length ? topics : null, cues: cues && cues.length ? cues : null,
+        homework: homework || null, target: target || null, feel: feel || null, note: note || null, pr_tries: pr_tries || 0});
+      const rows = dirtyCoachings.map(row), sent = rows.map(r => JSON.stringify(r));
+      const {error} = await sb.from('coach_sessions').upsert(rows);
+      if (error) report('coach_sessions', error.message);
+      else {
+        dirtyCoachings.forEach((l, i) => { if (JSON.stringify(row(l)) === sent[i]) delete l.dirty; });
+        try { localStorage.setItem(COACHING_KEY, JSON.stringify(coachings)); } catch (e) {}
+      }
     }
     if (onboard && onboard.done && !onboard.synced) {
       const jobs = [];
@@ -1243,7 +1272,7 @@ async function syncPlays() {
     }
   } finally {
     syncPlays.busy = false;
-    if (diary.some(p => p.dirty)) { clearTimeout(queuePlaySync.t); queuePlaySync.t = setTimeout(syncPlays, 5000); }
+    if (diary.some(p => p.dirty) || coachings.some(l => l.dirty)) { clearTimeout(queuePlaySync.t); queuePlaySync.t = setTimeout(syncPlays, 5000); }
   }
 }
 window.addEventListener('online', queuePlaySync);
@@ -1251,15 +1280,17 @@ window.addEventListener('online', queuePlaySync);
 async function loadPlays() {
   if (!sb || !user || loadPlays.busy) return;
   loadPlays.busy = true;
-  const {data, error} = await sb.from('plays').select('id, started_at, ended_at, place, games, lesson, format, good, bad').order('started_at', {ascending: false}).limit(60);
+  const [{data, error}, lr] = await Promise.all([
+    sb.from('plays').select('id, started_at, ended_at, place, games, lesson, format, good, bad').order('started_at', {ascending: false}).limit(60),
+    sb.from('coach_sessions').select('id, held_on, coach, place, topics, cues, homework, target, feel, note, pr_tries, created_at').order('held_on', {ascending: false}).limit(60)]);
   loadPlays.busy = false;
-  if (error || !data) return;
-  data.forEach(row => {
-    const i = diary.findIndex(p => p.id === row.id);
-    if (i < 0) diary.push(row); else if (!diary[i].dirty) diary[i] = row;
+  const merge = (list, rows) => rows.forEach(row => {
+    const i = list.findIndex(x => x.id === row.id);
+    if (i < 0) list.push(row); else if (!list[i].dirty) list[i] = row;
   });
-  saveDiary();
-  if (page && ['beranda', 'catat', 'ringkasan'].includes(page.kind)) render();
+  if (!error && data) { merge(diary, data); saveDiary(); }
+  if (!lr.error && lr.data) { merge(coachings, lr.data); saveCoachings(); }
+  if (page && ['beranda', 'catat', 'ringkasan', 'coaching', 'coachingdetail'].includes(page.kind)) render();
 }
 
 // ---------- game rating from the diary ----------
@@ -1296,10 +1327,11 @@ function levelCard() {
 const wl = games => ({w: games.filter(g => g.res === 'W').length, l: games.filter(g => g.res === 'L').length});
 const idDay = iso => new Date(iso).toLocaleDateString('id-ID', {weekday: 'short', day: 'numeric', month: 'short'});
 const idTime = iso => new Date(iso).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'});
-function lasted(from, to) {
-  const m = Math.max(0, Math.round(((to ? new Date(to) : new Date()) - new Date(from)) / 6e4));
-  return m < 60 ? `${m} mnt` : `${Math.floor(m / 60)} jam ${String(m % 60).padStart(2, '0')} mnt`;
-}
+// A lesson's date (YYYY-MM-DD) at midday, so it shows the same day in any time zone.
+const coachDay = d => idDay(d + 'T12:00:00');
+const recentCoachings = days => coachings.filter(l => Date.now() - new Date(l.held_on + 'T12:00:00') < days * 864e5);
+// The coach's own words for a topic, from a lesson in the last 14 days.
+const coachCue = t => (recentCoachings(14).find(l => (l.topics || []).includes(t) && (l.cues || []).length) || {cues: [null]}).cues[0];
 // The most frequent tags of one kind ('good' or 'bad') over some games, most frequent first.
 function topTags(games, kind, n = 2) {
   const c = {};
@@ -1311,8 +1343,11 @@ const recentGames = days => recentPlays(days).flatMap(p => p.games);
 // Where a session's tags live: since 0.10 on the session itself (one note per session), before that on each game.
 const tagItems = p => [...p.games, {good: p.good || [], bad: p.bad || []}];
 const recentTagItems = days => recentPlays(days).flatMap(tagItems);
-// This week's focus: the weakness that came up most in the last 14 days, else the one picked in onboarding.
+// This week's focus: what the coach worked on in a lesson of the last 14 days, else the weakness that came up
+// most in the diary over 14 days, else the one picked in onboarding.
 function focusTag() {
+  const l = recentCoachings(14).find(l => (l.topics || []).some(t => COACH[t]));
+  if (l) return l.topics.find(t => COACH[t]);
   const top = topTags(recentTagItems(14), 'bad', 1)[0];
   return top ? top.t : onboard && onboard.weak && onboard.weak[0] || null;
 }
@@ -1361,18 +1396,25 @@ function viewBeranda() {
     : op ? `<button class="pinbar" onclick="goPage('catat')">${ic('ball')}<span class="grow"><b>Lagi main · ${(r => `${r.w} menang, ${r.l} kalah`)(wl(op.games))}</b>
       <small>Mulai ${esc(idTime(op.started_at))}${op.place ? ` · ${esc(op.place)}` : ''} · tap untuk catat game</small></span>${ic('arrow')}</button>`
     : `<button class="btn primary big" onclick="goPage('catat')">${ic('plus')}Mulai main</button>`}
+  <button class="pinbar ghost" style="margin-top:10px" onclick="goPage('coaching')"><span class="res-pill coach">🧑‍🏫</span>
+    <span class="grow"><b>Habis coaching?</b><small>Catat yang diajarkan, kata kunci, dan PR-nya</small></span>${ic('arrow')}</button>
   ${steps.every(s => s[1]) ? '' : `<div class="sec-head"><p class="label">Langkah pertama</p></div>
     <div class="card checklist">${steps.map(([t, ok, go]) => ok ? `<div class="ok"><i>✓</i><span>${esc(t)}</span></div>`
       : `<button onclick="${go}"><i></i><span>${esc(t)}</span>${ic('arrow')}</button>`).join('')}</div>`}
   ${user && !me ? (loadMe(), '') : ''}${user && !playRatings ? (loadPlayRatings(), '') : ''}
   ${levelCard()}
+  ${fromCoachCard()}
   ${ft ? `<div class="sec-head"><p class="label">Fokus minggu ini</p></div>${coachCard(ft)}` : ''}
   ${g30.length ? `<div class="sec-head"><p class="label">30 hari terakhir</p></div>
     <div class="card stats"><div><b class="num">${g30.length}</b><small>game</small></div><div><b class="num">${r30.w}</b><small>menang</small></div>
       <div><b class="num">${r30.l}</b><small>kalah</small></div><div><b class="num">${Math.round(r30.w / g30.length * 100)}%</b><small>menang</small></div></div>
     ${weak.length ? `<p class="hint">${ic('x')}Paling sering kurang: ${weak.map(x => `${esc(TAGS[x.t].bad)} (${x.k}×)`).join(', ')}</p>` : ''}` : ''}
-  <div class="sec-head"><p class="label">Riwayat main</p></div>
-  ${done.length ? done.slice(0, 10).map(p => {
+  <div class="sec-head"><p class="label">Riwayat</p></div>
+  ${done.length || coachings.length ? [...done.map(p => ({at: p.started_at, p})), ...coachings.map(l => ({at: l.held_on + 'T12:00:00', l}))]
+    .sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 10).map(({p, l}) => {
+      if (l) return `<button class="pinbar ghost" onclick="goPage('coachingdetail', '${l.id}')"><span class="res-pill coach">🧑‍🏫</span>
+        <span class="grow"><b>Coaching · ${esc(coachDay(l.held_on))}${l.coach ? ` · ${esc(l.coach)}` : ''}</b>
+        <small>${(l.topics || []).length ? esc(l.topics.map(t => TAGS[t] ? TAGS[t].good : t).join(', ')) : 'Catatan coaching'}</small></span>${ic('arrow')}</button>`;
       const r = wl(p.games), b = topTags(tagItems(p), 'bad', 1)[0];
       return `<button class="pinbar ghost" onclick="goPage('ringkasan', '${p.id}')"><span class="res-pill ${r.w >= r.l && r.w ? 'W' : 'L'}">${r.w}–${r.l}</span>
         <span class="grow"><b>${esc(idDay(p.started_at))}${p.place ? ` · ${esc(p.place)}` : ''}</b>
@@ -1461,7 +1503,7 @@ const quotesFor = op => {
 function rotateQuote() {}
 rotateQuote.i = 0;
 // Tips for this session first: the cue for anything marked "kurang", then the general ones.
-const tipsFor = op => [...new Set(topTags(tagItems(op), 'bad', 3).map(x => `${TAGS[x.t].bad}: ${COACH[x.t].cue}`).concat(TIPS))];
+const tipsFor = op => [...new Set(recentCoachings(14).flatMap(l => (l.cues || []).map(c => `Kata pelatih: ${c}`)).concat(topTags(tagItems(op), 'bad', 3).map(x => `${TAGS[x.t].bad}: ${COACH[x.t].cue}`)).concat(TIPS))];
 function viewCatat() {
   document.title = 'Main · 10nis';
   const op = openPlay();
@@ -1480,7 +1522,8 @@ function viewCatat() {
       <p class="label" style="margin-top:14px">Main di mana? (opsional)</p>
       <input id="place" class="linkin" maxlength="120" placeholder="Contoh: Senayan, lapangan komplek" value="${esc(last)}" oninput="startPlay.place = this.value"></div>
     <button class="btn primary big" onclick="startPlay()">${ic('ball')}Mulai main</button>
-    ${ft ? `<div class="sec-head"><p class="label">Ingat fokus kamu</p></div><div class="card"><b>${esc(TAGS[ft].bad)}:</b> “${esc(COACH[ft].cue)}”</div>` : ''}
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn text" onclick="goPage('coaching')">🧑‍🏫 Habis coaching? Catat di sini</button></div>
+    ${ft ? `<div class="sec-head"><p class="label">Ingat fokus kamu</p></div><div class="card"><b>${esc(TAGS[ft].bad)}:</b> “${esc(coachCue(ft) || COACH[ft].cue)}”${coachCue(ft) ? ' <span class="muted">(kata pelatih)</span>' : ''}</div>` : ''}
     <div class="card tipcard"><p class="label">💡 Tips</p><p id="tiptext">${esc(TIPS[0])}</p></div>
     ${LEGAL}`;
   }
@@ -1497,7 +1540,7 @@ function viewCatat() {
         </button></div>`;
   const hasNotes = (op.good || []).length || (op.bad || []).length || op.lesson;
   return `
-  <p class="kicker">Lagi main · ${FORMAT_ID[op.format] || 'Single'} · ${esc(lasted(op.started_at))}${op.place ? ` · ${esc(op.place)}` : ''}</p>
+  <p class="kicker">Lagi main · ${FORMAT_ID[op.format] || 'Single'}${op.place ? ` · ${esc(op.place)}` : ''}</p>
   <div class="phead"><div class="wlbig"><div class="w"><b class="num">${r.w}</b><span>menang</span></div><div class="l"><b class="num">${r.l}</b><span>kalah</span></div></div>
     ${st.n >= 2 && st.res === 'W' ? `<span class="streak">🔥 ${st.n}</span>` : ''}</div>
   <p class="quote" id="quote">“${esc(quotesFor(op)[rotateQuote.i % quotesFor(op).length])}”</p>
@@ -1700,7 +1743,7 @@ function viewRingkasan() {
   const r = wl(p.games), pr = praise(r.w, r.l, p.id), good = topTags(tagItems(p), 'good', 3), bad = topTags(tagItems(p), 'bad', 2);
   const firstDone = diary.filter(x => x.ended_at).length === 1;
   return `
-  <p class="kicker">${esc(idDay(p.started_at))} · ${FORMAT_ID[p.format] || 'Single'}${p.place ? ` · ${esc(p.place)}` : ''} · ${esc(lasted(p.started_at, p.ended_at))}</p>
+  <p class="kicker">${esc(idDay(p.started_at))} · ${FORMAT_ID[p.format] || 'Single'}${p.place ? ` · ${esc(p.place)}` : ''}</p>
   <h1 class="title">${esc(pr.h)}</h1>
   <p class="sub" style="font-size:15px">${esc(pr.p)}</p>
   <div class="card stats"><div><b class="num">${p.games.length}</b><small>game</small></div><div><b class="num">${r.w}</b><small>menang</small></div><div><b class="num">${r.l}</b><small>kalah</small></div></div>
@@ -1966,21 +2009,183 @@ async function sharePlayText(id) {
   copyText(text, 'Ringkasan disalin');
 }
 
+// ---------- coaching journal: "Catatan coaching" (/coaching, /coaching/<id>) ----------
+// After a coaching session the player notes, once: what was practised (the diary's tags), the coach's cue
+// words, homework (PR) and a target. Written by the student only; the coach is just a name. Between lessons it
+// shows on Beranda ("Dari pelatih"), sets the weekly focus, and its cues come first in the tips while playing.
+// Saved on the phone first, then to `coach_sessions`. No duration or timer: only the day.
+const FEEL = {1: '😕 Masih bingung', 2: '🙂 Lumayan', 3: '🔥 Mantap'};
+const todayISO = () => new Date().toLocaleDateString('sv');   // YYYY-MM-DD, this phone's day
+let lf = null;   // the lesson being written: {id, editing, held_on, coach, place, topics, cues: [a, b], homework, target, feel, note}
+function coachingForm(id) {
+  const l = id && coachingById(id);
+  if (l) return {...l, editing: true, coach: l.coach || '', place: l.place || '', topics: [...(l.topics || [])],
+    cues: [...(l.cues || []), '', ''].slice(0, 2), homework: l.homework || '', target: l.target || '', note: l.note || ''};
+  let coach = '';
+  try { coach = localStorage.getItem('10nis-last-coach') || ''; } catch (e) {}
+  return {id: crypto.randomUUID(), editing: false, held_on: todayISO(), coach, place: '', topics: [], cues: ['', ''],
+    homework: '', target: '', feel: null, note: ''};
+}
+const coachingById = id => coachings.find(l => l.id === id) || null;
+function viewCoaching() {
+  if (page.slug && !coachingById(page.slug)) return viewCoachingDetail();   // loading, or not found
+  if (!lf || (page.slug ? lf.id !== page.slug : lf.editing)) lf = coachingForm(page.slug);
+  document.title = 'Catat coaching · 10nis';
+  const t0 = lf.topics.find(t => COACH[t]), c0 = t0 && COACH[t0];
+  const inp = (k, ph, max, extra = '') => `<input class="linkin" maxlength="${max}" placeholder="${esc(ph)}" value="${esc(lf[k] || '')}" oninput="lf.${k} = this.value" ${extra}>`;
+  return `
+  <p class="kicker">Catatan coaching</p>
+  <h1 class="title">${lf.editing ? 'Ubah catatan coaching' : 'Habis coaching?'}</h1>
+  <p class="sub">Catat sekali sesudah coaching, biar yang diajarkan pelatih nggak lupa sampai main berikutnya. Semuanya opsional.</p>
+  ${lf.editing ? '' : `<div class="card"><p class="label" style="margin-bottom:6px">Ada link Kuyy / Reclub?</p>
+    <div class="linkrow"><input class="linkin" inputmode="url" placeholder="Tempel link kuyy.id atau reclub.co" value="${esc(lf.link || '')}" oninput="lf.link = this.value">
+      <button class="btn sm primary" onclick="fillCoachingFromLink(this)">Isi otomatis</button></div>
+    <p class="muted" style="margin:8px 0 0;font-size:12.5px">Tanggal, tempat, pelatih, dan topik diambil dari link. Cek lagi sebelum simpan.</p></div>`}
+  <div class="card coachform">
+    <div class="coachrow"><label><span class="label">Tanggal</span><input type="date" class="linkin" value="${esc(lf.held_on)}" oninput="lf.held_on = this.value"></label>
+      <label><span class="label">Pelatih</span>${inp('coach', 'Nama pelatih', 80)}</label></div>
+    <label><span class="label">Tempat</span>${inp('place', 'Contoh: Senayan', 120)}</label>
+  </div>
+  <div class="sec-head"><p class="label">Yang dilatih hari ini</p></div>
+  <div class="card"><p class="muted" style="margin:0 0 8px;font-size:13.5px">Pilih sampai 3.</p>
+    <div class="chips">${Object.keys(TAGS).map(t => `<button class="tagchip ${lf.topics.includes(t) ? 'on' : ''}" onclick="coachingTopic('${t}')">${esc(TAGS[t].good)}</button>`).join('')}</div></div>
+  <div class="sec-head"><p class="label">Kata kunci dari pelatih</p></div>
+  <div class="card"><p class="muted" style="margin:0 0 8px;font-size:13.5px">Kalimat pendek yang diulang-ulang pelatih. Ini yang kamu ingat waktu main.</p>
+    ${[0, 1].map(i => `<input class="linkin" style="margin-top:${i ? 8 : 0}px" maxlength="120" placeholder="${esc(i ? 'Kata kunci kedua (opsional)' : c0 ? c0.cue : 'Contoh: putar bahu dulu, baru ayun')}"
+      value="${esc(lf.cues[i] || '')}" oninput="lf.cues[${i}] = this.value">`).join('')}</div>
+  <div class="sec-head"><p class="label">PR sampai coaching berikutnya</p></div>
+  <div class="card"><textarea maxlength="280" placeholder="${esc(c0 ? c0.drill : 'Contoh: shadow swing 3×10 tiap pagi')}" oninput="lf.homework = this.value">${esc(lf.homework)}</textarea></div>
+  <div class="sec-head"><p class="label">Target coaching berikutnya</p></div>
+  <div class="card">${inp('target', 'Contoh: backhand crosscourt 10× tanpa error', 280)}</div>
+  <div class="sec-head"><p class="label">Rasanya?</p></div>
+  <div class="seg">${Object.entries(FEEL).map(([k, l]) => `<button class="${lf.feel === +k ? 'on' : ''}" onclick="lf.feel = lf.feel === ${k} ? null : ${k}; render()">${l}</button>`).join('')}</div>
+  <div class="sec-head"><p class="label">Catatan</p></div>
+  <div class="card"><textarea maxlength="500" placeholder="Apa lagi yang mau diingat?" oninput="lf.note = this.value">${esc(lf.note)}</textarea></div>
+  <button class="btn primary big" style="margin-top:18px" onclick="saveCoachingForm()">${ic('pen')}Simpan catatan coaching</button>
+  ${lf.editing ? `<div class="row" style="justify-content:center;margin-top:10px"><button class="btn text" onclick="lf = null; history.back()">Batal</button></div>` : ''}
+  ${LEGAL}`;
+}
+// Fill the form from a Kuyy or Reclub activity link, through the same /api/import the mixer uses: the day,
+// the venue, the host (usually the coach), topics guessed from the title, and the title as the note.
+const TOPIC_WORDS = {servis: /\bserv(e|es|is|ice|ing)\b/, return: /\breturns?\b/, forehand: /\bforehand|\bfh\b/, backhand: /\bbackhand|\bbh\b/,
+  volley: /\bvolley|\bvoli\b|\bnet ?play\b/, footwork: /\bfootwork|\bkaki\b|\bagility\b/, posisi: /\bposisi|\bpositioning\b/,
+  mental: /\bmental\b/, fisik: /\bfisik\b|\bfitness\b|\bstamina\b|\bconditioning\b/};
+const topicsFromTitle = title => Object.keys(TOPIC_WORDS).filter(t => TOPIC_WORDS[t].test(String(title || '').toLowerCase()));
+async function fillCoachingFromLink(btn) {
+  const url = (lf.link || '').trim();
+  if (!/^https?:\/\/\S+$/.test(url)) { toast('Tempel link lengkap, mulai dengan https://'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Membaca…'; }
+  let d = null;
+  try {
+    const r = await fetch('/api/import?url=' + encodeURIComponent(url));
+    d = await r.json().catch(() => null);
+    if (!d || d.error || !d.source) { toast(d && d.error ? `Link nggak bisa dibaca: ${d.error}` : 'Link nggak bisa dibaca'); return; }
+  } catch (e) { toast('Link nggak bisa dibaca. Cek sinyal, lalu coba lagi'); return; }
+  finally { if (btn && btn.isConnected) { btn.disabled = false; btn.textContent = 'Isi otomatis'; } }
+  const got = [];
+  if (d.activity && /^\d{4}-\d{2}-\d{2}$/.test(d.activity.date || '')) { lf.held_on = d.activity.date; got.push('tanggal'); }
+  if (d.venue) { lf.place = String(d.venue).slice(0, 120); got.push('tempat'); }
+  if (d.host) { lf.coach = String(d.host).slice(0, 80); got.push('pelatih'); }
+  const topics = topicsFromTitle(d.title);
+  if (topics.length) { lf.topics = [...new Set([...lf.topics, ...topics])].slice(0, 3); got.push('yang dilatih'); }
+  if (d.title && !(lf.note || '').trim()) { lf.note = String(d.title).slice(0, 500); got.push('catatan'); }
+  track('import', {source: d.source, kind: 'coaching'});
+  render();
+  toast(got.length ? `Diisi dari ${d.source}: ${got.join(', ')}` : `Link ${d.source} terbaca, tapi detailnya kosong`);
+}
+function coachingTopic(t) {
+  const l = lf.topics, j = l.indexOf(t);
+  if (j >= 0) l.splice(j, 1); else { l.push(t); if (l.length > 3) l.shift(); }
+  render();
+}
+function saveCoachingForm() {
+  const f = lf, old = coachingById(f.id), clip = (v, n) => (v || '').trim().slice(0, n) || null;
+  const cues = f.cues.map(c => (c || '').trim().slice(0, 120)).filter(Boolean);
+  if (!f.topics.length && !cues.length && !clip(f.homework, 280) && !clip(f.note, 500)) {
+    toast('Pilih yang dilatih atau tulis kata kunci dari pelatih dulu'); return;
+  }
+  const row = {id: f.id, held_on: /^\d{4}-\d{2}-\d{2}$/.test(f.held_on) ? f.held_on : todayISO(), coach: clip(f.coach, 80), place: clip(f.place, 120),
+    topics: f.topics, cues, homework: clip(f.homework, 280), target: clip(f.target, 280), feel: f.feel || null, note: clip(f.note, 500),
+    pr_tries: old ? old.pr_tries || 0 : 0, created_at: old ? old.created_at : new Date().toISOString(), dirty: true};
+  coachings = coachings.filter(l => l.id !== f.id); coachings.unshift(row); saveCoachings();
+  try { if (row.coach) localStorage.setItem('10nis-last-coach', row.coach); } catch (e) {}
+  if (!f.editing) track('les_save', {topics: row.topics.length, cues: cues.length, pr: !!row.homework});
+  lf = null;
+  page = {kind: 'coachingdetail', slug: row.id};
+  history.replaceState(null, '', pagePath());
+  render(); window.scrollTo(0, 0); toast('Tersimpan');
+}
+function viewCoachingDetail() {
+  const l = coachingById(page.slug);
+  if (!l) {
+    if (user && !loadPlays.tried) { loadPlays.tried = true; loadPlays(); return '<p class="muted" style="padding:20px 4px">Memuat…</p>'; }
+    return view404();
+  }
+  document.title = `Coaching ${coachDay(l.held_on)} · 10nis`;
+  const topics = (l.topics || []).filter(t => TAGS[t]);
+  return `
+  <p class="kicker">Catatan coaching · ${esc(coachDay(l.held_on))}${l.coach ? ` · ${esc(l.coach)}` : ''}${l.place ? ` · ${esc(l.place)}` : ''}</p>
+  <h1 class="title">${topics.length ? esc(topics.map(t => TAGS[t].good).join(', ')) : 'Coaching'}</h1>
+  ${l.feel ? `<p class="sub">${FEEL[l.feel]}</p>` : ''}
+  ${(l.cues || []).length ? `<div class="sec-head"><p class="label">Kata kunci dari pelatih</p></div>
+    <div class="card">${l.cues.map(c => `<p class="cue">“${esc(c)}”</p>`).join('')}</div>` : ''}
+  ${l.homework ? `<div class="sec-head"><p class="label">PR sampai coaching berikutnya</p></div>
+    <div class="card"><p style="margin:0">${esc(l.homework)}</p>${prButton(l)}</div>` : ''}
+  ${l.target ? `<div class="sec-head"><p class="label">🎯 Target coaching berikutnya</p></div><div class="card"><p style="margin:0">${esc(l.target)}</p></div>` : ''}
+  ${l.note ? `<div class="sec-head"><p class="label">Catatan</p></div><div class="card"><p style="margin:0;white-space:pre-line">${esc(l.note)}</p></div>` : ''}
+  ${topics.some(t => COACH[t] && COACH[t].slug) ? `<div class="sec-head"><p class="label">Pelajari lagi</p></div>
+    ${topics.filter(t => COACH[t] && COACH[t].slug).map(t => `<button class="pinbar ghost" onclick="goPage('latihan', '${COACH[t].slug}')">${ic('ball')}
+      <span class="grow"><b>${esc(TAGS[t].good)}</b><small>“${esc(COACH[t].cue)}”</small></span>${ic('arrow')}</button>`).join('')}` : ''}
+  <div class="row" style="justify-content:center;gap:8px;margin-top:18px;flex-wrap:wrap">
+    <button class="btn sm soft" onclick="lf = null; goPage('coaching', '${l.id}')">${ic('pen')}Ubah</button>
+    <button class="btn sm soft" onclick="goPage('catat')">${ic('ball')}Mulai main</button>
+    <button class="btn sm soft" onclick="goPage('beranda')">Ke Beranda</button></div>
+  <div class="row" style="justify-content:center;margin-top:18px"><button class="btn text danger" onclick="deleteCoaching('${l.id}')">Hapus catatan ini</button></div>
+  ${LEGAL}`;
+}
+const prButton = l => `<button class="btn sm soft" style="margin-top:12px" onclick="coachingPR('${l.id}')">✓ Sudah coba PR${l.pr_tries ? ` · ${l.pr_tries}×` : ''}</button>`;
+function coachingPR(id) {
+  const l = coachingById(id);
+  if (!l) return;
+  l.pr_tries = Math.min(999, (l.pr_tries || 0) + 1); l.dirty = true; saveCoachings();
+  track('les_pr', {n: l.pr_tries});
+  toast(`Mantap! PR dicoba ${l.pr_tries}× 💪`); render();
+}
+function deleteCoaching(id) {
+  if (!confirm('Hapus catatan coaching ini?')) return;
+  coachings = coachings.filter(l => l.id !== id); saveCoachings();
+  if (user) sb.from('coach_sessions').delete().eq('id', id).then(() => {}, () => {});
+  goPage('beranda');
+}
+// Beranda: the latest coaching session of the last 3 weeks, so the coach's words and the homework stay in sight.
+function fromCoachCard() {
+  const l = recentCoachings(21).find(l => (l.cues || []).length || l.homework || l.target);
+  if (!l) return '';
+  return `<div class="sec-head"><p class="label">🧑‍🏫 Dari pelatih</p><button class="btn sm text" onclick="goPage('coachingdetail', '${l.id}')">Lihat</button></div>
+  <div class="card">
+    <p class="muted" style="margin:0 0 6px;font-size:13px">${esc(coachDay(l.held_on))}${l.coach ? ` · ${esc(l.coach)}` : ''}</p>
+    ${(l.cues || []).map(c => `<p class="cue">“${esc(c)}”</p>`).join('')}
+    ${l.homework ? `<p style="margin:10px 0 0"><b>PR:</b> ${esc(l.homework)}</p>${prButton(l)}` : ''}
+    ${l.target ? `<p class="muted" style="margin:10px 0 0;font-size:13.5px">🎯 Target: ${esc(l.target)}</p>` : ''}</div>`;
+}
+
 // ---------- routes ----------
 // Each tab has its own address, so Android's Back button moves between tabs instead of leaving 10nis and a
 // tab can be linked to. /j/, /s/ and /p/ links are handled below; /latihan is the practice library.
 const TAB_PATH = {players: '/mabar/pemain', rounds: '/mabar/ronde', standings: '/mabar/klasemen', results: '/mabar/hasil',
   join: '/mabar/gabung', account: '/saya'};
 const PATH_TAB = Object.fromEntries(Object.entries(TAB_PATH).map(([t, p]) => [p, t]));
-let page = null;   // null: the mixer tabs (Mabar, Saya). Else {kind: beranda | mulai | catat | ringkasan | latihan | 404, slug}
+let page = null;   // null: the mixer tabs (Mabar, Saya). Else {kind: beranda | mulai | catat | ringkasan | coaching | coachingdetail | latihan | 404, slug}
 const MABAR_TABS = ['players', 'rounds', 'standings', 'results', 'join'];
 function route() {
   const path = location.pathname.replace(/\/+$/, '') || '/';
   const m = path.match(/^\/latihan(?:\/([a-z0-9-]+))?$/), c = path.match(/^\/catat(?:\/([0-9a-f-]{36}))?$/);
+  const ls = path.match(/^\/coaching(?:\/([0-9a-f-]{36})(\/ubah)?)?$/);
   page = PATH_TAB[path] || /^\/[jsp]\//.test(path + '/') ? null
     : path === '/mabar' ? (S.tab = MABAR_TABS.includes(S.tab) ? S.tab : 'players', null)
     : m ? {kind: 'latihan', slug: m[1] || null}
     : c ? (c[1] ? {kind: 'ringkasan', slug: c[1]} : {kind: 'catat'})
+    : ls ? (ls[1] ? {kind: ls[2] ? 'coaching' : 'coachingdetail', slug: ls[1]} : {kind: 'coaching'})
     : path === '/mulai' ? {kind: 'mulai'}
     // First visit, nothing on this phone: onboarding. Someone following a game PIN goes straight to it.
     : path === '/' ? (follow.pin ? null : FIRST_VISIT && !onboard && !diary.length ? {kind: 'mulai'} : {kind: 'beranda'})
@@ -1991,7 +2196,8 @@ function route() {
 }
 const pagePath = () => !page ? TAB_PATH[S.tab] || '/mabar/pemain'
   : {beranda: '/', mulai: '/mulai', catat: '/catat', ringkasan: '/catat/' + page.slug,
-     latihan: '/latihan' + (page.slug ? '/' + page.slug : '')}[page.kind] || location.pathname;
+     latihan: '/latihan' + (page.slug ? '/' + page.slug : ''), coaching: '/coaching' + (page.slug ? `/${page.slug}/ubah` : ''),
+     coachingdetail: '/coaching/' + page.slug}[page.kind] || location.pathname;
 // Bottom bar: Beranda · Main · Mabar · Saya. The /latihan pages have no tab: coaching cards and Threads posts link to them.
 function goNav(n) {
   if (n === 'mabar') goTab(MABAR_TABS.includes(S.tab) ? S.tab : 'players');
@@ -1999,7 +2205,7 @@ function goNav(n) {
   else if (n === 'beranda' && (!onboard || !onboard.done) && !diary.length) { ob = null; goPage('mulai'); }
   else goPage(n);
 }
-const navNow = () => claimView ? '' : page ? ({mulai: 'beranda', ringkasan: 'catat', latihan: '', '404': ''}[page.kind] ?? page.kind)
+const navNow = () => claimView ? '' : page ? ({mulai: 'beranda', ringkasan: 'catat', coaching: 'beranda', coachingdetail: 'beranda', latihan: '', '404': ''}[page.kind] ?? page.kind)
   : S.tab === 'account' ? 'saya' : 'mabar';
 function goPage(kind, slug = null) {
   if (claimView) leaveClaim();
@@ -3663,7 +3869,7 @@ function render() {
     document.body.classList.remove('player-mode');
     const op = openPlay();
     document.getElementById('status').innerHTML = op && page.kind !== 'catat' ? `<i></i>Lagi main · ${(r => `${r.w} menang, ${r.l} kalah`)(wl(op.games))}` : '';
-    document.getElementById('view').innerHTML = {beranda: viewBeranda, mulai: viewMulai, catat: viewCatat, ringkasan: viewRingkasan, latihan: viewLatihan}[page.kind]?.() ?? view404();
+    document.getElementById('view').innerHTML = {beranda: viewBeranda, mulai: viewMulai, catat: viewCatat, ringkasan: viewRingkasan, latihan: viewLatihan, coaching: viewCoaching, coachingdetail: viewCoachingDetail}[page.kind]?.() ?? view404();
     if (page.kind === 'ringkasan') drawPlayPreview();
     document.getElementById('dock').innerHTML = page.kind === 'catat' && op ? `<div class="dock"><div class="in">
         <button class="btn primary grow" onclick="openGameSheet()">${ic('plus')}Catat game</button></div></div>` : '';

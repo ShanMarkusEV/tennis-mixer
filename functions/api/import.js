@@ -1,5 +1,6 @@
 // Cloudflare Pages Function: GET /api/import?url=<Kuyy or Reclub activity link>
-// Returns {source, title, players: [{name, status: 'confirmed' | 'waitlisted', photo, ext}], activity}.
+// Returns {source, title, players: [{name, status: 'confirmed' | 'waitlisted', photo, ext}], activity, venue, host}.
+//   venue, host = where it is and who organised it (for a coaching session, usually the coach); null when unknown.
 //   ext      = {source, id, username}: that platform's identity for the person, when they have an account.
 //   activity = {source, key, date, level_min, level_max}: when the activity happened and the level it was
 //              advertised at (app scale 1–10), used as evidence for everyone who played.
@@ -38,9 +39,10 @@ async function kuyy(link) {
     get(`/events/${id}/members?limit=500`)
   ]);
   const players = [];
+  let host = null;
   for (const m of members.data || []) {
     // The host is usually the organiser's account, not a player.
-    if (m.user_role === 'host') continue;
+    if (m.user_role === 'host') { host = host || m.name || null; continue; }
     const status = m.user_status === 'going' ? 'confirmed' : /wait/.test(m.user_status || '') ? 'waitlisted' : null;
     if (!status) continue;
     const tickets = (m.checkin_status || []).filter(t => t.status !== 'cancelled' && t.name);
@@ -60,7 +62,8 @@ async function kuyy(link) {
   const level = levelFromTitle(title);
   const activity = start ? {source: 'kuyy', key: activityKey(start, ev.location_label || ev.location), date: wibDate(start),
     level_min: level ? level.min : null, level_max: level ? level.max : null} : null;
-  return {source: 'Kuyy', title, players, activity};
+  const venue = ev.location_label || (ev.location && (ev.location.name || ev.location)) || null;
+  return {source: 'Kuyy', title, players, activity, venue: typeof venue === 'string' ? venue : null, host};
 }
 
 // ---------- Reclub ----------
@@ -96,7 +99,11 @@ async function reclub(link) {
   const lvl = reclubRange(meet.minSportLevelValue, meet.maxSportLevelValue) || levelFromTitle(title);
   const activity = start ? {source: 'reclub', key: activityKey(start, meet.venue && meet.venue.name), date: wibDate(start),
     level_min: lvl ? lvl.min : null, level_max: lvl ? lvl.max : null} : null;
-  return {source: 'Reclub', title, players, activity};
+  // The host: a participant with status 0 (host only), else the meet's own host fields when present.
+  const hostP = (meet.participants || []).find(p => p.status === 0);
+  const hostU = hostP && usersMap[hostP.referenceId] || usersMap[meet.hostId] || usersMap[meet.createdBy] || {};
+  const host = hostU.name || (meet.host && meet.host.name) || null;
+  return {source: 'Reclub', title, players, activity, venue: meet.venue && meet.venue.name || null, host: host ? String(host).trim() : null};
 }
 
 export function devalue(arr) {
