@@ -240,6 +240,7 @@ textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .tagchip{min-height:40px;padding:8px 14px;border-radius:999px;border:2px solid var(--edge);background:var(--surface);color:var(--text);font-size:14.5px;font-weight:700;cursor:pointer}
 .tagchip.on{background:var(--lime);color:#0a1633;border-color:#0a1633}
+.tagchip.gchip{padding:6px 12px;font-size:13px;font-weight:600}.tagchip.gchip b{font-weight:900;margin-right:2px}
 .resrow{display:flex;gap:10px;margin:12px 0 8px}
 .resbtn{flex:1;min-height:64px;border-radius:16px;border:2px solid var(--edge);background:var(--surface);color:var(--text);font-size:19px;font-weight:900;cursor:pointer;box-shadow:3px 3px 0 var(--hard)}
 .resbtn.W.on{background:var(--green);color:#fff}.resbtn.L.on{background:var(--warn);color:#fff}
@@ -509,6 +510,46 @@ details.past .match{box-shadow:none}
 .tabbar button.mainbtn:not(.on) .pill{color:var(--lime)}
 .tabbar button.mainbtn:not(.on){color:#fff}
 
+@media (max-width:370px){.tabbar .pill{width:40px}.tabbar button{font-size:9.5px;letter-spacing:.01em}}
+
+/* gear */
+.fld{margin-top:14px}
+.fld > .label{display:block;margin-bottom:6px}
+.sugs{display:flex;flex-direction:column;gap:6px;margin-top:8px}.sugs:empty{display:none}
+.sug{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:2px solid var(--edge);background:var(--surface-2);color:var(--text);border-radius:12px;padding:9px 12px;font:inherit;font-weight:700;font-size:14px;cursor:pointer}
+.sug small{display:block;color:var(--muted);font-weight:600;font-size:12px}
+.sug.custom{background:none;border-style:dashed}
+.picked{display:flex;align-items:center;gap:10px;background:var(--surface-2);border:2px solid var(--edge);border-radius:13px;padding:8px 8px 8px 12px}
+.picked .grow,.rtop .grow{flex:1;min-width:0}
+.picked b,.rtop b{display:block;font-weight:800}
+.picked small,.rtop small{display:block;color:var(--muted);font-size:12.5px;font-weight:600}
+.check{display:flex;gap:8px;align-items:center;font-weight:700;font-size:14px;margin-top:12px;cursor:pointer}
+.gphoto.big{display:grid;place-items:center;background:#fff;border:2px solid var(--edge);border-radius:18px;box-shadow:3px 3px 0 var(--hard);padding:14px;margin:0 0 14px}
+.gphoto.big img{display:block;max-width:100%;max-height:300px;object-fit:contain}
+.rcard{cursor:pointer}
+.rtop{display:flex;align-items:center;gap:12px}
+.rthumb{width:52px;height:52px;flex:none;border-radius:12px;border:2px solid var(--edge);object-fit:cover;display:grid;place-items:center;background:var(--surface-2)}
+.rthumb.sm{width:40px;height:40px;border-radius:10px}
+.rthumb.pic{position:relative;background:#fff;overflow:hidden}.rthumb.pic img{position:absolute;inset:3px;width:calc(100% - 6px);height:calc(100% - 6px);object-fit:contain}
+.rthumb.pic .ic{display:none}
+.backlink{border:0;background:none;color:var(--muted);font:inherit;font-weight:800;font-size:14px;padding:4px 0;margin:0 0 14px;cursor:pointer}
+.ghead{display:flex;gap:16px;align-items:center;margin-bottom:18px}.ghead .grow{flex:1;min-width:0}
+.ghero{width:92px;height:128px;flex:none;border-radius:16px;border:2px solid var(--edge);background:var(--surface-2);display:grid;place-items:center;box-shadow:3px 3px 0 var(--hard)}
+.ghero.pic{position:relative;background:#fff;overflow:hidden}.ghero.pic img{position:absolute;inset:6px;width:calc(100% - 12px);height:calc(100% - 12px);object-fit:contain}
+.ghero.pic .ic{display:none}.ghero .ic{width:36px;height:36px}
+.gname{margin:0 0 4px;font-size:23px;font-weight:900;line-height:1.15;overflow-wrap:anywhere}
+.gsub{margin:0;color:var(--muted);font-size:13.5px;font-weight:600;line-height:1.45}
+.gten{flex:none;text-align:right}.gten b{display:block;font-size:28px;font-weight:900;font-stretch:72%;line-height:1}.gten small{color:var(--muted);font-size:11.5px;font-weight:800}
+.btn.full{width:100%;justify-content:center}
+.ghist{margin:4px 0 0}.ghist summary{cursor:pointer;font-weight:800;font-size:14px;color:var(--muted);padding:8px 2px;list-style-position:inside}
+.ghist .card{margin-top:6px}
+.glinks{display:flex;justify-content:center;gap:6px;margin-top:14px}
+.wear{height:10px;border-radius:99px;background:var(--surface-2);border:2px solid var(--edge);overflow:hidden;margin:14px 0 8px}
+.wear i{display:block;height:100%;background:var(--green)}
+.wear.amber i{background:#f5a524}.wear.red i{background:var(--warn)}
+.wearline{margin:0 0 10px;font-size:13px}.wearline b{display:block}.wearline span{color:var(--muted);font-weight:600}
+.tension{margin:12px 0 0}.tension b.num{font-size:34px;font-weight:900;font-stretch:72%}.tension small{margin-left:8px;color:var(--muted);font-weight:700}
+
 .upd{position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top));z-index:30;max-width:560px;margin:0 auto;display:flex;align-items:center;gap:10px;
   background:#0a1633;color:#fff;border:2px solid var(--lime);border-radius:14px;padding:10px 10px 10px 14px;font-weight:700;font-size:14px;box-shadow:4px 4px 0 var(--hard)}
 .toast{position:fixed;left:50%;bottom:calc(160px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(8px);background:#0a1633;color:#fff;border:2px solid var(--lime);
@@ -526,6 +567,7 @@ details.past .match{box-shadow:none}
 <div id="dock"></div>
 <nav class="tabbar"><div class="in">
   <button data-nav="beranda"><span class="pill" data-ic="home"></span>Beranda</button>
+  <button data-nav="gear"><span class="pill" data-ic="racket"></span>Gear</button>
   <button data-nav="catat" class="mainbtn"><span class="pill" data-ic="plus"></span>Main</button>
   <button data-nav="mabar"><span class="pill" data-ic="users"></span>Mabar</button>
   <button data-nav="saya"><span class="pill" data-ic="user"></span>Saya</button>
@@ -534,7 +576,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.11.0';
+const APP_VERSION = '0.12.0';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1208,6 +1250,10 @@ let onboard = readJSON(ONBOARD_KEY, null);     // {level, weak: [], done, synced
 // Coaching journal ("Catatan coaching"): [{id, held_on, coach, place, topics, cues, homework, target, feel, note, pr_tries, dirty}], newest first
 const COACHING_KEY = '10nis-coaching';
 let coachings = readJSON(COACHING_KEY, []);
+// Gear: [{id, model_id, name, nickname, string_id, string_name, string_type, cross_id, cross_name, cross_type, gauge,
+// tension_main, tension_cross, tension_unit, strung_on, restrings: [{…the string fields, until}], created_at, dirty}]
+const GEAR_KEY = '10nis-gear';
+let rackets = readJSON(GEAR_KEY, []);
 const openPlay = () => diary.find(p => !p.ended_at) || null;
 const playById = id => diary.find(p => p.id === id) || null;
 function saveDiary() {
@@ -1223,9 +1269,14 @@ function saveCoachings() {
   try { localStorage.setItem(COACHING_KEY, JSON.stringify(coachings)); } catch (e) {}
   queuePlaySync();
 }
+function saveGear() {
+  rackets.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  try { localStorage.setItem(GEAR_KEY, JSON.stringify(rackets)); } catch (e) {}
+  queuePlaySync();
+}
 function saveOnboard() { try { localStorage.setItem(ONBOARD_KEY, JSON.stringify(onboard)); } catch (e) {} }
 function queuePlaySync() {
-  if (!sb || !diary.some(p => p.dirty) && !coachings.some(l => l.dirty) && !(onboard && onboard.done && !onboard.synced)) return;
+  if (!sb || !diary.some(p => p.dirty) && !coachings.some(l => l.dirty) && !rackets.some(r => r.dirty) && !(onboard && onboard.done && !onboard.synced)) return;
   if (!user) { ensureUser(); return; }   // signing in calls this again
   clearTimeout(queuePlaySync.t); queuePlaySync.t = setTimeout(syncPlays, 800);
 }
@@ -1233,11 +1284,25 @@ async function syncPlays() {
   if (!sb || !user || syncPlays.busy) return;
   syncPlays.busy = true;
   try {
+    // Rackets first, so a session's racket is on the server before the session.
+    const dirtyRackets = rackets.filter(r => r.dirty);
+    if (dirtyRackets.length) {
+      const row = r => ({id: r.id, model_id: r.model_id || null, name: r.name, nickname: r.nickname || null,
+        ...Object.fromEntries(STR_KEYS.map(k => [k, r[k] ?? null])), tension_unit: r.tension_unit === 'lbs' ? 'lbs' : 'kg',
+        restrings: r.restrings || [], created_at: r.created_at});
+      const rows = dirtyRackets.map(row), sent = rows.map(r => JSON.stringify(r));
+      const {error} = await sb.from('rackets').upsert(rows);
+      if (error) report('rackets', error.message);
+      else {
+        dirtyRackets.forEach((r, i) => { if (JSON.stringify(row(r)) === sent[i]) delete r.dirty; });
+        try { localStorage.setItem(GEAR_KEY, JSON.stringify(rackets)); } catch (e) {}
+      }
+    }
     const dirty = diary.filter(p => p.dirty);
     if (dirty.length) {
-      const row = ({id, started_at, ended_at, place, games, lesson, format, good, bad}) => ({id, started_at, ended_at: ended_at || null,
+      const row = ({id, started_at, ended_at, place, games, lesson, format, good, bad, racket_id}) => ({id, started_at, ended_at: ended_at || null,
         place: place || null, games, lesson: lesson || null, format: format === 'double' ? 'double' : 'single',
-        good: good && good.length ? good : null, bad: bad && bad.length ? bad : null});
+        good: good && good.length ? good : null, bad: bad && bad.length ? bad : null, racket_id: racket_id || null});
       const rows = dirty.map(row), sent = rows.map(r => JSON.stringify(r));
       const {error} = await sb.from('plays').upsert(rows);
       if (error) report('plays', error.message);
@@ -1272,7 +1337,7 @@ async function syncPlays() {
     }
   } finally {
     syncPlays.busy = false;
-    if (diary.some(p => p.dirty) || coachings.some(l => l.dirty)) { clearTimeout(queuePlaySync.t); queuePlaySync.t = setTimeout(syncPlays, 5000); }
+    if (diary.some(p => p.dirty) || coachings.some(l => l.dirty) || rackets.some(r => r.dirty)) { clearTimeout(queuePlaySync.t); queuePlaySync.t = setTimeout(syncPlays, 5000); }
   }
 }
 window.addEventListener('online', queuePlaySync);
@@ -1280,9 +1345,11 @@ window.addEventListener('online', queuePlaySync);
 async function loadPlays() {
   if (!sb || !user || loadPlays.busy) return;
   loadPlays.busy = true;
-  const [{data, error}, lr] = await Promise.all([
-    sb.from('plays').select('id, started_at, ended_at, place, games, lesson, format, good, bad').order('started_at', {ascending: false}).limit(60),
-    sb.from('coach_sessions').select('id, held_on, coach, place, topics, cues, homework, target, feel, note, pr_tries, created_at').order('held_on', {ascending: false}).limit(60)]);
+  const [{data, error}, lr, rr] = await Promise.all([
+    sb.from('plays').select('id, started_at, ended_at, place, games, lesson, format, good, bad, racket_id').order('started_at', {ascending: false}).limit(60),
+    sb.from('coach_sessions').select('id, held_on, coach, place, topics, cues, homework, target, feel, note, pr_tries, created_at').order('held_on', {ascending: false}).limit(60),
+    sb.from('rackets').select('id, model_id, name, nickname, ' + STR_KEYS.join(', ') + ', tension_unit, restrings, created_at')
+      .order('created_at', {ascending: false}).limit(100)]);
   loadPlays.busy = false;
   const merge = (list, rows) => rows.forEach(row => {
     const i = list.findIndex(x => x.id === row.id);
@@ -1290,7 +1357,8 @@ async function loadPlays() {
   });
   if (!error && data) { merge(diary, data); saveDiary(); }
   if (!lr.error && lr.data) { merge(coachings, lr.data); saveCoachings(); }
-  if (page && ['beranda', 'catat', 'ringkasan', 'coaching', 'coachingdetail'].includes(page.kind)) render();
+  if (!rr.error && rr.data) { merge(rackets, rr.data); saveGear(); }
+  if (page && ['beranda', 'catat', 'ringkasan', 'coaching', 'coachingdetail', 'gear', 'geardetail', 'gearform', 'gearstring'].includes(page.kind)) render();
 }
 
 // ---------- game rating from the diary ----------
@@ -1472,7 +1540,7 @@ function startPlay() {
   if (openPlay()) { goPage('catat'); return; }
   const place = (document.getElementById('place') || {}).value || '', format = lastFormat();
   diary.unshift({id: crypto.randomUUID(), started_at: new Date().toISOString(), ended_at: null, place: place.trim().slice(0, 120) || null,
-    format, games: [], good: [], bad: [], lesson: null, dirty: true});
+    format, games: [], good: [], bad: [], lesson: null, racket_id: lastRacket() || null, dirty: true});
   saveDiary(); track('play_start', {format}); render(); window.scrollTo(0, 0);
 }
 // Singles or doubles, picked before starting; the last choice is remembered. A doubles loss counts half on the rating.
@@ -1520,7 +1588,11 @@ function viewCatat() {
       <div class="seg">${Object.entries(FORMAT_ID).map(([k, l]) => `<button class="${lastFormat() === k ? 'on' : ''}" onclick="setFormat('${k}')">${l}</button>`).join('')}</div>
       <p class="muted" style="font-size:12.5px;margin:8px 0 0">${lastFormat() === 'double' ? 'Double: menang dihitung penuh, kalah dihitung setengah ke level kamu.' : 'Single: menang dan kalah dihitung penuh ke level kamu.'}</p>
       <p class="label" style="margin-top:14px">Main di mana? (opsional)</p>
-      <input id="place" class="linkin" maxlength="120" placeholder="Contoh: Senayan, lapangan komplek" value="${esc(last)}" oninput="startPlay.place = this.value"></div>
+      <input id="place" class="linkin" maxlength="120" placeholder="Contoh: Senayan, lapangan komplek" value="${esc(last)}" oninput="startPlay.place = this.value">
+      ${rackets.length ? `<p class="label" style="margin-top:14px">Pakai raket apa?</p>
+        <div class="chips">${rackets.map(r => `<button class="tagchip ${lastRacket() === r.id ? 'on' : ''}" onclick="setRacket('${r.id}')">${esc(racketName(r))}</button>`).join('')}
+          <button class="tagchip ${lastRacket() ? '' : 'on'}" onclick="setRacket('')">Lainnya</button></div>
+        <p class="muted" style="font-size:12.5px;margin:8px 0 0">Buat hitung umur senar di Gear.</p>` : ''}</div>
     <button class="btn primary big" onclick="startPlay()">${ic('ball')}Mulai main</button>
     <div class="row" style="justify-content:center;margin-top:10px"><button class="btn text" onclick="goPage('coaching')">🧑‍🏫 Habis coaching? Catat di sini</button></div>
     ${ft ? `<div class="sec-head"><p class="label">Ingat fokus kamu</p></div><div class="card"><b>${esc(TAGS[ft].bad)}:</b> “${esc(coachCue(ft) || COACH[ft].cue)}”${coachCue(ft) ? ' <span class="muted">(kata pelatih)</span>' : ''}</div>` : ''}
@@ -1743,7 +1815,7 @@ function viewRingkasan() {
   const r = wl(p.games), pr = praise(r.w, r.l, p.id), good = topTags(tagItems(p), 'good', 3), bad = topTags(tagItems(p), 'bad', 2);
   const firstDone = diary.filter(x => x.ended_at).length === 1;
   return `
-  <p class="kicker">${esc(idDay(p.started_at))} · ${FORMAT_ID[p.format] || 'Single'}${p.place ? ` · ${esc(p.place)}` : ''}</p>
+  <p class="kicker">${esc(idDay(p.started_at))} · ${FORMAT_ID[p.format] || 'Single'}${p.place ? ` · ${esc(p.place)}` : ''}${(rk => rk ? ` · ${esc(racketName(rk))}` : '')(racketById(p.racket_id))}</p>
   <h1 class="title">${esc(pr.h)}</h1>
   <p class="sub" style="font-size:15px">${esc(pr.p)}</p>
   <div class="card stats"><div><b class="num">${p.games.length}</b><small>game</small></div><div><b class="num">${r.w}</b><small>menang</small></div><div><b class="num">${r.l}</b><small>kalah</small></div></div>
@@ -2169,23 +2241,294 @@ function fromCoachCard() {
     ${l.target ? `<p class="muted" style="margin:10px 0 0;font-size:13.5px">🎯 Target: ${esc(l.target)}</p>` : ''}</div>`;
 }
 
+// ---------- gear: rackets and strings (/gear, /gear/<id>) ----------
+// The player's rackets and the string in each: string, gauge, tension, the day it was strung and the restring
+// history. Models come from /gear.json (rackets from 2020 on, strings sold in Indonesia), each with a product
+// picture in /img/gear/, or are typed (no picture). Saved on the phone first, then to `rackets`. String wear is estimated, never timed: the diary sessions played with the
+// racket since it was strung × the usual hours per session, or the weeks since stringing (strings go dead in the
+// bag too), whichever is further along.
+const STR_KEYS = ['string_id', 'string_name', 'string_type', 'cross_id', 'cross_name', 'cross_type', 'gauge',
+  'tension_main', 'tension_cross', 'tension_unit', 'strung_on'];
+const STRING_TYPE = {poly: 'Poly', multi: 'Multifilamen', syn: 'Synthetic gut', gut: 'Natural gut'};
+// Recommended life per string type: hours of play, or weeks after stringing even if unused. Sources differ a lot
+// (poly 10-40 hours); these are a middle ground for club players. Tune here.
+const STRING_LIFE = {poly: {h: 20, w: 6}, hybrid: {h: 25, w: 8}, multi: {h: 30, w: 10}, syn: {h: 30, w: 10}, gut: {h: 40, w: 12}};
+// Gauge: stored in mm (what's printed in Indonesia), shown with the US number printed on most packs.
+const GAUGES = [['1.10', '18'], ['1.15', '17L'], ['1.20', '17'], ['1.25', '16L'], ['1.30', '16'], ['1.35', '15L'], ['1.40', '15']];
+const gaugeText = g => g ? (x => x ? `${x[1]} / ${g} mm` : `${g} mm`)(GAUGES.find(x => x[0] === g)) : '';
+const lifeOf = r => {
+  const a = r.string_type || 'poly', b = r.cross_name ? r.cross_type || a : a;
+  return STRING_LIFE[a !== b && (a === 'poly' || b === 'poly') ? 'hybrid' : a] || STRING_LIFE.poly;
+};
+const typeLabel = r => {
+  const a = r.string_type, b = r.cross_name ? r.cross_type : null;
+  return a && b && a !== b ? `Hybrid (${STRING_TYPE[a]} / ${STRING_TYPE[b]})` : STRING_TYPE[a] || '';
+};
+const racketById = id => id && rackets.find(r => r.id === id) || null;
+const racketName = r => r.nickname || r.name;
+const fmtNum = n => String(Math.round(n * 10) / 10).replace('.', ',');
+const stringText = r => r.string_name ? r.string_name + (r.cross_name && r.cross_name !== r.string_name ? ` / ${r.cross_name}` : '') : '';
+const tensionText = r => r.tension_main ? `${fmtNum(r.tension_main)}${r.tension_cross && +r.tension_cross !== +r.tension_main ? '/' + fmtNum(r.tension_cross) : ''} ${r.tension_unit || 'kg'}` : '';
+const shortDay = d => new Date(d + 'T12:00:00').toLocaleDateString('id-ID', {day: 'numeric', month: 'short',
+  ...(d.slice(0, 4) !== todayISO().slice(0, 4) ? {year: 'numeric'} : {})});
+const agoText = days => days < 1 ? 'hari ini' : days < 7 ? `${days} hari lalu` : days < 60 ? `${Math.floor(days / 7)} minggu lalu` : `${Math.floor(days / 30)} bulan lalu`;
+// The racket for the next session: the last one picked, '' for "Lainnya", else the newest one in use.
+function lastRacket() {
+  let id = null;
+  try { id = localStorage.getItem('10nis-last-racket'); } catch (e) {}
+  const a = rackets;
+  return a.some(r => r.id === id) ? id : id === '' ? '' : (a[0] || {}).id || '';
+}
+function setRacket(id) { try { localStorage.setItem('10nis-last-racket', id); } catch (e) {} render(); }
+const gearHrs = () => { const v = +readJSON('10nis-gear-hrs', 2); return [1, 1.5, 2, 3].includes(v) ? v : 2; };
+function setGearHrs(v) { try { localStorage.setItem('10nis-gear-hrs', JSON.stringify(v)); } catch (e) {} render(); }
+function wearOf(r) {
+  if (!r.strung_on) return null;
+  const since = new Date(r.strung_on + 'T00:00:00');
+  const n = diary.filter(p => p.racket_id === r.id && new Date(p.started_at) >= since).length;
+  const days = Math.max(0, Math.floor((Date.now() - since) / 864e5)), life = lifeOf(r), hrs = n * gearHrs();
+  const pct = Math.max(hrs / life.h, days / 7 / life.w);
+  return {n, hrs, days, life, pct, level: pct >= 1 ? 'red' : pct >= .8 ? 'amber' : 'ok'};
+}
+function wearBlock(r, withBtn) {
+  const w = wearOf(r);
+  if (!w) return '<p class="muted" style="margin:12px 0 0;font-size:13px">Tanggal pasang senar belum diisi.</p>';
+  const msg = w.level === 'red' ? 'Waktunya ganti senar' : w.level === 'amber' ? 'Senar mulai mati, siap-siap ganti' : 'Senar masih oke';
+  return `<div class="wear ${w.level}"><i style="width:${Math.max(3, Math.min(100, Math.round(w.pct * 100)))}%"></i></div>
+    <p class="wearline"><b>${msg}</b><span>~${fmtNum(w.hrs)} / ${w.life.h} jam main · dipasang ${esc(shortDay(r.strung_on))} (${agoText(w.days)})</span></p>
+    ${withBtn && w.level === 'red' ? `<button class="btn sm primary" onclick="event.stopPropagation(); goPage('gearstring', '${r.id}')">${ic('racket')}Pasang senar baru</button>` : ''}`;
+}
+
+// The catalog: loaded once, when a gear page needs it. A catalog item's picture is /img/gear/<id>.webp (img: true).
+let gearCat = null;
+async function loadGearCat() {
+  if (loadGearCat.busy) return;
+  loadGearCat.busy = true;
+  try { const r = await fetch('/gear.json'); gearCat = r.ok ? await r.json() : {error: true}; } catch (e) { gearCat = {error: true}; }
+  loadGearCat.busy = false;
+  if (page && ['gear', 'gearform', 'gearstring', 'geardetail', 'catat'].includes(page.kind)) render();
+}
+const catItem = (kind, id) => id && gearCat && !gearCat.error && gearCat[kind].find(x => x.id === id) || null;
+const catImg = (kind, id) => (x => x && x.img ? `/img/gear/${x.id}.webp` : null)(catItem(kind, id));
+// The picture of a racket or string, or the racket icon when it was typed (or the picture is missing).
+const gearPic = (kind, id, cls = 'rthumb') => (src => src ? `<span class="${cls} pic"><img src="${src}" alt="" loading="lazy" onerror="this.parentNode.classList.remove('pic'); this.remove()">${ic('racket')}</span>`
+  : `<span class="${cls}">${ic('racket')}</span>`)(catImg(kind, id));
+const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9+]+/g, ' ').trim();
+const catLabel = (x, year) => `${x.brand} ${x.model}${year && x.year ? ` (${x.year})` : ''}`;
+function catSearch(list, q) {
+  // Specs count too ("speed pro 310", "100 inch", "18x20"); unit words are ignored.
+  const words = norm(q.replace(/(\d)\s*(g|gr|gram|inch|in|sq)\b/gi, '$1')).split(' ').filter(w => w && !/^(g|gr|gram|grams|inch|in|sq|raket|racket|racquet|senar|string)$/.test(w));
+  if (!words.length) return [];
+  return list.filter(x => { const h = ` ${norm(`${x.brand} ${x.model} ${x.year || ''} ${x.head || ''} ${x.weight || ''} ${x.pattern || ''}`)} `;
+    return words.every(w => /^\d+$/.test(w) ? h.includes(` ${w} `) : h.includes(w)); }).slice(0, 8);
+}
+
+// The form: a new racket, editing one, or a new string ("senar baru": the old string goes to the history).
+let gf = null;
+function gearForm(mode, id) {
+  const r = racketById(id);
+  let unit = 'kg';
+  try { unit = localStorage.getItem('10nis-tension-unit') === 'lbs' ? 'lbs' : 'kg'; } catch (e) {}
+  const f = {id: r ? r.id : crypto.randomUUID(), mode, q: {racket: '', string: '', cross: ''}, model_id: null, name: '', nickname: '',
+    string_id: null, string_name: '', string_type: null, cross_id: null, cross_name: '', cross_type: null, hybrid: false, gauge: null,
+    tension_unit: unit, tension_main: unit === 'lbs' ? 50 : 23, tension_cross: '', strung_on: todayISO()};
+  if (!r) return f;
+  Object.assign(f, {model_id: r.model_id, name: r.name, nickname: r.nickname || ''});
+  STR_KEYS.forEach(k => { if (r[k] != null) f[k] = r[k]; });
+  f.hybrid = !!r.cross_name;
+  if (mode === 'string') f.strung_on = todayISO();
+  return f;
+}
+const PICK = {racket: {id: 'model_id', name: 'name'}, string: {id: 'string_id', name: 'string_name', type: 'string_type'},
+  cross: {id: 'cross_id', name: 'cross_name', type: 'cross_type'}};
+function sugHTML(k) {
+  if (!gearCat) { loadGearCat(); return ''; }
+  const q = gf.q[k].trim(), list = gearCat.error ? [] : k === 'racket' ? gearCat.rackets : gearCat.strings;
+  if (!q) return '';
+  return catSearch(list, q).map(x => `<button class="sug" onclick="gearPick('${k}', '${x.id}')">${gearPic(k === 'racket' ? 'rackets' : 'strings', x.id, 'rthumb sm')}
+      <span class="grow">${esc(catLabel(x, k === 'racket'))}<small>${esc(k === 'racket' ? [x.head && `${x.head} sq in`, x.weight && `${x.weight} g`, x.pattern].filter(Boolean).join(' · ') : STRING_TYPE[x.type])}</small></span></button>`).join('')
+    + `<button class="sug custom" onclick="gearPickCustom('${k}')">Pakai “${esc(q.slice(0, 80))}”<small>Nggak ada di daftar? Simpan seperti yang kamu ketik.</small></button>`;
+}
+function gearSearch(k, v) { gf.q[k] = v; const el = document.getElementById('sug-' + k); if (el) el.innerHTML = sugHTML(k); }
+function gearPick(k, id) {
+  const x = (k === 'racket' ? gearCat.rackets : gearCat.strings).find(x => x.id === id), m = PICK[k];
+  if (!x) return;
+  gf[m.id] = x.id; gf[m.name] = catLabel(x, k === 'racket');
+  if (m.type) gf[m.type] = x.type;
+  render();
+}
+function gearPickCustom(k) {
+  const m = PICK[k], v = gf.q[k].trim().slice(0, 80);
+  if (!v) return;
+  gf[m.id] = null; gf[m.name] = v;
+  if (m.type) gf[m.type] = gf[m.type] || 'poly';
+  render();
+}
+function gearUnpick(k) { const m = PICK[k]; gf.q[k] = ''; gf[m.id] = null; gf[m.name] = ''; if (m.type) gf[m.type] = null; render(); }
+function pickerHTML(k) {
+  const m = PICK[k], sel = gf[m.name];
+  const ph = {racket: 'Cari raket: contoh “blade 98” atau “pure aero”', string: 'Cari senar: contoh “alu power” atau “rpm blast”', cross: 'Cari senar cross'}[k];
+  if (!sel) return `<input class="linkin" placeholder="${esc(ph)}" value="${esc(gf.q[k])}" oninput="gearSearch('${k}', this.value)" autocomplete="off" autocapitalize="off">
+    <div class="sugs" id="sug-${k}">${sugHTML(k)}</div>`;
+  return `<div class="picked">${gf[m.id] ? gearPic(k === 'racket' ? 'rackets' : 'strings', gf[m.id], 'rthumb sm') : ''}<span class="grow"><b>${esc(sel)}</b>${m.type && gf[m.id] ? `<small>${esc(STRING_TYPE[gf[m.type]] || '')}</small>` : ''}</span>
+      <button class="btn sm text" onclick="gearUnpick('${k}')">Ganti</button></div>
+    ${m.type && !gf[m.id] ? `<div class="seg" style="margin-top:8px">${Object.entries(STRING_TYPE).map(([t, l]) => `<button class="${gf[m.type] === t ? 'on' : ''}" onclick="gf.${m.type} = '${t}'; render()">${l}</button>`).join('')}</div>` : ''}`;
+}
+function cancelGearForm() {
+  const id = gf && racketById(gf.id) ? gf.id : null;
+  gf = null;
+  if (id) goPage('geardetail', id); else goPage('gear');
+}
+function setTensionUnit(u) {
+  if (gf.tension_unit === u) return;
+  const conv = v => { const n = parseFloat(String(v).replace(',', '.')); if (!n) return ''; return u === 'lbs' ? Math.round(n * 2.2046) : Math.round(n / 2.2046 * 2) / 2; };
+  gf.tension_main = conv(gf.tension_main); gf.tension_cross = conv(gf.tension_cross); gf.tension_unit = u;
+  try { localStorage.setItem('10nis-tension-unit', u); } catch (e) {}
+  render();
+}
+function viewGearForm() {
+  const mode = page.kind === 'gearstring' ? 'string' : page.slug ? 'edit' : 'new';
+  if (page.slug && !racketById(page.slug)) return viewGearDetail();   // loading, or not found
+  if (!gf || gf.mode !== mode || (page.slug && gf.id !== page.slug)) gf = gearForm(mode, page.slug);
+  if (!gearCat) loadGearCat();
+  const r = racketById(gf.id);
+  document.title = `${mode === 'string' ? 'Senar baru' : mode === 'edit' ? 'Ubah raket' : 'Tambah raket'} · 10nis`;
+  const tin = (k, ph) => `<input type="number" inputmode="decimal" step="0.5" min="5" max="90" class="linkin" placeholder="${ph}" value="${esc(gf[k] ?? '')}" oninput="gf.${k} = this.value">`;
+  return `
+  <p class="kicker">Gear</p>
+  <h1 class="title">${mode === 'string' ? 'Senar baru' : mode === 'edit' ? 'Ubah raket' : 'Tambah raket'}</h1>
+  <p class="sub">${mode === 'string' ? `${esc(racketName(r))}. Senar lama masuk riwayat.` : 'Pilih dari daftar, atau ketik sendiri kalau nggak ada.'}</p>
+  ${mode === 'string' ? '' : `<div class="sec-head"><p class="label">Raket</p></div>
+  <div class="card">${pickerHTML('racket')}
+    <div class="fld"><span class="label">Nama panggilan (opsional)</span><input class="linkin" maxlength="40" placeholder="Contoh: Raket utama" value="${esc(gf.nickname)}" oninput="gf.nickname = this.value"></div></div>`}
+  <div class="sec-head"><p class="label">Senar</p></div>
+  <div class="card">${pickerHTML('string')}
+    <label class="check"><input type="checkbox" ${gf.hybrid ? 'checked' : ''} onchange="gf.hybrid = this.checked; render()">Hybrid: senar cross beda</label>
+    ${gf.hybrid ? `<div class="fld"><span class="label">Senar cross</span>${pickerHTML('cross')}</div>` : ''}
+    <div class="fld"><span class="label">Ketebalan (gauge / mm)</span><div class="chips">${GAUGES.map(([g, us]) => `<button class="tagchip gchip ${gf.gauge === g ? 'on' : ''}" onclick="gf.gauge = gf.gauge === '${g}' ? null : '${g}'; render()"><b>${us}</b> / ${g}</button>`).join('')}</div>
+      <p class="muted" style="font-size:12.5px;margin:6px 0 0">Angka besar = senar lebih tipis. Paling umum 16 / 1.30 dan 16L / 1.25.</p></div>
+    <div class="fld"><span class="label">Tension</span>
+      <div class="seg">${['kg', 'lbs'].map(u => `<button class="${gf.tension_unit === u ? 'on' : ''}" onclick="setTensionUnit('${u}')">${u}</button>`).join('')}</div>
+      <div class="coachrow" style="grid-template-columns:1fr 1fr"><label><span class="label">Main</span>${tin('tension_main', gf.tension_unit === 'lbs' ? '50' : '23')}</label>
+        <label><span class="label">Cross</span>${tin('tension_cross', 'Sama')}</label></div></div>
+    <div class="fld"><span class="label">Tanggal pasang senar</span><input type="date" class="linkin" max="${todayISO()}" value="${esc(gf.strung_on || '')}" oninput="gf.strung_on = this.value"></div></div>
+  <button class="btn primary big" style="margin-top:18px" onclick="saveGearForm()">${ic('racket')}${mode === 'string' ? 'Simpan senar baru' : 'Simpan raket'}</button>
+  <div class="row" style="justify-content:center;margin-top:10px"><button class="btn text" onclick="cancelGearForm()">Batal</button></div>
+  ${LEGAL}`;
+}
+function saveGearForm() {
+  const f = gf, old = racketById(f.id);
+  // A name typed but not confirmed from the list still counts.
+  ['racket', 'string', 'cross'].forEach(k => { if (!f[PICK[k].name] && f.q[k].trim() && (k !== 'cross' || f.hybrid)) { gf = f; gearPickCustom(k); } });
+  if (f.mode !== 'string' && !f.name) { toast('Pilih atau ketik raket kamu dulu'); return; }
+  if (f.mode === 'string' && !f.string_name) { toast('Pilih atau ketik senarnya dulu'); return; }
+  const num = v => { const n = parseFloat(String(v ?? '').replace(',', '.')); return n >= 5 && n <= 90 ? Math.round(n * 2) / 2 : null; };
+  const main = num(f.tension_main), hy = f.hybrid && f.cross_name;
+  const str = {string_id: f.string_id || null, string_name: f.string_name || null, string_type: f.string_name ? f.string_type || 'poly' : null,
+    cross_id: hy ? f.cross_id || null : null, cross_name: hy ? f.cross_name : null, cross_type: hy ? f.cross_type || 'poly' : null,
+    gauge: f.gauge || null, tension_main: main, tension_cross: main ? num(f.tension_cross) ?? main : null, tension_unit: f.tension_unit,
+    strung_on: /^\d{4}-\d{2}-\d{2}$/.test(f.strung_on || '') ? f.strung_on : f.string_name ? todayISO() : null};
+  const r = old ? {...old} : {id: f.id, created_at: new Date().toISOString(), restrings: []};
+  if (f.mode === 'string' && (old.string_name || old.strung_on))
+    r.restrings = [{...Object.fromEntries(STR_KEYS.map(k => [k, old[k] ?? null])), until: str.strung_on}, ...(old.restrings || [])].slice(0, 30);
+  Object.assign(r, str);
+  if (f.mode !== 'string') Object.assign(r, {model_id: f.model_id || null, name: f.name.slice(0, 80), nickname: (f.nickname || '').trim().slice(0, 40) || null});
+  r.dirty = true;
+  const i = rackets.findIndex(x => x.id === r.id);
+  if (i >= 0) rackets[i] = r; else rackets.unshift(r);
+  saveGear();
+  if (!old) { track('gear_add', {catalog: !!r.model_id, string: !!r.string_name}); try { localStorage.setItem('10nis-last-racket', r.id); } catch (e) {} }
+  if (f.mode === 'string') track('gear_restring', {catalog: !!r.string_id, type: r.string_type});
+  gf = null;
+  page = {kind: 'geardetail', slug: r.id};
+  history.replaceState(null, '', pagePath());
+  render(); window.scrollTo(0, 0); toast('Tersimpan');
+}
+function racketCard(r) {
+  return `<div class="card rcard" role="button" tabindex="0" onclick="goPage('geardetail', '${r.id}')">
+    <div class="rtop">${gearPic('rackets', r.model_id)}
+      <span class="grow"><b>${esc(racketName(r))}</b>${r.nickname ? `<small>${esc(r.name)}</small>` : ''}
+        <small>${esc([stringText(r), gaugeText(r.gauge), tensionText(r)].filter(Boolean).join(' · ') || 'Senar belum diisi')}</small></span>${ic('arrow')}</div>
+    ${wearBlock(r, true)}</div>`;
+}
+function viewGear() {
+  document.title = 'Gear · 10nis';
+  if (!gearCat) loadGearCat();
+  if (!rackets.length) return `<p class="kicker">Gear</p><h1 class="title">Raket kamu</h1>
+    <div class="empty"><div class="orb">${ic('racket')}</div><h3>Belum ada raket</h3>
+      Catat raket dan senarnya: tension, kapan dipasang, dan kapan waktunya ganti senar.
+      <div style="margin-top:16px"><button class="btn primary" onclick="gf = null; goPage('gearform')">${ic('plus')}Tambah raket</button></div></div>${LEGAL}`;
+  return `
+  <p class="kicker">Gear</p>
+  <h1 class="title">Raket kamu</h1>
+  <p class="sub">Tension, umur senar, dan kapan waktunya ganti.</p>
+  ${rackets.map(racketCard).join('')}
+  <button class="btn primary big" onclick="gf = null; goPage('gearform')">${ic('plus')}Tambah raket</button>
+  <div class="sec-head"><p class="label">Biasanya main berapa jam per sesi?</p></div>
+  <div class="seg">${[1, 1.5, 2, 3].map(h => `<button class="${gearHrs() === h ? 'on' : ''}" onclick="setGearHrs(${h})">${fmtNum(h)} jam</button>`).join('')}</div>
+  <p class="muted" style="font-size:12.5px;margin:4px 2px 0">Umur senar dihitung dari sesi Main yang pakai raket ini × jam per sesi, atau dari minggu sejak senar dipasang, mana yang duluan.
+    Patokan: poly ±${STRING_LIFE.poly.h} jam, hybrid ±${STRING_LIFE.hybrid.h} jam, multifilamen & synthetic gut ±${STRING_LIFE.multi.h} jam, natural gut ±${STRING_LIFE.gut.h} jam.</p>
+  ${LEGAL}`;
+}
+function viewGearDetail() {
+  const r = racketById(page.slug);
+  if (!r) {
+    if (user && !loadPlays.tried) { loadPlays.tried = true; loadPlays(); return '<p class="muted" style="padding:20px 4px">Memuat…</p>'; }
+    return view404();
+  }
+  if (!gearCat) loadGearCat();
+  const spec = catItem('rackets', r.model_id), w = wearOf(r), hist = r.restrings || [];
+  const specs = spec ? [spec.head && `${spec.head} sq in`, spec.weight && `${spec.weight} g`, spec.pattern].filter(Boolean).join(' · ') : '';
+  const total = diary.filter(p => p.racket_id === r.id).length, t = tensionText(r);
+  document.title = `${racketName(r)} · 10nis`;
+  return `
+  <button class="backlink" onclick="goPage('gear')">← Raket kamu</button>
+  <div class="ghead">${gearPic('rackets', r.model_id, 'ghero')}
+    <div class="grow"><h1 class="gname">${esc(racketName(r))}</h1>
+      ${r.nickname ? `<p class="gsub">${esc(r.name)}</p>` : ''}${specs ? `<p class="gsub">${esc(specs)}</p>` : ''}
+      ${total ? `<p class="gsub">${total} sesi main</p>` : ''}</div></div>
+  <div class="card"><p class="label">Senar sekarang</p>
+    ${r.string_name || r.strung_on ? `<div class="rtop">${r.string_id ? gearPic('strings', r.string_id, 'rthumb sm') : ''}
+      <span class="grow"><b>${esc(stringText(r) || 'Senar')}</b><small>${esc([typeLabel(r), gaugeText(r.gauge)].filter(Boolean).join(' · '))}</small></span>
+      ${t ? `<span class="gten"><b>${esc(t.replace(/ (kg|lbs)$/, ''))}</b><small>${r.tension_unit || 'kg'}</small></span>` : ''}</div>
+    ${wearBlock(r, false)}` : '<p class="muted" style="margin:0 0 12px">Senar belum diisi.</p>'}
+    <button class="btn full ${w && w.level !== 'ok' ? 'primary' : 'soft'}" onclick="gf = null; goPage('gearstring', '${r.id}')">${ic('racket')}Pasang senar baru</button></div>
+  ${hist.length ? `<details class="ghist"><summary>Riwayat senar (${hist.length})</summary>
+    <div class="card glist">${hist.map(s => `<div class="grow-row">${s.string_id ? gearPic('strings', s.string_id, 'rthumb sm') : ''}
+      <span class="grow"><b>${esc(stringText(s) || 'Senar')}</b><small>${esc([gaugeText(s.gauge), tensionText(s),
+        s.strung_on ? `${shortDay(s.strung_on)}${s.until ? ` – ${shortDay(s.until)}` : ''}` : ''].filter(Boolean).join(' · '))}</small></span></div>`).join('')}</div></details>` : ''}
+  <div class="glinks"><button class="btn text" onclick="gf = null; goPage('gearform', '${r.id}')">${ic('pen')}Ubah raket</button>
+    <button class="btn text danger" onclick="deleteRacket('${r.id}')">Hapus</button></div>
+  ${LEGAL}`;
+}
+function deleteRacket(id) {
+  const r = racketById(id);
+  if (!r || !confirm('Hapus raket ini dan riwayat senarnya?')) return;
+  rackets = rackets.filter(x => x.id !== id); saveGear();
+  if (user) sb.from('rackets').delete().eq('id', id).then(() => {}, () => {});
+  goPage('gear');
+}
+
 // ---------- routes ----------
 // Each tab has its own address, so Android's Back button moves between tabs instead of leaving 10nis and a
 // tab can be linked to. /j/, /s/ and /p/ links are handled below; /latihan is the practice library.
 const TAB_PATH = {players: '/mabar/pemain', rounds: '/mabar/ronde', standings: '/mabar/klasemen', results: '/mabar/hasil',
   join: '/mabar/gabung', account: '/saya'};
 const PATH_TAB = Object.fromEntries(Object.entries(TAB_PATH).map(([t, p]) => [p, t]));
-let page = null;   // null: the mixer tabs (Mabar, Saya). Else {kind: beranda | mulai | catat | ringkasan | coaching | coachingdetail | latihan | 404, slug}
+let page = null;   // null: the mixer tabs (Mabar, Saya). Else {kind: beranda | mulai | catat | ringkasan | coaching | coachingdetail | gear | geardetail | gearform | gearstring | latihan | 404, slug}
 const MABAR_TABS = ['players', 'rounds', 'standings', 'results', 'join'];
 function route() {
   const path = location.pathname.replace(/\/+$/, '') || '/';
   const m = path.match(/^\/latihan(?:\/([a-z0-9-]+))?$/), c = path.match(/^\/catat(?:\/([0-9a-f-]{36}))?$/);
   const ls = path.match(/^\/coaching(?:\/([0-9a-f-]{36})(\/ubah)?)?$/);
+  const gr = path.match(/^\/gear(?:\/(baru|[0-9a-f-]{36})(?:\/(ubah|senar))?)?$/);
   page = PATH_TAB[path] || /^\/[jsp]\//.test(path + '/') ? null
     : path === '/mabar' ? (S.tab = MABAR_TABS.includes(S.tab) ? S.tab : 'players', null)
     : m ? {kind: 'latihan', slug: m[1] || null}
     : c ? (c[1] ? {kind: 'ringkasan', slug: c[1]} : {kind: 'catat'})
     : ls ? (ls[1] ? {kind: ls[2] ? 'coaching' : 'coachingdetail', slug: ls[1]} : {kind: 'coaching'})
+    : gr && !(gr[1] === 'baru' && gr[2]) ? (!gr[1] ? {kind: 'gear'} : gr[1] === 'baru' ? {kind: 'gearform'}
+      : {kind: {ubah: 'gearform', senar: 'gearstring'}[gr[2]] || 'geardetail', slug: gr[1]})
     : path === '/mulai' ? {kind: 'mulai'}
     // First visit, nothing on this phone: onboarding. Someone following a game PIN goes straight to it.
     : path === '/' ? (follow.pin ? null : FIRST_VISIT && !onboard && !diary.length ? {kind: 'mulai'} : {kind: 'beranda'})
@@ -2197,15 +2540,16 @@ function route() {
 const pagePath = () => !page ? TAB_PATH[S.tab] || '/mabar/pemain'
   : {beranda: '/', mulai: '/mulai', catat: '/catat', ringkasan: '/catat/' + page.slug,
      latihan: '/latihan' + (page.slug ? '/' + page.slug : ''), coaching: '/coaching' + (page.slug ? `/${page.slug}/ubah` : ''),
-     coachingdetail: '/coaching/' + page.slug}[page.kind] || location.pathname;
-// Bottom bar: Beranda · Main · Mabar · Saya. The /latihan pages have no tab: coaching cards and Threads posts link to them.
+     coachingdetail: '/coaching/' + page.slug, gear: '/gear', geardetail: '/gear/' + page.slug,
+     gearform: page.slug ? `/gear/${page.slug}/ubah` : '/gear/baru', gearstring: `/gear/${page.slug}/senar`}[page.kind] || location.pathname;
+// Bottom bar: Beranda · Gear · Main · Mabar · Saya. The /latihan pages have no tab: coaching cards and Threads posts link to them.
 function goNav(n) {
   if (n === 'mabar') goTab(MABAR_TABS.includes(S.tab) ? S.tab : 'players');
   else if (n === 'saya') goTab('account');
   else if (n === 'beranda' && (!onboard || !onboard.done) && !diary.length) { ob = null; goPage('mulai'); }
   else goPage(n);
 }
-const navNow = () => claimView ? '' : page ? ({mulai: 'beranda', ringkasan: 'catat', coaching: 'beranda', coachingdetail: 'beranda', latihan: '', '404': ''}[page.kind] ?? page.kind)
+const navNow = () => claimView ? '' : page ? ({mulai: 'beranda', ringkasan: 'catat', coaching: 'beranda', coachingdetail: 'beranda', geardetail: 'gear', gearform: 'gear', gearstring: 'gear', latihan: '', '404': ''}[page.kind] ?? page.kind)
   : S.tab === 'account' ? 'saya' : 'mabar';
 function goPage(kind, slug = null) {
   if (claimView) leaveClaim();
@@ -2347,6 +2691,7 @@ const ICONS = {
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  racket: '<ellipse cx="9" cy="9" rx="7" ry="5.5" transform="rotate(45 9 9)"/><path d="m14 14 7 7M6.5 6.5l5 5M9 4.6l-4.4 4.4M13.4 9 9 13.4"/>',
   ball: '<circle cx="12" cy="12" r="9.5"/><path d="M5.5 5.2c3.4 3.8 3.4 9.8 0 13.6M18.5 5.2c-3.4 3.8-3.4 9.8 0 13.6"/>',
 };
 const ic = n => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
@@ -3869,7 +4214,8 @@ function render() {
     document.body.classList.remove('player-mode');
     const op = openPlay();
     document.getElementById('status').innerHTML = op && page.kind !== 'catat' ? `<i></i>Lagi main · ${(r => `${r.w} menang, ${r.l} kalah`)(wl(op.games))}` : '';
-    document.getElementById('view').innerHTML = {beranda: viewBeranda, mulai: viewMulai, catat: viewCatat, ringkasan: viewRingkasan, latihan: viewLatihan, coaching: viewCoaching, coachingdetail: viewCoachingDetail}[page.kind]?.() ?? view404();
+    document.getElementById('view').innerHTML = {beranda: viewBeranda, mulai: viewMulai, catat: viewCatat, ringkasan: viewRingkasan, latihan: viewLatihan, coaching: viewCoaching, coachingdetail: viewCoachingDetail,
+      gear: viewGear, geardetail: viewGearDetail, gearform: viewGearForm, gearstring: viewGearForm}[page.kind]?.() ?? view404();
     if (page.kind === 'ringkasan') drawPlayPreview();
     document.getElementById('dock').innerHTML = page.kind === 'catat' && op ? `<div class="dock"><div class="in">
         <button class="btn primary grow" onclick="openGameSheet()">${ic('plus')}Catat game</button></div></div>` : '';
