@@ -547,7 +547,7 @@ details.past .match{box-shadow:none}
 .wear{height:10px;border-radius:99px;background:var(--surface-2);border:2px solid var(--edge);overflow:hidden;margin:14px 0 8px}
 .wear i{display:block;height:100%;background:var(--green)}
 .wear.amber i{background:#f5a524}.wear.red i{background:var(--warn)}
-.wearline{margin:0 0 10px;font-size:13px}.wearline b{display:block}.wearline span{color:var(--muted);font-weight:600}
+.wearline{margin:0 0 10px;font-size:13px}.wearline b{display:block}.wearline span{color:var(--muted);font-weight:600}.wearline .wtip{display:block;margin-top:4px;font-weight:500}
 .tension{margin:12px 0 0}.tension b.num{font-size:34px;font-weight:900;font-stretch:72%}.tension small{margin-left:8px;color:var(--muted);font-weight:700}
 
 .upd{position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top));z-index:30;max-width:560px;margin:0 auto;display:flex;align-items:center;gap:10px;
@@ -576,7 +576,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.12.0';
+const APP_VERSION = '0.12.1';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2280,22 +2280,26 @@ function lastRacket() {
   return a.some(r => r.id === id) ? id : id === '' ? '' : (a[0] || {}).id || '';
 }
 function setRacket(id) { try { localStorage.setItem('10nis-last-racket', id); } catch (e) {} render(); }
-const gearHrs = () => { const v = +readJSON('10nis-gear-hrs', 2); return [1, 1.5, 2, 3].includes(v) ? v : 2; };
-function setGearHrs(v) { try { localStorage.setItem('10nis-gear-hrs', JSON.stringify(v)); } catch (e) {} render(); }
+// Hours played in an average week, set once in Gear (never timed). String wear = weeks since stringing × this.
+const GEAR_WK = [2, 4, 6, 8, 12];
+const gearHrs = () => { const v = +readJSON('10nis-gear-wk', 4); return GEAR_WK.includes(v) ? v : 4; };
+function setGearHrs(v) { try { localStorage.setItem('10nis-gear-wk', JSON.stringify(v)); } catch (e) {} render(); }
 function wearOf(r) {
   if (!r.strung_on) return null;
   const since = new Date(r.strung_on + 'T00:00:00');
   const n = diary.filter(p => p.racket_id === r.id && new Date(p.started_at) >= since).length;
-  const days = Math.max(0, Math.floor((Date.now() - since) / 864e5)), life = lifeOf(r), hrs = n * gearHrs();
+  const days = Math.max(0, Math.floor((Date.now() - since) / 864e5)), life = lifeOf(r), hrs = Math.round(days / 7 * gearHrs());
   const pct = Math.max(hrs / life.h, days / 7 / life.w);
   return {n, hrs, days, life, pct, level: pct >= 1 ? 'red' : pct >= .8 ? 'amber' : 'ok'};
 }
 function wearBlock(r, withBtn) {
   const w = wearOf(r);
   if (!w) return '<p class="muted" style="margin:12px 0 0;font-size:13px">Tanggal pasang senar belum diisi.</p>';
-  const msg = w.level === 'red' ? 'Waktunya ganti senar' : w.level === 'amber' ? 'Senar mulai mati, siap-siap ganti' : 'Senar masih oke';
+  const msg = w.level === 'red' ? 'Senar kemungkinan sudah mati' : w.level === 'amber' ? 'Tension senar mulai turun' : 'Senar masih segar';
+  const tip = w.level === 'red' ? 'Bola terasa liar atau spin berkurang? Itu tanda senar perlu diganti.'
+    : w.level === 'amber' ? 'Mulai rencanakan pasang senar baru.' : '';
   return `<div class="wear ${w.level}"><i style="width:${Math.max(3, Math.min(100, Math.round(w.pct * 100)))}%"></i></div>
-    <p class="wearline"><b>${msg}</b><span>~${fmtNum(w.hrs)} / ${w.life.h} jam main · dipasang ${esc(shortDay(r.strung_on))} (${agoText(w.days)})</span></p>
+    <p class="wearline"><b>${msg}</b><span>~${fmtNum(w.hrs)} / ${w.life.h} jam main · dipasang ${esc(shortDay(r.strung_on))} (${agoText(w.days)})</span>${tip ? `<span class="wtip">${tip}</span>` : ''}</p>
     ${withBtn && w.level === 'red' ? `<button class="btn sm primary" onclick="event.stopPropagation(); goPage('gearstring', '${r.id}')">${ic('racket')}Pasang senar baru</button>` : ''}`;
 }
 
@@ -2464,9 +2468,9 @@ function viewGear() {
   <p class="sub">Tension, umur senar, dan kapan waktunya ganti.</p>
   ${rackets.map(racketCard).join('')}
   <button class="btn primary big" onclick="gf = null; goPage('gearform')">${ic('plus')}Tambah raket</button>
-  <div class="sec-head"><p class="label">Biasanya main berapa jam per sesi?</p></div>
-  <div class="seg">${[1, 1.5, 2, 3].map(h => `<button class="${gearHrs() === h ? 'on' : ''}" onclick="setGearHrs(${h})">${fmtNum(h)} jam</button>`).join('')}</div>
-  <p class="muted" style="font-size:12.5px;margin:4px 2px 0">Umur senar dihitung dari sesi Main yang pakai raket ini × jam per sesi, atau dari minggu sejak senar dipasang, mana yang duluan.
+  <div class="sec-head"><p class="label">Dalam 1 minggu, rata-rata main berapa jam?</p></div>
+  <div class="seg">${GEAR_WK.map(h => `<button class="${gearHrs() === h ? 'on' : ''}" onclick="setGearHrs(${h})">${h === 12 ? '12+' : h}</button>`).join('')}</div>
+  <p class="muted" style="font-size:12.5px;margin:4px 2px 0">Jam main = minggu sejak senar dipasang × jam per minggu. Senar poly juga kendor walau jarang dipakai, jadi umur senar juga dibatasi minggu (poly ±${STRING_LIFE.poly.w} minggu), mana yang duluan.
     Patokan: poly ±${STRING_LIFE.poly.h} jam, hybrid ±${STRING_LIFE.hybrid.h} jam, multifilamen & synthetic gut ±${STRING_LIFE.multi.h} jam, natural gut ±${STRING_LIFE.gut.h} jam.</p>
   ${LEGAL}`;
 }
