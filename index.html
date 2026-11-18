@@ -166,6 +166,8 @@ textarea:focus,.linkin:focus,.pinin:focus{box-shadow:3px 3px 0 var(--lime)}
   border:2px solid var(--edge);background:var(--board);color:#fff;box-shadow:3px 3px 0 var(--lime);font:inherit;transition:transform .06s,box-shadow .06s}
 .pinbar:active{transform:translate(3px,3px);box-shadow:none}
 .pinbar .label{margin:0;color:rgba(255,255,255,.6)}
+.closednote{cursor:default;align-items:flex-start}.closednote:active{transform:none;box-shadow:3px 3px 0 var(--lime)}
+.closednote small{display:block;margin:2px 0 8px;color:rgba(255,255,255,.75);font-weight:500}.closednote .btn{flex:none}
 .pinbar b.num{font-size:26px;font-weight:900;font-stretch:72%;letter-spacing:.08em;color:var(--lime);line-height:1}
 .pinbar .ic{color:var(--lime)}
 .pinbar.ghost{background:var(--surface);color:var(--text);box-shadow:3px 3px 0 var(--hard)}
@@ -576,7 +578,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.12.2';
+const APP_VERSION = '0.12.3';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -602,9 +604,20 @@ function load() {
   try { const v = JSON.parse(localStorage.getItem(KEY)); return v && Array.isArray(v.players) ? v : null; }
   catch (e) { return null; }
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} queueSync(); }
+// S.changedAt: when the open mabar last changed (rounds, scores, title). Tab switches and sorting also save, so
+// they are told apart by a signature. After 3 idle days the game closes itself (autoCloseIdle).
+const mabarSig = () => S.rounds.length ? JSON.stringify([S.rounds, S.title, S.venue, S.startsAt]) : '';
+function save() {
+  const sig = mabarSig();
+  if (sig !== save.sig) { if (sig) S.changedAt = new Date().toISOString(); save.sig = sig; }
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+  queueSync();
+}
 const FIRST_VISIT = !load();   // nothing saved on this phone yet
 let S = Object.assign(defaultState(), load() || {});
+save.sig = mabarSig();
+// Games open from before 0.12.3 have no changedAt: count from the day they were played, or from now.
+if (S.rounds.length && !S.changedAt) S.changedAt = S.playedOn ? new Date(S.playedOn + 'T23:59').toISOString() : new Date().toISOString();
 S.total = 0; // "Games / match" (score autofill) is hidden for now, so it is off for everyone
 setTimeout(() => { if (dedupeRoster()) { save(); render(); } });
 
@@ -1096,6 +1109,43 @@ function closeSession(tab = 'players') {
   S.tab = tab; save(); render(); window.scrollTo(0, 0);
 }
 const newSession = finishSession;
+// A mabar left open for 3 days with no changes closes itself, like tapping Finish without the questions: unscored
+// matches are dropped, the results go to the log (or stay on this phone until it has an account) and the PIN is
+// turned off. Runs when the app opens or comes back; the host gets a notice on Beranda and Mabar (S.autoClosed).
+const IDLE_CLOSE = 3 * 864e5;
+async function autoCloseIdle() {
+  if (!S.rounds.length || autoCloseIdle.busy || Date.now() - Date.parse(S.changedAt || 0) < IDLE_CLOSE) return;
+  autoCloseIdle.busy = true;
+  try {
+    if (sb) await Promise.race([authKnown, new Promise(r => setTimeout(r, 4000))]);
+    if (!user && navigator.onLine) await ensureUser(true);
+    const rounds = S.rounds, finished = S.finishedAt, title = S.title || null, sid = S.sessionId, pin = S.pin;
+    S.rounds = rounds.map(rd => ({...rd, matches: rd.matches.filter(hasScore)})).filter(rd => rd.matches.length);
+    const n = S.rounds.length;
+    if (user && (n || sid)) {
+      S.finishedAt = finished || new Date().toISOString();
+      if (!(await syncSession(true))) { S.rounds = rounds; S.finishedAt = finished; return; }   // offline: try next time
+    }
+    if (user && pin && sid) sb.rpc('drop_pin', {sid}).then(() => {}, () => {});
+    track('finish', {rounds: n, auto: true});
+    S.last = n ? {id: user ? S.sessionId : null, title, playedOn: S.playedOn || today(), players: S.players, rounds: S.rounds} : S.last;
+    S.autoClosed = {title, rounds: n, on: today()};
+    const tab = S.tab, at = window.scrollY;
+    closeSession(tab === 'results' && !n ? 'standings' : tab);
+    window.scrollTo(0, at);
+  } finally { autoCloseIdle.busy = false; }
+}
+function closedNote(id) {
+  const c = S.autoClosed;
+  if (!c) return '';
+  const name = c.title ? `“${esc(c.title)}”` : '';
+  const text = id
+    ? `Mabar ${name} ditutup otomatis karena 3 hari tidak ada perubahan.${c.rounds ? ` ${c.rounds} ronde tersimpan di log.` : ' Belum ada skor, jadi tidak ada yang disimpan.'}`
+    : `Your mabar ${name} was closed automatically after 3 days with no changes.${c.rounds ? ` ${plural(c.rounds, 'round')} saved to your log.` : ' It had no scores, so nothing was saved.'}`;
+  return `<div class="pinbar closednote"><span class="grow"><b>${id ? 'Mabar ditutup' : 'Mabar closed'}</b><small>${text}</small>
+      ${c.rounds && S.last ? `<button class="btn sm soft" onclick="S.autoClosed = null; goTab('results')">${id ? 'Lihat hasil' : 'See results'}</button>` : ''}</span>
+    <button class="btn sm soft" aria-label="${id ? 'Tutup' : 'Dismiss'}" onclick="S.autoClosed = null; save(); render()">${ic('x')}</button></div>`;
+}
 async function resetAll() {
   if (!confirm('Reset the mixer on this phone back to 4 default players? The current roster and courts are cleared here. Sessions already in your log stay.')) return;
   // Log the open session (and any unsaved results) first, so a reset never loses scores.
@@ -2622,7 +2672,8 @@ async function updateNow() {
   try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch (e) {}
   location.reload();
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { checkVersion(); autoCloseIdle(); } });
+setTimeout(autoCloseIdle, 1500);
 window.addEventListener('online', checkVersion);
 setTimeout(checkVersion, 4000);
 async function installApp() {
@@ -4221,7 +4272,7 @@ function render() {
     document.body.classList.remove('player-mode');
     const op = openPlay();
     document.getElementById('status').innerHTML = op && page.kind !== 'catat' ? `<i></i>Lagi main · ${(r => `${r.w} menang, ${r.l} kalah`)(wl(op.games))}` : '';
-    document.getElementById('view').innerHTML = {beranda: viewBeranda, mulai: viewMulai, catat: viewCatat, ringkasan: viewRingkasan, latihan: viewLatihan, coaching: viewCoaching, coachingdetail: viewCoachingDetail,
+    document.getElementById('view').innerHTML = (page.kind === 'beranda' ? closedNote(true) : '') + {beranda: viewBeranda, mulai: viewMulai, catat: viewCatat, ringkasan: viewRingkasan, latihan: viewLatihan, coaching: viewCoaching, coachingdetail: viewCoachingDetail,
       gear: viewGear, geardetail: viewGearDetail, gearform: viewGearForm, gearstring: viewGearForm}[page.kind]?.() ?? view404();
     if (page.kind === 'ringkasan') drawPlayPreview();
     document.getElementById('dock').innerHTML = page.kind === 'catat' && op ? `<div class="dock"><div class="in">
@@ -4239,7 +4290,7 @@ function render() {
   // Mabar: Pemain · Ronde · Klasemen · Gabung on top, the bottom bar stays for the whole app.
   const seg = MABAR_TABS.includes(S.tab) ? `<div class="seg mseg">${[['players', 'Pemain'], ['rounds', 'Ronde'], ['standings', 'Klasemen'], ['join', 'Gabung']]
     .map(([t, l]) => `<button class="${(S.tab === 'results' ? 'standings' : S.tab) === t ? 'on' : ''}" onclick="goTab('${t}')">${l}</button>`).join('')}</div>` : '';
-  document.getElementById('view').innerHTML = pm ? viewJoin() : seg + (
+  document.getElementById('view').innerHTML = pm ? viewJoin() : seg + (MABAR_TABS.includes(S.tab) ? closedNote(false) : '') + (
     S.tab === 'rounds' ? viewRounds() : S.tab === 'standings' || S.tab === 'results' ? viewStandings() : S.tab === 'account' ? viewAccount()
     : S.tab === 'join' ? viewJoin() : viewPlayers());
   if (S.pin && pinOpen && document.getElementById('pinqr')) drawQR('pinqr', `${APP_URL}/j/${S.pin}`);
