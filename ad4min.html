@@ -87,6 +87,18 @@ input.code{font-size:34px;font-weight:900;font-stretch:72%;letter-spacing:.3em;t
 .chart .hit:hover + .bar,.chart .bar.on{fill:var(--text)}
 .chart .axis{stroke:var(--line);stroke-width:1}
 .chart text{fill:var(--muted);font-size:10px;font-weight:600}
+/* dashboard v2 */
+.decide{display:flex;gap:18px;flex-wrap:wrap}.decide .grow{min-width:220px}
+.decide .k{margin:0;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.decide .big{margin:4px 0;font-size:18px;font-weight:700;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.decide .big b{font-size:44px;font-weight:900;font-stretch:72%;line-height:1;font-variant-numeric:tabular-nums}
+.delta{font-size:12.5px;font-weight:800;color:var(--muted)}.delta.up{color:var(--green)}.delta.down{color:var(--warn)}
+.h3{margin:16px 0 8px;font-size:14px;font-weight:800}
+.cohort td{white-space:nowrap}.cohort td.na{color:var(--faint)}.cohort small{color:var(--muted)}
+.heat{display:inline-block;min-width:44px;text-align:center;padding:2px 6px;border-radius:6px;font-weight:800;
+  background:color-mix(in srgb, var(--green) calc(var(--p) * .55%), var(--surface-2))}
+.hbar small{font-weight:600}
+.tech summary{font-size:13px}
 .tip{position:fixed;z-index:30;pointer-events:none;background:var(--board);color:#fff;border:2px solid var(--lime);border-radius:10px;padding:6px 10px;font-size:12.5px;font-weight:700;display:none;white-space:nowrap}
 /* lists */
 .list{display:flex;flex-direction:column;gap:8px}
@@ -205,9 +217,10 @@ async function signOut() { await sb.auth.signOut({scope: 'local'}); user = null;
 // ---------- data ----------
 async function load() {
   if (tab === 'overview') {
-    const [{data, error}, br, pl] = await Promise.all([sb.rpc('admin_stats'), sb.rpc('admin_browsers', {days: 30}), sb.rpc('admin_play_stats')]);
+    const [{data, error}, br, pl, tr] = await Promise.all([sb.rpc('admin_stats'), sb.rpc('admin_browsers', {days: 30}), sb.rpc('admin_play_stats'),
+      sb.rpc('admin_traction')]);
     if (error) return fail(error);
-    stats = {...data, browsers: br.error ? null : br.data, play: pl.error ? null : pl.data}; render();
+    stats = {...data, browsers: br.error ? null : br.data, play: pl.error ? null : pl.data, traction: tr.error ? null : tr.data}; render();
   } else if (tab !== 'tools') await loadList(tab, true);
 }
 async function loadList(kind, fresh) {
@@ -326,110 +339,191 @@ function tip(e) {
 const TAG_ID = {servis: 'Servis', return: 'Return', forehand: 'Forehand', backhand: 'Backhand', volley: 'Volley/net', footwork: 'Footwork',
   posisi: 'Posisi', error: 'Error sendiri', mental: 'Fokus/mental', fisik: 'Fisik/capek'};
 const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
-// One Fase 1 gate: the measured value against its target (from 06 - Main Sendiri in the product notes).
-const gateCard = (k, value, target, unit, detail) => {
-  const ok = value >= target, w = Math.min(100, target ? value / target * 100 : 0);
-  return `<div class="fgate ${ok ? 'ok' : ''}"><div class="k">${esc(k)}</div>
-    <div class="v"><b>${fmt(value)}${unit}</b><span>target ${fmt(target)}${unit}</span></div>
-    <div class="bar2"><i style="width:${w}%"></i></div><div class="st">${ok ? 'Tercapai' : 'Belum'}${detail ? ` · ${esc(detail)}` : ''}</div></div>`;
+// The five Fase 1 gates, with their targets (from 06 - Main Sendiri in the product notes).
+function gates(d) {
+  return [
+    {k: 'Pemain yang menyelesaikan sesi diary', v: d.players, t: 30, u: '', s: `${fmt(d.players_7d)} minggu ini`},
+    {k: 'Sesi dengan 3+ game', v: pct(d.sessions_3plus, d.finished), t: 50, u: '%', s: `${fmt(d.sessions_3plus)} dari ${fmt(d.finished)}`},
+    d.sessions_tagged != null
+      ? {k: 'Sesi dengan tag bagus/kurang', v: pct(d.sessions_tagged, d.finished), t: 70, u: '%', s: `${fmt(d.sessions_tagged)} dari ${fmt(d.finished)}`}
+      : {k: 'Game dengan tag bagus/kurang', v: pct(d.games_tagged, d.games), t: 70, u: '%', s: `${fmt(d.games_tagged)} dari ${fmt(d.games)}`},
+    {k: 'Pemain kembali untuk sesi ke-2', v: pct(d.returning, d.players), t: 30, u: '%', s: `${fmt(d.returning)} dari ${fmt(d.players)}`},
+    {k: 'Ringkasan dibagikan', v: pct(d.shares, d.finished), t: 20, u: '%', s: `${fmt(d.shares)} kali`}];
+}
+const gateCard = g => {
+  const ok = g.v >= g.t, w = Math.min(100, g.t ? g.v / g.t * 100 : 0);
+  return `<div class="fgate ${ok ? 'ok' : ''}"><div class="k">${esc(g.k)}</div>
+    <div class="v"><b>${fmt(g.v)}${g.u}</b><span>target ${fmt(g.t)}${g.u}</span></div>
+    <div class="bar2"><i style="width:${w}%"></i></div><div class="st">${ok ? 'Tercapai' : 'Belum'} · ${esc(g.s)}</div></div>`;
 };
 const hbars = (rows, label) => {
   const max = Math.max(1, ...rows.map(r => r.n));
   return rows.length ? `<div class="hbars">${rows.map(r => `<div class="hbar"><span>${esc(r.l)}</span><span class="t"><i style="width:${r.n / max * 100}%"></i></span>
     <span class="n">${fmt(r.n)}${r.sub ? ` <small>${esc(r.sub)}</small>` : ''}</span></div>`).join('')}</div>` : `<p class="muted small">${esc(label)}</p>`;
 };
-function viewDiary(d) {
-  if (!d) return '<p class="muted">Diary numbers are unavailable (run the play diary migration).</p>';
-  const f = d.funnel_30d, steps = [['Opened 10nis', f.open], ['Did onboarding', f.onboard], ['Started playing', f.play_start],
-    ['Logged a game', f.play_game], ['Finished a session', f.play_end], ['Shared a summary', f.play_share]];
+const tile = (k, v, s) => `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${typeof v === 'string' ? esc(v) : fmt(v)}</div><div class="s">${s || '&nbsp;'}</div></div>`;
+const wkDay = w => new Date(w + 'T00:00').toLocaleDateString('id-ID', {day: 'numeric', month: 'short'});
+const FEATURE = {diary: 'Diary main', coaching: 'Catatan coaching', gear: 'Gear', mabar: 'Mabar (host)'};
+const SOURCE = {latihan: 'Halaman /latihan', pin: 'Link game PIN', share: 'Link share hasil', threads: 'Threads', ig: 'Instagram', wa: 'WhatsApp',
+  fb: 'Facebook', search: 'Pencarian', home: 'Ikon home screen', other: 'Situs lain', direct: 'Langsung'};
+const STYPE = {poly: 'Poly', multi: 'Multifilamen', syn: 'Synthetic gut', gut: 'Natural gut', none: 'Belum diisi'};
+
+// 1. The decision: are the gates met, and is the number of active players growing?
+function viewDecision(d, tr) {
+  const gs = d ? gates(d) : [], met = gs.filter(g => g.v >= g.t).length;
+  const next = gs.filter(g => g.v < g.t).sort((a, b) => b.v / b.t - a.v / a.t)[0];
+  const delta = tr ? tr.wau - tr.wau_prev : 0;
   return `
-  <div class="gates">
-    ${gateCard('Players who finished a diary session', d.players, 30, '', `${fmt(d.players_7d)} this week`)}
-    ${gateCard('Sessions with 3+ games', pct(d.sessions_3plus, d.finished), 50, '%', `${fmt(d.sessions_3plus)} of ${fmt(d.finished)}`)}
-    ${d.sessions_tagged != null ? gateCard('Sessions with a good/bad tag', pct(d.sessions_tagged, d.finished), 70, '%', `${fmt(d.sessions_tagged)} of ${fmt(d.finished)}`)
-      : gateCard('Games with a good/bad tag', pct(d.games_tagged, d.games), 70, '%', `${fmt(d.games_tagged)} of ${fmt(d.games)}`)}
-    ${gateCard('Players back for a 2nd session', pct(d.returning, d.players), 30, '%', `${fmt(d.returning)} of ${fmt(d.players)}`)}
-    ${gateCard('Summaries shared', pct(d.shares, d.finished), 20, '%', `${fmt(d.shares)} shares`)}
+  <div class="decide card">
+    <div class="grow"><p class="k">Gate Fase 1</p><p class="big"><b>${met}</b> dari ${gs.length} tercapai</p>
+      <p class="muted small">${met === gs.length ? 'Semua gate tercapai: fitur baru boleh dibuka lagi.' : next ? `Paling dekat: ${esc(next.k.toLowerCase())} (${fmt(next.v)}${next.u} dari ${fmt(next.t)}${next.u}).` : ''}</p></div>
+    ${tr ? `<div class="grow"><p class="k">Pemain aktif, 7 hari</p><p class="big"><b>${fmt(tr.wau)}</b>
+        <span class="delta ${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}">${delta > 0 ? '▲' : delta < 0 ? '▼' : '='} ${fmt(Math.abs(delta))} vs minggu lalu</span></p>
+      <p class="muted small">Akun yang selesai main, catat coaching, tambah/ubah raket, atau host mabar. Bot tidak terhitung.</p></div>` : ''}
   </div>
-  <div class="tiles" style="margin-top:10px">
-    ${tile('Sessions finished', d.finished, `+${fmt(d.finished_7d)} this week · ${fmt(d.open)} still open`)}
-    ${tile('Games logged', d.games, `${pct(d.wins, d.games)}% won · ${d.finished ? (d.games / d.finished).toFixed(1) : 0} per session`)}
-    ${tile('Games with a score', pct(d.games_scored, d.games) + '%', `${fmt(d.games_scored)} games`)}
-    ${tile('Sessions with a note', pct(d.lessons, d.finished) + '%', `${fmt(d.lessons)} sessions · ${fmt(d.games_noted)} older per-game notes`)}
-    ${d.doubles != null ? tile('Doubles sessions', pct(d.doubles, d.finished) + '%', `${fmt(d.doubles)} of ${fmt(d.finished)} finished`) : ''}
+  ${tr ? `<div class="two">
+    <div class="card"><h3>Pemain aktif per minggu</h3><p class="tot">Senin–Minggu, waktu Jakarta · minggu ini belum selesai</p>
+      ${hbars(tr.weekly.slice().reverse().map(w => ({l: wkDay(w.w), n: w.active, sub: w.new ? `+${w.new} baru` : ''})), 'Belum ada data')}</div>
+  </div>` : ''}
+  ${d ? `<div class="gates" style="margin-top:10px">${gs.map(gateCard).join('')}</div>` : ''}`;
+}
+// 2. Weekly cohorts: of the players who started in a week, how many were active again 1, 2 and 4 weeks later.
+function viewCohorts(tr) {
+  const rows = tr.cohorts.filter(c => c.n);
+  if (!rows.length) return '<p class="muted">Belum ada pemain.</p>';
+  const cell = (v, n) => v == null ? '<td class="na">–</td>'
+    : `<td><span class="heat" style="--p:${pct(v, n)}">${pct(v, n)}%</span> <small>${fmt(v)}</small></td>`;
+  return `<div class="card scroll"><table class="cohort"><tr><th>Mulai minggu</th><th>Pemain baru</th><th>Minggu ke-1</th><th>Minggu ke-2</th><th>Minggu ke-4</th></tr>
+    ${rows.map(c => `<tr><td>${esc(wkDay(c.w))}</td><td>${fmt(c.n)}</td>${cell(c.w1, c.n)}${cell(c.w2, c.n)}${cell(c.w4, c.n)}</tr>`).join('')}
+  </table><p class="muted small" style="margin:8px 0 0">% pemain yang aktif lagi di minggu itu. "–" berarti minggunya belum lewat.</p></div>`;
+}
+// 3. Use per feature, then each feature's own numbers.
+function viewFeatures(d, tr, s) {
+  const g = tr && tr.gear, m = tr && tr.mabar;
+  return `
+  ${tr ? `<div class="card scroll"><table><tr><th>Fitur</th><th>7 hari</th><th>30 hari</th><th>Total</th></tr>
+    ${tr.features.map(f => `<tr><td><b>${esc(FEATURE[f.f] || f.f)}</b></td><td>${fmt(f.d7)}</td><td>${fmt(f.d30)}</td><td>${fmt(f.ever)}</td></tr>`).join('')}
+    <tr><td class="muted">Pakai 2+ fitur</td><td></td><td>${fmt(tr.multi_30d)} <small class="muted">dari ${fmt(tr.active_30d)}</small></td><td></td></tr>
+  </table><p class="muted small" style="margin:8px 0 0">Jumlah akun.</p></div>` : ''}
+  <h3 class="h3">Diary main</h3>
+  ${d ? viewDiary(d) : '<p class="muted">Angka diary tidak tersedia.</p>'}
+  ${g ? `<h3 class="h3">Gear</h3>
+  <div class="tiles">
+    ${tile('Raket', g.rackets, `${fmt(g.players)} pemain · ${fmt(g.catalog)} dari katalog`)}
+    ${tile('Ganti senar', g.restrings, `${fmt(g.restrings_30d)} dalam 30 hari`)}
+    ${tile('Tanggal pasang diisi', pct(g.dated, g.rackets) + '%', `${fmt(g.dated)} dari ${fmt(g.rackets)} raket`)}
+    ${tile('Senar merah / oranye', `${fmt(g.red)} / ${fmt(g.amber)}`, 'estimasi 4 jam/minggu')}
+  </div>
+  <div class="two" style="margin-top:10px"><div class="card"><h3>Tipe senar</h3><p class="tot">Senar utama di tiap raket</p>
+    ${hbars(g.types.map(t => ({l: STYPE[t.t] || t.t, n: t.n})), 'Belum ada raket')}</div></div>` : ''}
+  <h3 class="h3">Mabar</h3>
+  <div class="tiles">
+    ${tile('Sesi', s.sessions, `+${fmt(s.sessions_7d)} minggu ini · ${fmt(s.sessions_finished)} selesai`)}
+    ${m ? tile('Selesai, 30 hari', m.finished_manual_30d + m.finished_auto_30d, `${fmt(m.finished_manual_30d)} manual · ${fmt(m.finished_auto_30d)} tutup otomatis`) : ''}
+    ${tile('Match', s.matches, `+${fmt(s.matches_7d)} minggu ini · ${fmt(s.rounds)} ronde`)}
+    ${tile('Pemain', s.players, `${fmt(s.players_linked)} punya akun · ${fmt(s.players_rated)} punya level`)}
+    ${tile('Game PIN aktif', s.pins_active, `${fmt(s.followers)} HP dengan notifikasi · ${fmt(s.joins_7d)} join minggu ini`)}
+  </div>`;
+}
+function viewDiary(d) {
+  const f = d.funnel_30d, steps = [['Buka 10nis', f.open], ['Onboarding', f.onboard], ['Mulai main', f.play_start],
+    ['Catat game', f.play_game], ['Selesai main', f.play_end], ['Bagikan ringkasan', f.play_share]];
+  return `
+  <div class="tiles">
+    ${tile('Sesi selesai', d.finished, `+${fmt(d.finished_7d)} minggu ini · ${fmt(d.open)} masih terbuka`)}
+    ${tile('Game dicatat', d.games, `${pct(d.wins, d.games)}% menang · ${d.finished ? (d.games / d.finished).toFixed(1) : 0} per sesi`)}
+    ${tile('Game dengan skor', pct(d.games_scored, d.games) + '%', `${fmt(d.games_scored)} game`)}
+    ${tile('Sesi dengan catatan', pct(d.lessons, d.finished) + '%', `${fmt(d.lessons)} sesi`)}
+    ${d.doubles != null ? tile('Sesi double', pct(d.doubles, d.finished) + '%', `${fmt(d.doubles)} dari ${fmt(d.finished)}`) : ''}
   </div>
   <div class="two" style="margin-top:10px">
-    <div class="card"><h3>Funnel, last 30 days</h3><p class="tot">Phones, each counted once per step</p>
-      ${hbars(steps.map(([l, n]) => ({l, n, sub: f.open ? pct(n, f.open) + '%' : ''})), 'No events yet')}</div>
-    <div class="card"><h3>Most marked “kurang”, 30 days</h3><p class="tot">What players say cost them games</p>
-      ${hbars(d.bad_30d.slice(0, 8).map(r => ({l: TAG_ID[r.tag] || r.tag, n: r.n})), 'Nothing marked yet')}</div>
-    <div class="card"><h3>Most marked “bagus”, 30 days</h3><p class="tot">What went well</p>
-      ${hbars(d.good_30d.slice(0, 8).map(r => ({l: TAG_ID[r.tag] || r.tag, n: r.n})), 'Nothing marked yet')}</div>
+    <div class="card"><h3>Funnel, 30 hari</h3><p class="tot">HP, masing-masing dihitung sekali per langkah</p>
+      ${hbars(steps.map(([l, n]) => ({l, n, sub: f.open ? pct(n, f.open) + '%' : ''})), 'Belum ada event')}</div>
+    <div class="card"><h3>Paling sering “kurang”, 30 hari</h3><p class="tot">Yang bikin kalah menurut pemain</p>
+      ${hbars(d.bad_30d.slice(0, 8).map(r => ({l: TAG_ID[r.tag] || r.tag, n: r.n})), 'Belum ada')}</div>
+    <div class="card"><h3>Paling sering “bagus”, 30 hari</h3><p class="tot">Yang jalan bagus</p>
+      ${hbars(d.good_30d.slice(0, 8).map(r => ({l: TAG_ID[r.tag] || r.tag, n: r.n})), 'Belum ada')}</div>
   </div>
-  ${d.les != null ? `<h3 style="margin:18px 0 8px">Coaching journal</h3>
+  ${d.les != null ? `<h3 class="h3">Catatan coaching</h3>
   <div class="two">
     <div class="tiles">
-      ${tile('Lessons logged', d.les, `+${fmt(d.les_7d)} this week`)}
-      ${tile('Players with a lesson', d.les_players, `${fmt(d.les_pr_tries)} homework tries`)}
+      ${tile('Catatan coaching', d.les, `+${fmt(d.les_7d)} minggu ini`)}
+      ${tile('Pemain', d.les_players, `${fmt(d.les_pr_tries)} kali coba PR`)}
     </div>
-    <div class="card"><h3>What coaches worked on, 30 days</h3><p class="tot">Topics picked in Catatan coaching</p>
-      ${hbars(d.les_topics_30d.slice(0, 8).map(r => ({l: TAG_ID[r.tag] || r.tag, n: r.n})), 'No lessons yet')}</div>
+    <div class="card"><h3>Yang dilatih pelatih, 30 hari</h3><p class="tot">Topik di Catatan coaching</p>
+      ${hbars(d.les_topics_30d.slice(0, 8).map(r => ({l: TAG_ID[r.tag] || r.tag, n: r.n})), 'Belum ada')}</div>
   </div>` : ''}
   <div class="charts" style="margin-top:10px">
     ${barChart('Diary sessions', d.daily, 'plays')}
     ${barChart('Games logged', d.daily, 'games')}
   </div>`;
 }
-const tile = (k, v, s) => `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${typeof v === 'string' ? esc(v) : fmt(v)}</div><div class="s">${s || '&nbsp;'}</div></div>`;
-function viewOverview() {
-  if (!stats) return '<p class="muted">Loading numbers…</p>';
-  const s = stats;
-  return `
-  <h2>Fase 1 · Main sendiri (diary)</h2>
-  ${viewDiary(s.play)}
-  <h2>People</h2>
-  <div class="tiles">
-    ${tile('Accounts', s.accounts, `+${fmt(s.accounts_7d)} this week · +${fmt(s.accounts_30d)} in 30 days`)}
-    ${tile('Signed in, 7 days', s.signed_in_7d, 'accounts active')}
-    ${s.guests != null ? tile('Guests', s.guests, `+${fmt(s.guests_7d)} this week · no Google yet`) : ''}
-    ${tile('Phones today', s.phones_today, 'opened 10nis (incl. no account)')}
-    ${tile('Phones, 7 days', s.phones_7d, `${fmt(s.phones_30d)} in 30 days · ${fmt(s.phones)} ever`)}
-    ${tile('Home-screen installs', s.installs, 'phones')}
+// 4. Where new phones come from (the first open on a phone, since 0.12.5).
+function viewSources(tr) {
+  return `<div class="two">
+    <div class="card"><h3>HP baru per sumber, 30 hari</h3><p class="tot">Angka kecil: yang lanjut melakukan sesuatu (main, coaching, raket, mabar)</p>
+      ${hbars(tr.sources.map(r => ({l: SOURCE[r.src] || r.src, n: r.phones, sub: `${fmt(r.doers)} aktif`})), 'Belum ada data. Mulai terkumpul sejak versi 0.12.5.')}</div>
+    <div class="card"><h3>Topik /latihan yang membawa HP baru</h3><p class="tot">30 hari</p>
+      ${hbars(tr.topics.map(r => ({l: r.topic, n: r.phones})), 'Belum ada')}</div>
+  </div>`;
+}
+// 5. Accounts: guests saving to Google, and phones that keep having to sign in again.
+function viewAccounts(tr, s) {
+  const a = tr && tr.accounts;
+  return `<div class="tiles">
+    ${tile('Akun', s.accounts, `+${fmt(s.accounts_7d)} minggu ini · +${fmt(s.accounts_30d)} dalam 30 hari`)}
+    ${s.guests != null ? tile('Tamu', s.guests, `+${fmt(s.guests_7d)} minggu ini · belum Google`) : ''}
+    ${a ? tile('Tamu → Google, 30 hari', pct(a.linked_30d + a.merged_30d, a.guests_30d) + '%', `${fmt(a.linked_30d)} disambung · ${fmt(a.merged_30d)} digabung · ${fmt(a.guests_30d)} tamu baru`) : ''}
+    ${a ? tile('Login ulang > 2x, 7 hari', a.relogin_phones_7d, `HP · ${fmt(a.signins_7d)} login dari ${fmt(a.signin_phones_7d)} HP · ${fmt(a.relogin_phones_30d)} HP dalam 30 hari`) : ''}
+    ${tile('Laporan terbuka', s.feedback_open, '<a href="#" onclick="goTab(\'feedback\'); return false">Baca</a>')}
+    ${tile('Error, 7 hari', s.errors_7d, '<a href="#" onclick="goTab(\'errors\'); return false">Lihat</a>')}
+  </div>`;
+}
+// 6. Technical numbers, folded away.
+function viewTech(s) {
+  return `<details class="card tech"><summary>Teknis: HP, grafik harian, browser, versi app</summary>
+  <div class="tiles" style="margin-top:12px">
+    ${tile('HP hari ini', s.phones_today, 'buka 10nis (termasuk tanpa akun)')}
+    ${tile('HP, 7 hari', s.phones_7d, `${fmt(s.phones_30d)} dalam 30 hari · ${fmt(s.phones)} total`)}
+    ${tile('Login, 7 hari', s.signed_in_7d, 'akun aktif')}
+    ${tile('Install home screen', s.installs, 'HP')}
   </div>
-  <h2>Mabar (mixer)</h2>
-  <div class="tiles">
-    ${tile('Sessions', s.sessions, `+${fmt(s.sessions_7d)} this week · ${fmt(s.sessions_finished)} finished`)}
-    ${tile('Matches', s.matches, `+${fmt(s.matches_7d)} this week · ${fmt(s.rounds)} rounds`)}
-    ${tile('Social sessions', s.formats.social, `${pl(s.formats.competitive, 'competitive session')}`)}
-    ${tile('Players', s.players, `${fmt(s.players_linked)} with an account · ${fmt(s.players_rated)} rated`)}
-    ${tile('Live game PINs', s.pins_active, `${fmt(s.followers)} phones with notifications · ${fmt(s.joins_7d)} joins this week`)}
-  </div>
-  <h2>Health</h2>
-  <div class="tiles">
-    ${tile('Open reports', s.feedback_open, '<a href="#" onclick="goTab(\'feedback\'); return false">Read them</a>')}
-    ${tile('Errors, 7 days', s.errors_7d, '<a href="#" onclick="goTab(\'errors\'); return false">See errors</a>')}
-  </div>
-  <h2>Last 30 days</h2>
-  <div class="charts">
+  <div class="charts" style="margin-top:12px">
     ${barChart('Active phones', s.daily, 'phones')}
     ${barChart('Matches', s.daily, 'matches')}
     ${barChart('Sessions', s.daily, 'sessions')}
     ${barChart('Sign-ups', s.daily, 'signups')}
   </div>
-  <details class="card"><summary>Show as a table</summary><div class="scroll"><table>
-    <tr><th>Day</th><th>Phones</th><th>Matches</th><th>Sessions</th><th>Sign-ups</th></tr>
+  <div class="scroll"><table>
+    <tr><th>Hari</th><th>HP</th><th>Match</th><th>Sesi</th><th>Daftar</th></tr>
     ${s.daily.slice().reverse().map(d => `<tr><td>${esc(day(d.day))}</td><td>${d.phones}</td><td>${d.matches}</td><td>${d.sessions}</td><td>${d.signups}</td></tr>`).join('')}
-  </table></div></details>
-  <h2>Browsers, last 30 days</h2>
-  ${s.browsers ? `<div class="card scroll"><table><tr><th>Browser</th><th>Phones</th><th>Did something</th><th>Last 7 days</th><th>Last seen</th></tr>
+  </table></div>
+  <h3 class="h3">Browser, 30 hari</h3>
+  ${s.browsers ? `<div class="scroll"><table><tr><th>Browser</th><th>HP</th><th>Melakukan sesuatu</th><th>7 hari</th><th>Terakhir</th></tr>
     ${s.browsers.map(b => `<tr><td>${esc(b.browser)}</td><td>${fmt(b.phones)}</td><td>${fmt(b.active)}</td><td>${fmt(b.phones_7d)}</td><td>${esc(when(b.last_seen))}</td></tr>`).join('')}
   </table></div>
-  <p class="muted small" style="margin:6px 2px 0">Each phone counts once, under the browser it last opened 10nis with. "Did something" means it generated a round, finished a session, imported players or signed in; phones that only opened the page are often link-preview bots. Browser types are recorded since 0.5.1.</p>`
-    : '<p class="muted">Browser numbers are unavailable right now.</p>'}
-  <h2>App versions in use</h2>
-  <div class="card scroll"><table><tr><th>Version</th><th>Phones</th><th>Last 7 days</th><th>Last seen</th></tr>
+  <p class="muted small" style="margin:6px 2px 0">Tiap HP dihitung sekali, pakai browser terakhirnya. "Melakukan sesuatu" = buat ronde, selesai sesi, impor pemain, atau login; HP yang cuma buka halaman sering bot preview link.</p>`
+    : '<p class="muted">Angka browser tidak tersedia.</p>'}
+  <h3 class="h3">Versi app</h3>
+  <div class="scroll"><table><tr><th>Versi</th><th>HP</th><th>7 hari</th><th>Terakhir</th></tr>
     ${s.versions.map(v => `<tr><td>${esc(v.version)}</td><td>${fmt(v.phones)}</td><td>${fmt(v.phones_last_7_days)}</td><td>${esc(when(v.last_seen))}</td></tr>`).join('')}
-  </table></div>`;
+  </table></div></details>`;
+}
+function viewOverview() {
+  if (!stats) return '<p class="muted">Memuat angka…</p>';
+  const s = stats, tr = s.traction;
+  return `
+  ${!tr ? '<p class="hint card">Bagian traction butuh migrasi <code>20261118000000_admin_traction.sql</code>.</p>' : ''}
+  <h2>1 · Keputusan</h2>
+  ${viewDecision(s.play, tr)}
+  ${tr ? `<h2>2 · Retensi per minggu</h2>${viewCohorts(tr)}` : ''}
+  <h2>3 · Pemakaian fitur</h2>
+  ${viewFeatures(s.play, tr, s)}
+  ${tr ? `<h2>4 · Asal pemain</h2>${viewSources(tr)}` : ''}
+  <h2>5 · Akun & kesehatan</h2>
+  ${viewAccounts(tr, s)}
+  <h2>6 · Teknis</h2>
+  ${viewTech(s)}`;
 }
 const searchBox = (kind, ph) => `<div class="row" style="margin-bottom:10px"><input class="in grow" placeholder="${esc(ph)}" value="${esc(query[kind] || '')}"
   oninput="search('${kind}', this.value)" aria-label="Search"></div>`;

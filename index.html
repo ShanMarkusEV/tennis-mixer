@@ -578,8 +578,10 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.12.4';
+const APP_VERSION = '0.12.5';
 const KEY = 'tennis-mixer-v1';
+// Where this visit came in (read before routing rewrites the address), for the "where do players come from" count.
+const ENTRY = {path: location.pathname, ref: document.referrer};
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -3141,10 +3143,25 @@ function browserKind() {
     : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'other';
   return `${os} ${br}`;
 }
-// "open" counts once per day per phone, after the sign-in state is known.
+// Where a new phone came from: a /latihan topic, a game PIN or share link, an in-app browser, a referrer, or
+// direct. Only the coarse source is kept (and the /latihan topic), never the full address or referrer.
+function entrySource(br) {
+  const p = ENTRY.path, t = (p.match(/^\/latihan\/([a-z0-9-]+)/) || [])[1];
+  let host = '';
+  try { host = ENTRY.ref ? new URL(ENTRY.ref).hostname : ''; } catch (e) {}
+  const src = t || p === '/latihan' ? 'latihan' : /^\/j\//.test(p) ? 'pin' : /^\/s\//.test(p) ? 'share'
+    : /Threads/.test(br) || /threads\./.test(host) ? 'threads' : /Instagram/.test(br) || /instagram\./.test(host) ? 'ig'
+    : /WhatsApp/.test(br) || /whatsapp\./.test(host) ? 'wa' : /Facebook/.test(br) || /facebook\./.test(host) ? 'fb'
+    : /(^|\.)google\.|bing\.|duckduckgo\./.test(host) ? 'search' : standalone() ? 'home'
+    : host && host !== location.hostname ? 'other' : 'direct';
+  return t ? {src, topic: t} : {src};
+}
+// "open" counts once per day per phone, after the sign-in state is known. The very first open also says where from.
 setTimeout(() => {
-  try { const t = today(); if (localStorage.getItem('10nis-opened') === t) return; localStorage.setItem('10nis-opened', t); } catch (e) {}
-  track('open', {standalone: standalone(), br: browserKind()});
+  let first = false;
+  try { const t = today(), o = localStorage.getItem('10nis-opened'); if (o === t) return; first = !o; localStorage.setItem('10nis-opened', t); } catch (e) {}
+  const br = browserKind();
+  track('open', {standalone: standalone(), br, ...(first && br !== 'bot' ? entrySource(br) : {})});
 }, 2500);
 let me = null; // the signed-in user's own player row and rating, once loaded
 
