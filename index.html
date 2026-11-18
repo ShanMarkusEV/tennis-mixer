@@ -578,7 +578,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.12.3';
+const APP_VERSION = '0.12.4';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1590,7 +1590,7 @@ function startPlay() {
   if (openPlay()) { goPage('catat'); return; }
   const place = (document.getElementById('place') || {}).value || '', format = lastFormat();
   diary.unshift({id: crypto.randomUUID(), started_at: new Date().toISOString(), ended_at: null, place: place.trim().slice(0, 120) || null,
-    format, games: [], good: [], bad: [], lesson: null, racket_id: lastRacket() || null, dirty: true});
+    format, games: [], good: [], bad: [], lesson: null, dirty: true});
   saveDiary(); track('play_start', {format}); render(); window.scrollTo(0, 0);
 }
 // Singles or doubles, picked before starting; the last choice is remembered. A doubles loss counts half on the rating.
@@ -1639,10 +1639,7 @@ function viewCatat() {
       <p class="muted" style="font-size:12.5px;margin:8px 0 0">${lastFormat() === 'double' ? 'Double: menang dihitung penuh, kalah dihitung setengah ke level kamu.' : 'Single: menang dan kalah dihitung penuh ke level kamu.'}</p>
       <p class="label" style="margin-top:14px">Main di mana? (opsional)</p>
       <input id="place" class="linkin" maxlength="120" placeholder="Contoh: Senayan, lapangan komplek" value="${esc(last)}" oninput="startPlay.place = this.value">
-      ${rackets.length ? `<p class="label" style="margin-top:14px">Pakai raket apa?</p>
-        <div class="chips">${rackets.map(r => `<button class="tagchip ${lastRacket() === r.id ? 'on' : ''}" onclick="setRacket('${r.id}')">${esc(racketName(r))}</button>`).join('')}
-          <button class="tagchip ${lastRacket() ? '' : 'on'}" onclick="setRacket('')">Lainnya</button></div>
-        <p class="muted" style="font-size:12.5px;margin:8px 0 0">Buat hitung umur senar di Gear.</p>` : ''}</div>
+</div>
     <button class="btn primary big" onclick="startPlay()">${ic('ball')}Mulai main</button>
     <div class="row" style="justify-content:center;margin-top:10px"><button class="btn text" onclick="goPage('coaching')">🧑‍🏫 Habis coaching? Catat di sini</button></div>
     ${ft ? `<div class="sec-head"><p class="label">Ingat fokus kamu</p></div><div class="card"><b>${esc(TAGS[ft].bad)}:</b> “${esc(coachCue(ft) || COACH[ft].cue)}”${coachCue(ft) ? ' <span class="muted">(kata pelatih)</span>' : ''}</div>` : ''}
@@ -2322,14 +2319,6 @@ const tensionText = r => r.tension_main ? `${fmtNum(r.tension_main)}${r.tension_
 const shortDay = d => new Date(d + 'T12:00:00').toLocaleDateString('id-ID', {day: 'numeric', month: 'short',
   ...(d.slice(0, 4) !== todayISO().slice(0, 4) ? {year: 'numeric'} : {})});
 const agoText = days => days < 1 ? 'hari ini' : days < 7 ? `${days} hari lalu` : days < 60 ? `${Math.floor(days / 7)} minggu lalu` : `${Math.floor(days / 30)} bulan lalu`;
-// The racket for the next session: the last one picked, '' for "Lainnya", else the newest one in use.
-function lastRacket() {
-  let id = null;
-  try { id = localStorage.getItem('10nis-last-racket'); } catch (e) {}
-  const a = rackets;
-  return a.some(r => r.id === id) ? id : id === '' ? '' : (a[0] || {}).id || '';
-}
-function setRacket(id) { try { localStorage.setItem('10nis-last-racket', id); } catch (e) {} render(); }
 // Hours played in an average week, set once in Gear (never timed). String wear = weeks since stringing × this.
 const GEAR_WK = [2, 4, 6, 8, 12];
 const gearHrs = () => { const v = +readJSON('10nis-gear-wk', 4); return GEAR_WK.includes(v) ? v : 4; };
@@ -2337,10 +2326,9 @@ function setGearHrs(v) { try { localStorage.setItem('10nis-gear-wk', JSON.string
 function wearOf(r) {
   if (!r.strung_on) return null;
   const since = new Date(r.strung_on + 'T00:00:00');
-  const n = diary.filter(p => p.racket_id === r.id && new Date(p.started_at) >= since).length;
   const days = Math.max(0, Math.floor((Date.now() - since) / 864e5)), life = lifeOf(r), hrs = Math.round(days / 7 * gearHrs());
   const pct = Math.max(hrs / life.h, days / 7 / life.w);
-  return {n, hrs, days, life, pct, level: pct >= 1 ? 'red' : pct >= .8 ? 'amber' : 'ok'};
+  return {hrs, days, life, pct, level: pct >= 1 ? 'red' : pct >= .8 ? 'amber' : 'ok'};
 }
 function wearBlock(r, withBtn) {
   const w = wearOf(r);
@@ -2491,7 +2479,7 @@ function saveGearForm() {
   const i = rackets.findIndex(x => x.id === r.id);
   if (i >= 0) rackets[i] = r; else rackets.unshift(r);
   saveGear();
-  if (!old) { track('gear_add', {catalog: !!r.model_id, string: !!r.string_name}); try { localStorage.setItem('10nis-last-racket', r.id); } catch (e) {} }
+  if (!old) { track('gear_add', {catalog: !!r.model_id, string: !!r.string_name}); }
   if (f.mode === 'string') track('gear_restring', {catalog: !!r.string_id, type: r.string_type});
   gf = null;
   page = {kind: 'geardetail', slug: r.id};
@@ -2533,14 +2521,13 @@ function viewGearDetail() {
   if (!gearCat) loadGearCat();
   const spec = catItem('rackets', r.model_id), w = wearOf(r), hist = r.restrings || [];
   const specs = spec ? [spec.head && `${spec.head} sq in`, spec.weight && `${spec.weight} g`, spec.pattern].filter(Boolean).join(' · ') : '';
-  const total = diary.filter(p => p.racket_id === r.id).length, t = tensionText(r);
+  const t = tensionText(r);
   document.title = `${racketName(r)} · 10nis`;
   return `
   <button class="backlink" onclick="goPage('gear')">← Raket kamu</button>
   <div class="ghead">${gearPic('rackets', r.model_id, 'ghero')}
     <div class="grow"><h1 class="gname">${esc(racketName(r))}</h1>
-      ${r.nickname ? `<p class="gsub">${esc(r.name)}</p>` : ''}${specs ? `<p class="gsub">${esc(specs)}</p>` : ''}
-      ${total ? `<p class="gsub">${total} sesi main</p>` : ''}</div></div>
+      ${r.nickname ? `<p class="gsub">${esc(r.name)}</p>` : ''}${specs ? `<p class="gsub">${esc(specs)}</p>` : ''}</div></div>
   <div class="card"><p class="label">Senar sekarang</p>
     ${r.string_name || r.strung_on ? `<div class="rtop">${r.string_id ? gearPic('strings', r.string_id, 'rthumb sm') : ''}
       <span class="grow"><b>${esc(stringText(r) || 'Senar')}</b><small>${esc([typeLabel(r), gaugeText(r.gauge)].filter(Boolean).join(' · '))}</small></span>
