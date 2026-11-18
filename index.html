@@ -576,7 +576,7 @@ details.past .match{box-shadow:none}
 
 <script>
 // Bump with every release (also reported with usage counts, so we can see which versions are in use).
-const APP_VERSION = '0.12.1';
+const APP_VERSION = '0.12.2';
 const KEY = 'tennis-mixer-v1';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2535,7 +2535,7 @@ function route() {
       : {kind: {ubah: 'gearform', senar: 'gearstring'}[gr[2]] || 'geardetail', slug: gr[1]})
     : path === '/mulai' ? {kind: 'mulai'}
     // First visit, nothing on this phone: onboarding. Someone following a game PIN goes straight to it.
-    : path === '/' ? (follow.pin ? null : FIRST_VISIT && !onboard && !diary.length ? {kind: 'mulai'} : {kind: 'beranda'})
+    : path === '/' ? (followFresh() ? null : FIRST_VISIT && !onboard && !diary.length ? {kind: 'mulai'} : {kind: 'beranda'})
     : {kind: '404'};
   if (PATH_TAB[path]) S.tab = PATH_TAB[path];
   if (path === '/' && !page) S.tab = 'join';
@@ -3983,13 +3983,16 @@ const FOLLOW_KEY = '10nis-follow';
 const VAPID_PUBLIC_KEY = 'BM_Saadl2okzD7CQlHWrmixmiTflfeKQ3khy5pAHa5ex3A11v26ukzVwBpLfhu_Jiu1ByiHcfOAy3e-Z1_CUSho';
 let follow = (() => { try { return JSON.parse(localStorage.getItem(FOLLOW_KEY)) || {}; } catch (e) { return {}; } })();
 let game = null, gameErr = null, joinPin = '', flash = false;
+// Opening the app at / lands on a followed game only while it is fresh (joined in the last 6 hours); after that,
+// Beranda. The game stays one tap away in Mabar → Gabung until the player taps Exit.
+const followFresh = () => !!follow.pin && Date.now() - (follow.at || 0) < 6 * 36e5;
 function saveFollow() {
   try { localStorage.setItem(FOLLOW_KEY, JSON.stringify(follow)); } catch (e) {}
   if ('caches' in window) caches.open('10nis-follow').then(c => c.put('/__follow', new Response(JSON.stringify(follow)))).catch(() => {});
 }
 function openGame(pin) {
   if (follow.pin !== pin) { follow = {pin}; game = null; track('join', {via: 'link'}); }
-  gameErr = null; saveFollow();
+  follow.at = Date.now(); gameErr = null; saveFollow();
   S.tab = 'join';
 }
 if (follow.pin) saveFollow(); // refresh the service worker's copy
@@ -4064,7 +4067,7 @@ async function joinGame() {
   const v = String(joinPin).replace(/\D/g, '');
   if (!/^[1-9]\d{5}$/.test(v)) { toast('Game PINs have 6 digits'); return; }
   if (follow.pin !== v) { follow = {pin: v}; game = null; track('join', {via: 'pin'}); }
-  gameErr = null; joinPin = ''; saveFollow();
+  follow.at = Date.now(); gameErr = null; joinPin = ''; saveFollow();
   render(); await loadGame();
 }
 async function pickMe(id) {
